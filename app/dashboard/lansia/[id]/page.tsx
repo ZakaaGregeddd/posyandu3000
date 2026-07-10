@@ -1,0 +1,481 @@
+'use client';
+
+import React, { useState, useEffect, use } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter } from '@/components/ui/dialog';
+import StatusHidupControl from '@/components/shared/StatusHidupControl';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { getLansiaById, updateLansia, getLansiaRecords, addLansiaRecord } from '@/lib/data/db-service';
+import { Lansia, LansiaRecord, StatusHidup } from '@/lib/data/types';
+import { calculateAge, calculateIMT, classifyCategory } from '@/lib/utils/health';
+
+export default function LansiaDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const router = useRouter();
+  const { id } = use(params);
+
+  // States
+  const [lansia, setLansia] = useState<Lansia | null>(null);
+  const [records, setRecords] = useState<LansiaRecord[]>([]);
+  const [isExamModalOpen, setIsExamModalOpen] = useState(false);
+
+  // Exam Form States
+  const [tanggalPemeriksaan, setTanggalPemeriksaan] = useState(new Date().toISOString().split('T')[0]);
+  const [tinggiBadan, setTinggiBadan] = useState('');
+  const [beratBadan, setBeratBadan] = useState('');
+  const [sistolik, setSistolik] = useState('');
+  const [diastolik, setDiastolik] = useState('');
+  const [riwayatPenyakit, setRiwayatPenyakit] = useState('-');
+  const [obat, setObat] = useState('-');
+  const [penyakitBaru, setPenyakitBaru] = useState('-');
+  const [examError, setExamError] = useState('');
+
+  useEffect(() => {
+    const data = getLansiaById(id);
+    if (!data) {
+      router.push('/dashboard/lansia');
+      return;
+    }
+    setLansia(data);
+    setRecords(getLansiaRecords(id));
+  }, [id, router]);
+
+  if (!lansia) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-tertiary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const age = calculateAge(lansia.tanggalLahir);
+  const isDeceased = lansia.statusHidup === 'Meninggal';
+  const category = classifyCategory(lansia.tanggalLahir, 'lansia');
+  const canAddRecord = !isDeceased;
+
+  const handleStatusChange = (status: StatusHidup, tanggal?: string, penyebab?: string) => {
+    const updated = {
+      ...lansia,
+      statusHidup: status,
+      tanggalMeninggal: tanggal,
+      penyebabMeninggal: penyebab
+    };
+    updateLansia(updated);
+    setLansia(updated);
+  };
+
+  const handleAddExam = (e: React.FormEvent) => {
+    e.preventDefault();
+    setExamError('');
+
+    if (!tanggalPemeriksaan || !tinggiBadan || !beratBadan || !sistolik || !diastolik) {
+      setExamError('Semua parameter vital wajib diisi');
+      return;
+    }
+
+    const tbNum = parseFloat(tinggiBadan);
+    const bbNum = parseFloat(beratBadan);
+    const sisNum = parseInt(sistolik);
+    const diaNum = parseInt(diastolik);
+
+    if (isNaN(tbNum) || tbNum <= 0 || isNaN(bbNum) || bbNum <= 0 || isNaN(sisNum) || isNaN(diaNum)) {
+      setExamError('Masukkan parameter vital berupa angka yang valid');
+      return;
+    }
+
+    const imtVal = calculateIMT(bbNum, tbNum);
+
+    const newRec = addLansiaRecord({
+      lansiaId: id,
+      tanggalPemeriksaan,
+      tinggiBadan: tbNum,
+      beratBadan: bbNum,
+      tekananDarahSistolik: sisNum,
+      tekananDarahDiastolik: diaNum,
+      riwayatPenyakit: riwayatPenyakit || '-',
+      obat: obat || '-',
+      penyakitBaru: penyakitBaru || '-',
+      imt: imtVal
+    });
+
+    setRecords([...records, newRec].sort((a, b) => new Date(a.tanggalPemeriksaan).getTime() - new Date(b.tanggalPemeriksaan).getTime()));
+    setIsExamModalOpen(false);
+    resetExamForm();
+  };
+
+  const resetExamForm = () => {
+    setTanggalPemeriksaan(new Date().toISOString().split('T')[0]);
+    setTinggiBadan('');
+    setBeratBadan('');
+    setSistolik('');
+    setDiastolik('');
+    setRiwayatPenyakit('-');
+    setObat('-');
+    setPenyakitBaru('-');
+    setExamError('');
+  };
+
+  const latestRecord = records[records.length - 1];
+
+  // Chart data
+  const chartData = records.map(r => ({
+    tanggal: new Date(r.tanggalPemeriksaan).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+    'IMT (BB/TB²)': r.imt,
+    'Sistolik (mmHg)': r.tekananDarahSistolik,
+    'Diastolik (mmHg)': r.tekananDarahDiastolik,
+  }));
+
+  return (
+    <div className="max-w-5xl mx-auto w-full space-y-8 animate-in fade-in duration-300">
+      {/* Breadcrumbs */}
+      <div className="flex items-center gap-2 text-sm text-on-surface-variant font-medium">
+        <Link href="/dashboard/lansia" className="hover:text-tertiary">Lansia</Link>
+        <span className="text-xs">/</span>
+        <span className="text-on-background font-bold">{lansia.nama}</span>
+      </div>
+
+      {/* Profile Header */}
+      <Card className="p-6 border border-outline-variant/20 relative overflow-hidden bg-white">
+        <div className="flex flex-col md:flex-row justify-between items-start gap-6">
+          <div className="space-y-3 flex-1">
+            <div>
+              <h2 className="font-headline text-2xl font-bold text-on-background">{lansia.nama}</h2>
+              <div className="flex gap-2 items-center mt-1.5 flex-wrap">
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                  category.includes('Resiko') 
+                    ? 'bg-red-50 text-red-700 border-red-200' 
+                    : category.includes('Pralansia')
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-orange-50 text-orange-700 border-orange-200'
+                }`}>
+                  {category.toUpperCase()}
+                </span>
+                <span className="text-xs text-on-surface-variant">•</span>
+                <span className="text-xs font-semibold text-on-surface-variant">No. KK: {lansia.noKk}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-6 text-sm text-on-surface-variant pt-2 border-t border-outline-variant/10">
+              <p><span className="font-medium text-on-surface">TTL:</span> {lansia.tempatLahir}, {new Date(lansia.tanggalLahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              <p><span className="font-medium text-on-surface">Usia:</span> {age.years} tahun</p>
+              <p><span className="font-medium text-on-surface">Nama Ayah:</span> {lansia.namaAyah}</p>
+              <p><span className="font-medium text-on-surface">Nama Ibu:</span> {lansia.namaIbu}</p>
+              <p><span className="font-medium text-on-surface">Jenis Kelamin:</span> {lansia.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4 items-stretch md:items-end w-full md:w-auto">
+            {/* Status Control */}
+            <StatusHidupControl
+              currentStatus={lansia.statusHidup}
+              tanggalMeninggal={lansia.tanggalMeninggal}
+              penyebabMeninggal={lansia.penyebabMeninggal}
+              onStatusChange={handleStatusChange}
+            />
+
+            {isDeceased && (
+              <div className="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 p-3 rounded-xl max-w-xs flex gap-2 items-start">
+                <span className="material-symbols-outlined text-sm">block</span>
+                <p>Riwayat entri dikunci karena status kematian anggota.</p>
+              </div>
+            )}
+
+            <Button 
+              onClick={() => setIsExamModalOpen(true)}
+              disabled={!canAddRecord}
+              className="flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed w-full md:w-auto"
+            >
+              <span className="material-symbols-outlined">add_circle</span>
+              <span>Update Pemeriksaan</span>
+            </Button>
+
+            <Button
+              onClick={() => {
+                const confirmDel = window.confirm("Apakah Anda yakin ingin menghapus data lansia ini?");
+                if (confirmDel) {
+                  import('@/lib/data/db-service').then(m => {
+                    m.deleteLansia(lansia.id);
+                    router.push('/dashboard/lansia');
+                  });
+                }
+              }}
+              variant="destructive"
+              className="flex items-center justify-center gap-2 shadow-sm cursor-pointer w-full md:w-auto animate-all"
+            >
+              <span className="material-symbols-outlined text-sm">delete</span>
+              <span>Hapus</span>
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Stats Bento Grid */}
+      <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="p-5 flex flex-col justify-between h-28 bg-white border border-outline-variant/20">
+          <span className="text-xs text-on-surface-variant font-medium">IMT Terakhir</span>
+          <p className="text-2xl font-extrabold text-tertiary">{latestRecord?.imt || '-'}</p>
+        </Card>
+        <Card className="p-5 flex flex-col justify-between h-28 bg-white border border-outline-variant/20">
+          <span className="text-xs text-on-surface-variant font-medium">Berat Badan</span>
+          <p className="text-2xl font-extrabold text-on-background">{latestRecord?.beratBadan || '-'} <span className="text-sm font-normal text-on-surface-variant">kg</span></p>
+        </Card>
+        <Card className="p-5 flex flex-col justify-between h-28 bg-white border border-outline-variant/20">
+          <span className="text-xs text-on-surface-variant font-medium">Tinggi Badan</span>
+          <p className="text-2xl font-extrabold text-on-background">{latestRecord?.tinggiBadan || '-'} <span className="text-sm font-normal text-on-surface-variant">cm</span></p>
+        </Card>
+        <Card className="p-5 flex flex-col justify-between h-28 bg-white border border-outline-variant/20">
+          <span className="text-xs text-on-surface-variant font-medium">Tekanan Darah</span>
+          <p className="text-2xl font-extrabold text-on-background">
+            {latestRecord ? `${latestRecord.tekananDarahSistolik}/${latestRecord.tekananDarahDiastolik}` : '-'}
+            <span className="text-sm font-normal text-on-surface-variant"> mmHg</span>
+          </p>
+        </Card>
+      </section>
+
+      {/* Disease and Medicine Summary Card */}
+      {latestRecord && (
+        <Card className="p-6 bg-white border border-outline-variant/20 rounded-xl space-y-4">
+          <h3 className="text-md font-bold text-tertiary flex items-center gap-2">
+            <span className="material-symbols-outlined">medical_information</span>
+            Rangkuman Riwayat Klinis
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-on-surface-variant">
+            <div>
+              <span className="font-semibold text-on-surface block mb-1">Riwayat Penyakit:</span>
+              <p className="bg-secondary-container/10 border border-outline-variant/10 rounded-lg p-3 text-xs font-medium text-on-surface">
+                {latestRecord.riwayatPenyakit || '-'}
+              </p>
+            </div>
+            <div>
+              <span className="font-semibold text-on-surface block mb-1">Obat Rutin yang Diminum:</span>
+              <p className="bg-secondary-container/10 border border-outline-variant/10 rounded-lg p-3 text-xs font-medium text-on-surface">
+                {latestRecord.obat || '-'}
+              </p>
+            </div>
+            <div>
+              <span className="font-semibold text-on-surface block mb-1">Penyakit Baru Terdeteksi:</span>
+              <p className="bg-red-50/50 border border-red-100 rounded-lg p-3 text-xs font-bold text-red-800">
+                {latestRecord.penyakitBaru || '-'}
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Charts */}
+      {records.length > 0 && (
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="p-5 bg-white border border-outline-variant/20">
+            <h4 className="font-bold text-sm text-on-background mb-4">Grafik Tren IMT Lansia</h4>
+            <div className="h-[250px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="tanggal" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="IMT (BB/TB²)" stroke="#ab2c5d" strokeWidth={3} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+          <Card className="p-5 bg-white border border-outline-variant/20">
+            <h4 className="font-bold text-sm text-on-background mb-4">Grafik Tensi Darah (mmHg)</h4>
+            <div className="h-[250px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="tanggal" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="Sistolik (mmHg)" stroke="#0284c7" strokeWidth={2} />
+                  <Line type="monotone" dataKey="Diastolik (mmHg)" stroke="#10b981" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </section>
+      )}
+
+      {/* Historical Record Table */}
+      <section className="space-y-4">
+        <h3 className="font-headline text-lg font-bold text-on-background flex items-center gap-2">
+          <span className="material-symbols-outlined text-tertiary">history</span>
+          Riwayat Pemeriksaan Lansia
+        </h3>
+
+        <Card className="border border-outline-variant/20 overflow-hidden p-0 bg-white">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tanggal Pemeriksaan</TableHead>
+                <TableHead>TB (cm)</TableHead>
+                <TableHead>BB (kg)</TableHead>
+                <TableHead>IMT (BB/TB²)</TableHead>
+                <TableHead>Tensi (mmHg)</TableHead>
+                <TableHead>Penyakit Baru</TableHead>
+                <TableHead>Obat</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {records.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-on-surface-variant py-8">
+                    Belum ada riwayat pemeriksaan lansia.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                records.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="font-medium">
+                      {new Date(r.tanggalPemeriksaan).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                      })}
+                    </TableCell>
+                    <TableCell>{r.tinggiBadan} cm</TableCell>
+                    <TableCell>{r.beratBadan} kg</TableCell>
+                    <TableCell className="font-bold text-tertiary">{r.imt}</TableCell>
+                    <TableCell>{r.tekananDarahSistolik}/{r.tekananDarahDiastolik} mmHg</TableCell>
+                    <TableCell className="text-red-700 font-medium">{r.penyakitBaru || '-'}</TableCell>
+                    <TableCell>{r.obat || '-'}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </Card>
+      </section>
+
+      {/* Update Examination Modal */}
+      <Dialog isOpen={isExamModalOpen} onClose={() => setIsExamModalOpen(false)}>
+        <form onSubmit={handleAddExam}>
+          <DialogHeader>
+            <DialogTitle>Update Pemeriksaan Lansia</DialogTitle>
+            <DialogDescription>
+              Masukkan hasil pengukuran antropometri, tensi, obat rutin, dan diagnosa penyakit baru.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogContent className="space-y-4">
+            {examError && (
+              <div className="text-xs font-semibold text-red-700 bg-red-50 p-2.5 rounded-lg border border-red-200">
+                {examError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="ex_date">Tanggal Pemeriksaan</Label>
+                <Input
+                  id="ex_date"
+                  type="date"
+                  value={tanggalPemeriksaan}
+                  max={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setTanggalPemeriksaan(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ex_tb">Tinggi Badan (cm)</Label>
+                <Input
+                  id="ex_tb"
+                  type="number"
+                  step="0.1"
+                  placeholder="Contoh: 165"
+                  value={tinggiBadan}
+                  onChange={(e) => setTinggiBadan(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ex_bb">Berat Badan (kg)</Label>
+                <Input
+                  id="ex_bb"
+                  type="number"
+                  step="0.1"
+                  placeholder="Contoh: 60"
+                  value={beratBadan}
+                  onChange={(e) => setBeratBadan(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ex_sis">Tensi Sistolik (mmHg)</Label>
+                <Input
+                  id="ex_sis"
+                  type="number"
+                  placeholder="Contoh: 130"
+                  value={sistolik}
+                  onChange={(e) => setSistolik(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ex_dia">Tensi Diastolik (mmHg)</Label>
+                <Input
+                  id="ex_dia"
+                  type="number"
+                  placeholder="Contoh: 85"
+                  value={diastolik}
+                  onChange={(e) => setDiastolik(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ex_disease">Riwayat Penyakit</Label>
+                <Input
+                  id="ex_disease"
+                  placeholder="Contoh: Hipertensi, Kolesterol"
+                  value={riwayatPenyakit}
+                  onChange={(e) => setRiwayatPenyakit(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ex_meds">Obat yang Diminum</Label>
+                <Input
+                  id="ex_meds"
+                  placeholder="Contoh: Amlodipine 5mg"
+                  value={obat}
+                  onChange={(e) => setObat(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ex_new_disease">Penyakit Baru Terdeteksi</Label>
+                <Input
+                  id="ex_new_disease"
+                  placeholder="Contoh: Asam Urat / -"
+                  value={penyakitBaru}
+                  onChange={(e) => setPenyakitBaru(e.target.value)}
+                />
+              </div>
+            </div>
+          </DialogContent>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsExamModalOpen(false)}>
+              Batal
+            </Button>
+            <Button type="submit">
+              Simpan Pemeriksaan
+            </Button>
+          </DialogFooter>
+        </form>
+      </Dialog>
+    </div>
+  );
+}

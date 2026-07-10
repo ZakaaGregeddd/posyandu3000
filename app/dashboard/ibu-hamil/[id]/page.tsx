@@ -1,0 +1,604 @@
+'use client';
+
+import React, { useState, useEffect, use } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter } from '@/components/ui/dialog';
+import StatusHidupControl from '@/components/shared/StatusHidupControl';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { getIbuHamilById, updateIbuHamil, getIbuHamilRecords, addIbuHamilRecord, addPostBirthRecord } from '@/lib/data/db-service';
+import { IbuHamil, IbuHamilRecord, StatusHidup } from '@/lib/data/types';
+import { calculateAge } from '@/lib/utils/health';
+
+export default function IbuHamilDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const router = useRouter();
+  const { id } = use(params);
+
+  // States
+  const [bumil, setBumil] = useState<IbuHamil | null>(null);
+  const [records, setRecords] = useState<IbuHamilRecord[]>([]);
+  const [isExamModalOpen, setIsExamModalOpen] = useState(false);
+  const [isBirthModalOpen, setIsBirthModalOpen] = useState(false);
+
+  // Exam Form States
+  const [tanggalPemeriksaan, setTanggalPemeriksaan] = useState(new Date().toISOString().split('T')[0]);
+  const [beratBadan, setBeratBadan] = useState('');
+  const [sistolik, setSistolik] = useState('');
+  const [diastolik, setDiastolik] = useState('');
+  const [usiaKehamilanWeeks, setUsiaKehamilanWeeks] = useState('');
+  const [kunjunganKe, setKunjunganKe] = useState('1');
+  const [vitamin, setVitamin] = useState('Asam Folat');
+  const [examError, setExamError] = useState('');
+
+  // Birth Form States
+  const [babyNama, setBabyNama] = useState('');
+  const [babyTempat, setBabyTempat] = useState('');
+  const [babyTanggal, setBabyTanggal] = useState('');
+  const [babyJk, setBabyJk] = useState<'L' | 'P'>('L');
+  const [babyCara, setBabyCara] = useState<'Normal' | 'SC'>('Normal');
+  const [babyGestationWeeks, setBabyGestationWeeks] = useState('39');
+  const [birthError, setBirthError] = useState('');
+
+  useEffect(() => {
+    const data = getIbuHamilById(id);
+    if (!data) {
+      router.push('/dashboard/ibu-hamil');
+      return;
+    }
+    setBumil(data);
+    setRecords(getIbuHamilRecords(id));
+  }, [id, router]);
+
+  if (!bumil) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-tertiary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const age = calculateAge(bumil.tanggalLahir);
+  const isDeceased = bumil.statusHidup === 'Meninggal';
+  const hasBorn = !!bumil.postBirthRecord;
+  const canAddRecord = !isDeceased && !hasBorn;
+
+  // HPL = HPHT + 280 days
+  const calculateHPL = (hphtStr: string) => {
+    const date = new Date(hphtStr);
+    date.setDate(date.getDate() + 280);
+    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  };
+
+  // Gestation Age helper
+  const getGestationAge = (hphtStr: string) => {
+    const hphtDate = new Date(hphtStr);
+    const today = new Date();
+    const diffTime = Math.abs(today.getTime() - hphtDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const weeks = Math.floor(diffDays / 7);
+    const remainingDays = diffDays % 7;
+    return `${weeks} minggu ${remainingDays} hari`;
+  };
+
+  const handleStatusChange = (status: StatusHidup, tanggal?: string, penyebab?: string) => {
+    const updated = {
+      ...bumil,
+      statusHidup: status,
+      tanggalMeninggal: tanggal,
+      penyebabMeninggal: penyebab
+    };
+    updateIbuHamil(updated);
+    setBumil(updated);
+  };
+
+  const handleAddExam = (e: React.FormEvent) => {
+    e.preventDefault();
+    setExamError('');
+
+    if (!tanggalPemeriksaan || !beratBadan || !sistolik || !diastolik || !usiaKehamilanWeeks) {
+      setExamError('Semua field pemeriksaan harus diisi');
+      return;
+    }
+
+    const bbNum = parseFloat(beratBadan);
+    const sisNum = parseInt(sistolik);
+    const diaNum = parseInt(diastolik);
+    const ukNum = parseInt(usiaKehamilanWeeks);
+
+    if (isNaN(bbNum) || bbNum <= 0 || isNaN(sisNum) || isNaN(diaNum) || isNaN(ukNum)) {
+      setExamError('Nilai numerik harus positif dan valid');
+      return;
+    }
+
+    const newRec = addIbuHamilRecord({
+      ibuHamilId: id,
+      tanggalPemeriksaan,
+      beratBadan: bbNum,
+      tekananDarahSistolik: sisNum,
+      tekananDarahDiastolik: diaNum,
+      usiaKehamilanWeeks: ukNum,
+      kunjunganKe: parseInt(kunjunganKe),
+      vitamin
+    });
+
+    setRecords([...records, newRec].sort((a, b) => new Date(a.tanggalPemeriksaan).getTime() - new Date(b.tanggalPemeriksaan).getTime()));
+    setIsExamModalOpen(false);
+    resetExamForm();
+  };
+
+  const handleAddBirth = (e: React.FormEvent) => {
+    e.preventDefault();
+    setBirthError('');
+
+    if (!babyNama || !babyTempat || !babyTanggal || !babyGestationWeeks) {
+      setBirthError('Semua parameter kelahiran harus diisi');
+      return;
+    }
+
+    try {
+      addPostBirthRecord(id, {
+        nama: babyNama,
+        tempat: babyTempat,
+        tanggalLahir: babyTanggal,
+        jenisKelamin: babyJk,
+        caraLahir: babyCara,
+        usiaKehamilanSaatLahirWeeks: parseInt(babyGestationWeeks)
+      });
+
+      // Refresh data
+      const updated = getIbuHamilById(id);
+      if (updated) setBumil(updated);
+      setIsBirthModalOpen(false);
+      alert('Kelahiran terdaftar! Bayi baru telah otomatis ditambahkan ke database Balita.');
+    } catch (err: any) {
+      setBirthError(err.message || 'Gagal menyimpan data kelahiran');
+    }
+  };
+
+  const resetExamForm = () => {
+    setTanggalPemeriksaan(new Date().toISOString().split('T')[0]);
+    setBeratBadan('');
+    setSistolik('');
+    setDiastolik('');
+    setUsiaKehamilanWeeks('');
+    setKunjunganKe('1');
+    setVitamin('Asam Folat');
+    setExamError('');
+  };
+
+  const latestRecord = records[records.length - 1];
+
+  // Chart data
+  const chartData = records.map(r => ({
+    tanggal: new Date(r.tanggalPemeriksaan).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+    'Berat Badan (kg)': r.beratBadan,
+    'Sistolik (mmHg)': r.tekananDarahSistolik,
+    'Diastolik (mmHg)': r.tekananDarahDiastolik,
+  }));
+
+  return (
+    <div className="max-w-5xl mx-auto w-full space-y-8 animate-in fade-in duration-300">
+      {/* Breadcrumbs */}
+      <div className="flex items-center gap-2 text-sm text-on-surface-variant font-medium">
+        <Link href="/dashboard/ibu-hamil" className="hover:text-tertiary">Ibu Hamil</Link>
+        <span className="text-xs">/</span>
+        <span className="text-on-background font-bold">{bumil.nama}</span>
+      </div>
+
+      {/* Profile Header */}
+      <Card className="p-6 border border-outline-variant/20 relative overflow-hidden bg-white">
+        <div className="absolute -right-20 -top-20 w-64 h-64 bg-tertiary-fixed/30 opacity-50 rounded-full blur-3xl -z-10" />
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
+          <div>
+            <h2 className="font-headline text-2xl font-bold text-on-background">Halo, {bumil.nama}! 👋</h2>
+            <p className="text-sm text-on-surface-variant mt-0.5">Kelola data rekam medis kehamilan di bawah ini.</p>
+            {!hasBorn && !isDeceased && (
+              <div className="flex items-center gap-2 bg-white border border-outline-variant/30 px-4 py-2 rounded-full mt-3 shadow-sm inline-flex">
+                <span className="text-xs font-semibold text-on-surface-variant">Usia Kandungan:</span>
+                <span className="text-sm font-bold text-tertiary">{getGestationAge(bumil.hpht)}</span>
+              </div>
+            )}
+            {hasBorn && (
+              <div className="flex items-center gap-2 bg-teal-50 border border-teal-200 px-4 py-2 rounded-full mt-3 shadow-sm inline-flex">
+                <span className="material-symbols-outlined text-teal-600 text-sm">child_care</span>
+                <span className="text-xs font-bold text-teal-800">Sudah Melahirkan</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+            <StatusHidupControl
+              currentStatus={bumil.statusHidup}
+              tanggalMeninggal={bumil.tanggalMeninggal}
+              penyebabMeninggal={bumil.penyebabMeninggal}
+              onStatusChange={handleStatusChange}
+            />
+
+            <Button
+              onClick={() => setIsExamModalOpen(true)}
+              disabled={!canAddRecord}
+              className="flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <span className="material-symbols-outlined">add_circle</span>
+              <span>Update Pemeriksaan</span>
+            </Button>
+
+            <Button
+              onClick={() => setIsBirthModalOpen(true)}
+              disabled={isDeceased || hasBorn}
+              className="flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-pink-100 text-pink-800 hover:bg-pink-200 border-none"
+            >
+              <span className="material-symbols-outlined">child_care</span>
+              <span>Sudah Melahirkan</span>
+            </Button>
+
+            <Button
+              onClick={() => {
+                const confirmDel = window.confirm("Apakah Anda yakin ingin menghapus data ibu hamil ini?");
+                if (confirmDel) {
+                  import('@/lib/data/db-service').then(m => {
+                    m.deleteIbuHamil(bumil.id);
+                    router.push('/dashboard/ibu-hamil');
+                  });
+                }
+              }}
+              variant="destructive"
+              className="flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-sm">delete</span>
+              <span>Hapus</span>
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Stats Bento Grid */}
+      <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="p-5 flex flex-col justify-between h-28 bg-white border border-outline-variant/20">
+          <span className="text-xs text-on-surface-variant font-medium">Berat Badan Terbaru</span>
+          <p className="text-2xl font-extrabold text-on-background">{latestRecord?.beratBadan || '-'} <span className="text-sm font-normal text-on-surface-variant">kg</span></p>
+        </Card>
+        <Card className="p-5 flex flex-col justify-between h-28 bg-white border border-outline-variant/20">
+          <span className="text-xs text-on-surface-variant font-medium">Tekanan Darah Terbaru</span>
+          <p className="text-2xl font-extrabold text-on-background">
+            {latestRecord ? `${latestRecord.tekananDarahSistolik}/${latestRecord.tekananDarahDiastolik}` : '-'} 
+            <span className="text-sm font-normal text-on-surface-variant"> mmHg</span>
+          </p>
+        </Card>
+        <Card className="p-5 flex flex-col justify-between h-28 bg-white border border-outline-variant/20">
+          <span className="text-xs text-on-surface-variant font-medium">HPHT</span>
+          <p className="text-sm font-bold text-on-background">{new Date(bumil.hpht).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+        </Card>
+        <Card className="p-5 flex flex-col justify-between h-28 bg-white border border-outline-variant/20">
+          <span className="text-xs text-on-surface-variant font-medium">HPL (Perkiraan Lahir)</span>
+          <p className="text-sm font-bold text-tertiary">{calculateHPL(bumil.hpht)}</p>
+        </Card>
+      </section>
+
+      {/* Post Birth Details if applicable */}
+      {bumil.postBirthRecord && (
+        <Card className="p-6 border border-teal-200 bg-teal-50/20 rounded-xl space-y-4">
+          <h3 className="text-md font-bold text-teal-800 flex items-center gap-2">
+            <span className="material-symbols-outlined">baby_changing_station</span>
+            Riwayat Kelahiran Anak
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-teal-900">
+            <p><span className="font-semibold">Nama Anak:</span> {bumil.postBirthRecord.nama}</p>
+            <p><span className="font-semibold">Tempat/Tgl Lahir:</span> {bumil.postBirthRecord.tempat}, {new Date(bumil.postBirthRecord.tanggalLahir).toLocaleDateString('id-ID')}</p>
+            <p><span className="font-semibold">Jenis Kelamin:</span> {bumil.postBirthRecord.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</p>
+            <p><span className="font-semibold">Cara Lahir:</span> {bumil.postBirthRecord.caraLahir}</p>
+            <p><span className="font-semibold">Usia Kehamilan saat Lahir:</span> {bumil.postBirthRecord.usiaKehamilanSaatLahirWeeks} minggu</p>
+          </div>
+        </Card>
+      )}
+
+      {/* Charts */}
+      {records.length > 0 && (
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="p-5 bg-white border border-outline-variant/20">
+            <h4 className="font-bold text-sm text-on-background mb-4">Grafik Berat Badan Ibu (kg)</h4>
+            <div className="h-[250px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="tanggal" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="Berat Badan (kg)" stroke="#ab2c5d" strokeWidth={3} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+          <Card className="p-5 bg-white border border-outline-variant/20">
+            <h4 className="font-bold text-sm text-on-background mb-4">Grafik Tensi Darah (mmHg)</h4>
+            <div className="h-[250px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="tanggal" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="Sistolik (mmHg)" stroke="#0284c7" strokeWidth={2} />
+                  <Line type="monotone" dataKey="Diastolik (mmHg)" stroke="#10b981" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </section>
+      )}
+
+      {/* Table of History */}
+      <section className="space-y-4">
+        <h3 className="font-headline text-lg font-bold text-on-background flex items-center gap-2">
+          <span className="material-symbols-outlined text-tertiary">history</span>
+          Riwayat Pemeriksaan Kehamilan
+        </h3>
+
+        <Card className="border border-outline-variant/20 overflow-hidden p-0 bg-white">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Kunjungan</TableHead>
+                <TableHead>Tanggal Pemeriksaan</TableHead>
+                <TableHead>Berat Badan (kg)</TableHead>
+                <TableHead>Tekanan Darah (mmHg)</TableHead>
+                <TableHead>Usia Kehamilan (Wk)</TableHead>
+                <TableHead>Vitamin Diberikan</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {records.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-on-surface-variant py-8">
+                    Belum ada riwayat pemeriksaan kehamilan.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                records.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="font-bold text-tertiary">K-#{r.kunjunganKe}</TableCell>
+                    <TableCell>
+                      {new Date(r.tanggalPemeriksaan).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                      })}
+                    </TableCell>
+                    <TableCell>{r.beratBadan} kg</TableCell>
+                    <TableCell>{r.tekananDarahSistolik}/{r.tekananDarahDiastolik} mmHg</TableCell>
+                    <TableCell>{r.usiaKehamilanWeeks} minggu</TableCell>
+                    <TableCell>{r.vitamin || '-'}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </Card>
+      </section>
+
+      {/* Update Examination Modal */}
+      <Dialog isOpen={isExamModalOpen} onClose={() => setIsExamModalOpen(false)}>
+        <form onSubmit={handleAddExam}>
+          <DialogHeader>
+            <DialogTitle>Update Data Pemeriksaan Bumil</DialogTitle>
+            <DialogDescription>
+              Masukkan hasil pemeriksaan klinis berkala ibu hamil.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogContent className="space-y-4">
+            {examError && (
+              <div className="text-xs font-semibold text-red-700 bg-red-50 p-2.5 rounded-lg border border-red-200">
+                {examError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="ex_date">Tanggal Pemeriksaan</Label>
+                <Input
+                  id="ex_date"
+                  type="date"
+                  value={tanggalPemeriksaan}
+                  max={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setTanggalPemeriksaan(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ex_bb">Berat Badan Ibu (kg)</Label>
+                <Input
+                  id="ex_bb"
+                  type="number"
+                  step="0.1"
+                  placeholder="Contoh: 65"
+                  value={beratBadan}
+                  onChange={(e) => setBeratBadan(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ex_sis">Tensi Sistolik (mmHg)</Label>
+                <Input
+                  id="ex_sis"
+                  type="number"
+                  placeholder="Contoh: 120"
+                  value={sistolik}
+                  onChange={(e) => setSistolik(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ex_dia">Tensi Diastolik (mmHg)</Label>
+                <Input
+                  id="ex_dia"
+                  type="number"
+                  placeholder="Contoh: 80"
+                  value={diastolik}
+                  onChange={(e) => setDiastolik(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ex_weeks">Usia Kehamilan (Minggu)</Label>
+                <Input
+                  id="ex_weeks"
+                  type="number"
+                  placeholder="Contoh: 12"
+                  value={usiaKehamilanWeeks}
+                  onChange={(e) => setUsiaKehamilanWeeks(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ex_visit">Kunjungan Ke</Label>
+                <select
+                  id="ex_visit"
+                  value={kunjunganKe}
+                  onChange={(e) => setKunjunganKe(e.target.value)}
+                  className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
+                    <option key={n} value={n.toString()}>Kunjungan Ke-{n}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-2 space-y-1.5">
+                <Label htmlFor="ex_vitamin">Vitamin / Suplemen Diberikan</Label>
+                <Input
+                  id="ex_vitamin"
+                  placeholder="Contoh: Tablet Fe, Kalsium, Asam Folat"
+                  value={vitamin}
+                  onChange={(e) => setVitamin(e.target.value)}
+                />
+              </div>
+            </div>
+          </DialogContent>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsExamModalOpen(false)}>
+              Batal
+            </Button>
+            <Button type="submit">
+              Simpan Data
+            </Button>
+          </DialogFooter>
+        </form>
+      </Dialog>
+
+      {/* Sudah Melahirkan Modal */}
+      <Dialog isOpen={isBirthModalOpen} onClose={() => setIsBirthModalOpen(false)}>
+        <form onSubmit={handleAddBirth}>
+          <DialogHeader>
+            <DialogTitle>Formulir Kelahiran Bayi</DialogTitle>
+            <DialogDescription>
+              Isi data kelahiran bayi untuk mengakhiri keaktifan masa hamil ibu dan mendaftarkan bayi di database.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogContent className="space-y-4">
+            {birthError && (
+              <div className="text-xs font-semibold text-red-700 bg-red-50 p-2.5 rounded-lg border border-red-200">
+                {birthError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2 space-y-1.5">
+                <Label htmlFor="baby_name">Nama Lengkap Bayi</Label>
+                <Input
+                  id="baby_name"
+                  placeholder="Nama Lengkap Bayi"
+                  value={babyNama}
+                  onChange={(e) => setBabyNama(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="baby_gender">Jenis Kelamin</Label>
+                <select
+                  id="baby_gender"
+                  value={babyJk}
+                  onChange={(e) => setBabyJk(e.target.value as 'L' | 'P')}
+                  className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
+                >
+                  <option value="L">Laki-laki</option>
+                  <option value="P">Perempuan</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="baby_cara">Cara Lahir</Label>
+                <select
+                  id="baby_cara"
+                  value={babyCara}
+                  onChange={(e) => setBabyCara(e.target.value as 'Normal' | 'SC')}
+                  className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
+                >
+                  <option value="Normal">Normal (Pervaginam)</option>
+                  <option value="SC">Sectio Caesarea (SC)</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="baby_place">Tempat Lahir</Label>
+                <Input
+                  id="baby_place"
+                  placeholder="Kota / Kabupaten Lahir"
+                  value={babyTempat}
+                  onChange={(e) => setBabyTempat(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="baby_date">Tanggal Lahir Bayi</Label>
+                <Input
+                  id="baby_date"
+                  type="date"
+                  value={babyTanggal}
+                  max={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setBabyTanggal(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5 md:col-span-2">
+                <Label htmlFor="baby_weeks">Lahir Pada Usia Kehamilan (Minggu)</Label>
+                <Input
+                  id="baby_weeks"
+                  type="number"
+                  value={babyGestationWeeks}
+                  onChange={(e) => setBabyGestationWeeks(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+          </DialogContent>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsBirthModalOpen(false)}>
+              Batal
+            </Button>
+            <Button type="submit" className="bg-teal-600 hover:bg-teal-700">
+              Konfirmasi Kelahiran
+            </Button>
+          </DialogFooter>
+        </form>
+      </Dialog>
+    </div>
+  );
+}

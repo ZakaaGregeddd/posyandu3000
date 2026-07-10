@@ -1,0 +1,304 @@
+'use client';
+
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { addKK } from '@/lib/data/db-service';
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter } from '@/components/ui/dialog';
+
+export default function TambahKKPage() {
+  const router = useRouter();
+  
+  // Form States
+  const [noKk, setNoKk] = useState('');
+  const [phone, setPhone] = useState('');
+  const [nikAyah, setNikAyah] = useState('');
+  const [namaAyah, setNamaAyah] = useState('');
+  const [nikIbu, setNikIbu] = useState('');
+  const [namaIbu, setNamaIbu] = useState('');
+  const [alamat, setAlamat] = useState('');
+  const [rt, setRt] = useState('');
+  const [rw, setRw] = useState('');
+
+  // UI States
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Filter input to numbers only and max length
+  const handleNumericInput = (val: string, maxLength: number, setter: (v: string) => void) => {
+    const clean = val.replace(/[^0-9]/g, '').substring(0, maxLength);
+    setter(clean);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (noKk.length !== 16) {
+      setError('Nomor KK harus tepat 16 digit');
+      return;
+    }
+    if (nikAyah && nikAyah.length !== 16) {
+      setError('NIK Ayah harus tepat 16 digit');
+      return;
+    }
+    if (nikIbu && nikIbu.length !== 16) {
+      setError('NIK Ibu harus tepat 16 digit');
+      return;
+    }
+    if (!namaAyah && !namaIbu) {
+      setError('Harap masukkan setidaknya nama salah satu orang tua (Ayah atau Ibu)');
+      return;
+    }
+
+    setLoading(true);
+
+    setTimeout(() => {
+      try {
+        addKK({
+          noKk,
+          namaKepalaKeluarga: namaAyah || namaIbu, // Fallback if one is empty
+          alamat: alamat || 'Jl. Raya Posyandu',
+          rt: rt || '01',
+          rw: rw || '05',
+        });
+        
+        setLoading(false);
+        setShowSuccess(true);
+      } catch (err: any) {
+        setError(err.message || 'Gagal menyimpan KK baru');
+        setLoading(false);
+      }
+    }, 1200);
+  };
+
+  const handleCloseSuccess = () => {
+    setShowSuccess(false);
+    router.push('/dashboard');
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto w-full space-y-6 animate-in fade-in duration-300">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div>
+          <h2 className="font-headline text-3xl font-bold text-on-background">Registrasi Keluarga</h2>
+          <p className="text-sm text-on-surface-variant mt-1 max-w-lg">
+            Silakan masukkan data Kartu Keluarga baru untuk mempermudah pemantauan kesehatan anggota keluarga secara digital.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <span className="bg-secondary-container text-on-secondary-container px-4 py-2 rounded-full text-xs font-semibold flex items-center gap-2">
+            <span className="material-symbols-outlined text-sm">info</span>
+            Pastikan NIK sesuai KTP
+          </span>
+        </div>
+      </div>
+
+      {/* Form Card */}
+      <Card className="relative overflow-hidden border border-outline-variant/30">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-secondary-container/10 rounded-bl-full pointer-events-none" />
+        
+        <form onSubmit={handleSubmit} className="space-y-6 p-2 relative z-10">
+          {error && (
+            <div className="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 p-3.5 rounded-xl">
+              {error}
+            </div>
+          )}
+
+          {/* Section 1: Informasi Kartu Keluarga */}
+          <div className="space-y-4">
+            <div className="border-b border-outline-variant/30 pb-2">
+              <h3 className="font-headline text-md font-bold text-tertiary flex items-center gap-2">
+                <span className="material-symbols-outlined">badge</span>
+                Informasi Kartu Keluarga
+              </h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="no_kk">No. Kartu Keluarga (KK)</Label>
+                <Input
+                  id="no_kk"
+                  placeholder="16 digit nomor KK"
+                  value={noKk}
+                  onChange={(e) => handleNumericInput(e.target.value, 16, setNoKk)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="phone">Nomor Telepon Aktif</Label>
+                <Input
+                  id="phone"
+                  placeholder="Contoh: 081234567890"
+                  value={phone}
+                  onChange={(e) => handleNumericInput(e.target.value, 13, setPhone)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Identitas Orang Tua */}
+          <div className="space-y-4">
+            <div className="border-b border-outline-variant/30 pb-2">
+              <h3 className="font-headline text-md font-bold text-tertiary flex items-center gap-2">
+                <span className="material-symbols-outlined">family_restroom</span>
+                Identitas Orang Tua
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Father's Card */}
+              <div className="space-y-4 p-4 rounded-xl bg-white border border-outline-variant/30">
+                <h4 className="text-sm font-bold text-primary flex items-center gap-2">
+                  <span className="material-symbols-outlined text-sky-500">man</span>
+                  Data Ayah
+                </h4>
+                
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="nik_ayah">NIK Ayah</Label>
+                    <Input
+                      id="nik_ayah"
+                      placeholder="16 digit NIK Ayah"
+                      value={nikAyah}
+                      onChange={(e) => handleNumericInput(e.target.value, 16, setNikAyah)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="nama_ayah">Nama Lengkap Ayah</Label>
+                    <Input
+                      id="nama_ayah"
+                      placeholder="Nama sesuai KTP"
+                      value={namaAyah}
+                      onChange={(e) => setNamaAyah(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Mother's Card */}
+              <div className="space-y-4 p-4 rounded-xl bg-white border border-outline-variant/30">
+                <h4 className="text-sm font-bold text-tertiary flex items-center gap-2">
+                  <span className="material-symbols-outlined text-pink-500">woman</span>
+                  Data Ibu
+                </h4>
+                
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="nik_ibu">NIK Ibu</Label>
+                    <Input
+                      id="nik_ibu"
+                      placeholder="16 digit NIK Ibu"
+                      value={nikIbu}
+                      onChange={(e) => handleNumericInput(e.target.value, 16, setNikIbu)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="nama_ibu">Nama Lengkap Ibu</Label>
+                    <Input
+                      id="nama_ibu"
+                      placeholder="Nama sesuai KTP"
+                      value={namaIbu}
+                      onChange={(e) => setNamaIbu(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Alamat detail */}
+          <div className="space-y-4">
+            <div className="border-b border-outline-variant/30 pb-2">
+              <h3 className="font-headline text-md font-bold text-tertiary flex items-center gap-2">
+                <span className="material-symbols-outlined">home</span>
+                Alamat Tinggal
+              </h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="md:col-span-2 space-y-1.5">
+                <Label htmlFor="alamat">Alamat Lengkap</Label>
+                <Input
+                  id="alamat"
+                  placeholder="Nama Jalan, Blok, No Rumah"
+                  value={alamat}
+                  onChange={(e) => setAlamat(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="rt">RT</Label>
+                <Input
+                  id="rt"
+                  placeholder="01"
+                  value={rt}
+                  onChange={(e) => handleNumericInput(e.target.value, 3, setRt)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="rw">RW</Label>
+                <Input
+                  id="rw"
+                  placeholder="05"
+                  value={rw}
+                  onChange={(e) => handleNumericInput(e.target.value, 3, setRw)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Submission Panel */}
+          <div className="pt-4 flex items-center justify-end gap-4 border-t border-outline-variant/30">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push('/dashboard')}
+            >
+              Batalkan
+            </Button>
+            
+            <Button
+              type="submit"
+              disabled={loading}
+              className="flex items-center gap-2 cursor-pointer"
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <span className="material-symbols-outlined">save</span>
+                  <span>Simpan Data</span>
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </Card>
+
+      {/* Success Modal */}
+      <Dialog isOpen={showSuccess} onClose={handleCloseSuccess}>
+        <DialogHeader>
+          <div className="w-16 h-16 bg-green-50 border border-green-200 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+            <span className="material-symbols-outlined text-4xl">check_circle</span>
+          </div>
+          <DialogTitle className="text-center text-green-700">Pendaftaran Berhasil!</DialogTitle>
+          <DialogDescription className="text-center mt-1">
+            Data Kartu Keluarga {noKk} telah berhasil disimpan ke dalam sistem Posyandu Digital.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogContent />
+        <DialogFooter className="sm:justify-center">
+          <Button onClick={handleCloseSuccess} className="w-full">
+            Kembali ke Dashboard
+          </Button>
+        </DialogFooter>
+      </Dialog>
+    </div>
+  );
+}
