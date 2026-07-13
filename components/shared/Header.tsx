@@ -61,7 +61,7 @@ export default function Header() {
   const breadcrumbs = getBreadcrumbs();
 
   return (
-    <header className="flex justify-between items-center w-full px-8 h-16 bg-background sticky top-0 z-10 border-b border-outline-variant/10">
+    <header className="flex justify-between items-center w-full px-8 h-16 bg-[#FFFDFE] sticky top-0 z-30 border-b border-outline-variant/10">
       <div className="flex items-center gap-2 text-on-background text-sm font-medium">
         <span className="material-symbols-outlined text-body-lg text-tertiary">home</span>
         {breadcrumbs.map((crumb, idx) => (
