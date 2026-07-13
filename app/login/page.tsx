@@ -56,8 +56,36 @@ export default function LoginPage() {
       <div className="absolute w-[400px] h-[400px] rounded-full bg-tertiary-fixed/30 blur-[100px] -top-24 -left-24 animate-pulse duration-[8000ms]" />
       <div className="absolute w-[400px] h-[400px] rounded-full bg-surface-container-high/30 blur-[100px] bottom-0 right-0 animate-pulse duration-[6000ms] delay-1000" />
       
+      {/* SVG Wave Lines Background */}
+      {/* SVG Wave Lines Background */}
+      <div className="absolute inset-x-0 bottom-0 pointer-events-none opacity-80 z-0 flex items-end overflow-hidden h-[50%] min-h-[300px]">
+        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 1440 300">
+          <path d="M -20,150 C 240,80 480,220 720,150 C 960,80 1200,220 1460,150" fill="none" stroke="url(#wave-grad-1)" strokeWidth="3.5" className="animate-wave-morph-slow" />
+          <path d="M -20,180 C 300,230 600,130 900,180 C 1100,230 1300,130 1460,180" fill="none" stroke="url(#wave-grad-2)" strokeWidth="4.5" className="animate-wave-morph-medium" />
+          <path d="M -20,120 C 200,80 400,160 720,120 C 1000,80 1200,160 1460,120" fill="none" stroke="url(#wave-grad-3)" strokeWidth="3" className="animate-wave-morph-fast" />
+          
+          <defs>
+            <linearGradient id="wave-grad-1" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#ab2c5d" stopOpacity="0.2" />
+              <stop offset="50%" stopColor="#ab2c5d" stopOpacity="0.95" />
+              <stop offset="100%" stopColor="#ab2c5d" stopOpacity="0.2" />
+            </linearGradient>
+            <linearGradient id="wave-grad-2" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#6b5a60" stopOpacity="0.1" />
+              <stop offset="50%" stopColor="#ab2c5d" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#6b5a60" stopOpacity="0.1" />
+            </linearGradient>
+            <linearGradient id="wave-grad-3" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#f4dce4" stopOpacity="0.3" />
+              <stop offset="50%" stopColor="#ab2c5d" stopOpacity="1.0" />
+              <stop offset="100%" stopColor="#f4dce4" stopOpacity="0.3" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+
       {/* Main Container */}
-      <main className="w-full max-w-4xl glass-card rounded-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-2 animate-in fade-in zoom-in duration-300">
+      <main className="w-full max-w-4xl glass-card rounded-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-2 animate-in fade-in zoom-in duration-300 relative z-10">
         {/* Left Side: Brand Visuals */}
         <div className="hidden lg:flex flex-col justify-between p-12 bg-secondary-container/20 relative overflow-hidden">
           <div className="z-10">
@@ -171,13 +199,67 @@ export default function LoginPage() {
           </form>
         </div>
       </main>
-      
-      {/* Mini CSS pattern styles */}
-      <style jsx global>{`
-        .bg-pattern {
-          background-color: #FFFDFE;
-          background-image: radial-gradient(#f4dce4 0.8px, transparent 0.8px);
-          background-size: 24px 24px;
+      {/* Direct inline style injection to bypass bundler CSS caching */}
+      <style>{`
+        .animate-wave-morph-slow {
+          animation: wave-morph-slow-new 10s infinite linear !important;
+        }
+        .animate-wave-morph-medium {
+          animation: wave-morph-medium-new 8s infinite linear !important;
+        }
+        .animate-wave-morph-fast {
+          animation: wave-morph-fast-new 6s infinite linear !important;
+        }
+        @keyframes wave-morph-slow-new {
+          0% {
+            d: path("M -20,150 C 200,50 400,250 720,150 C 1040,50 1240,250 1460,150") !important;
+          }
+          25% {
+            d: path("M -20,150 C 330,220 530,80 850,150 C 1170,220 1370,80 1460,150") !important;
+          }
+          50% {
+            d: path("M -20,150 C 460,50 660,250 980,150 C 1300,50 1420,250 1460,150") !important;
+          }
+          75% {
+            d: path("M -20,150 C 330,80 530,220 850,150 C 1170,80 1370,220 1460,150") !important;
+          }
+          100% {
+            d: path("M -20,150 C 200,50 400,250 720,150 C 1040,50 1240,250 1460,150") !important;
+          }
+        }
+        @keyframes wave-morph-medium-new {
+          0% {
+            d: path("M -20,180 C 300,230 600,130 900,180 C 1100,230 1300,130 1460,180") !important;
+          }
+          25% {
+            d: path("M -20,180 C 450,130 750,230 1050,180 C 1250,130 1380,230 1460,180") !important;
+          }
+          50% {
+            d: path("M -20,180 C 600,230 900,130 1200,180 C 1350,230 1420,130 1460,180") !important;
+          }
+          75% {
+            d: path("M -20,180 C 450,230 750,130 1050,180 C 1250,230 1380,130 1460,180") !important;
+          }
+          100% {
+            d: path("M -20,180 C 300,230 600,130 900,180 C 1100,230 1300,130 1460,180") !important;
+          }
+        }
+        @keyframes wave-morph-fast-new {
+          0% {
+            d: path("M -20,120 C 200,80 400,160 720,120 C 1000,80 1200,160 1460,120") !important;
+          }
+          25% {
+            d: path("M -20,120 C 330,160 530,80 850,120 C 1130,160 1310,80 1460,120") !important;
+          }
+          50% {
+            d: path("M -20,120 C 460,80 660,160 980,120 C 1180,80 1340,160 1460,120") !important;
+          }
+          75% {
+            d: path("M -20,120 C 330,80 530,160 850,120 C 1130,80 1310,160 1460,120") !important;
+          }
+          100% {
+            d: path("M -20,120 C 200,80 400,160 720,120 C 1000,80 1200,160 1460,120") !important;
+          }
         }
       `}</style>
     </div>

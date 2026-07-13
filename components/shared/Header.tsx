@@ -8,9 +8,11 @@ import { getCurrentUser, getBalitaById, getIbuHamilById, getLansiaById } from '@
 export default function Header() {
   const pathname = usePathname();
   const [user, setUser] = React.useState<{ username: string } | null>(null);
+  const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
     setUser(getCurrentUser());
+    setMounted(true);
   }, []);
 
   // Simple breadcrumbs builder
@@ -38,7 +40,7 @@ export default function Header() {
       if (part === 'tambah-kk') name = 'Tambah KK Baru';
       if (part === 'ibu-hamil') name = 'Ibu Hamil';
       
-      if (isDetailPage) {
+      if (mounted && isDetailPage) {
         if (parentType === 'balita') {
           href = `/dashboard/balita/${part}`;
           const person = getBalitaById(part);

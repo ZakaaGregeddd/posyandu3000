@@ -169,4 +169,51 @@ body {
   animation: progress-slide 1.8s infinite ease-in-out;
 }
 
+.bg-pattern {
+  background-color: #FFFDFE;
+  background-image: radial-gradient(#f4dce4 0.8px, transparent 0.8px);
+  background-size: 24px 24px;
+}
+
+.animate-wave-morph-slow {
+  animation: wave-morph-slow 12s infinite ease-in-out;
+}
+
+.animate-wave-morph-medium {
+  animation: wave-morph-medium 9s infinite ease-in-out;
+}
+
+.animate-wave-morph-fast {
+  animation: wave-morph-fast 6s infinite ease-in-out;
+}
+
+@keyframes wave-morph-slow {
+  0%, 100% {
+    d: path("M -20,150 C 240,80 480,220 720,150 C 960,80 1200,220 1460,150");
+  }
+  50% {
+    d: path("M -20,150 C 240,220 480,80 720,150 C 960,220 1200,80 1460,150");
+  }
+}
+
+@keyframes wave-morph-medium {
+  0%, 100% {
+    d: path("M -20,180 C 300,230 600,130 900,180 C 1100,230 1300,130 1460,180");
+  }
+  50% {
+    d: path("M -20,180 C 300,130 600,230 900,180 C 1100,130 1300,230 1460,180");
+  }
+}
+
+@keyframes wave-morph-fast {
+  0%, 100% {
+    d: path("M -20,120 C 200,80 400,160 720,120 C 1000,80 1200,160 1460,120");
+  }
+  50% {
+    d: path("M -20,120 C 200,160 400,80 720,120 C 1000,160 1200,80 1460,120");
+  }
+}
+
+
+
 
