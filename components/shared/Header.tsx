@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { getCurrentUser } from '@/lib/data/db-service';
+import { getCurrentUser, getBalitaById, getIbuHamilById, getLansiaById } from '@/lib/data/db-service';
 
 export default function Header() {
   const pathname = usePathname();
@@ -15,14 +15,44 @@ export default function Header() {
 
   // Simple breadcrumbs builder
   const getBreadcrumbs = () => {
-    const parts = pathname.split('/').filter(p => p);
+    let parts = pathname.split('/').filter(p => p);
     if (parts.length === 0) return [{ name: 'Home', href: '/dashboard' }];
     
+    // If we are in subpages, hide the 'dashboard' prefix from breadcrumbs
+    if (parts.length > 1 && parts[0] === 'dashboard') {
+      parts = parts.slice(1);
+    }
+    
     return parts.map((part, index) => {
-      const href = '/' + parts.slice(0, index + 1).join('/');
+      let href = '/dashboard';
+      if (part === 'balita') href = '/dashboard/balita';
+      else if (part === 'ibu-hamil') href = '/dashboard/ibu-hamil';
+      else if (part === 'lansia') href = '/dashboard/lansia';
+      else if (part === 'tambah-kk') href = '/dashboard/tambah-kk';
+      else if (index === 0 && part === 'dashboard') href = '/dashboard';
+      
+      const isDetailPage = parts.length === 2 && index === 1;
+      const parentType = parts[0];
+      
       let name = part.charAt(0).toUpperCase() + part.slice(1);
       if (part === 'tambah-kk') name = 'Tambah KK Baru';
       if (part === 'ibu-hamil') name = 'Ibu Hamil';
+      
+      if (isDetailPage) {
+        if (parentType === 'balita') {
+          href = `/dashboard/balita/${part}`;
+          const person = getBalitaById(part);
+          if (person) name = person.nama;
+        } else if (parentType === 'ibu-hamil') {
+          href = `/dashboard/ibu-hamil/${part}`;
+          const person = getIbuHamilById(part);
+          if (person) name = person.nama;
+        } else if (parentType === 'lansia') {
+          href = `/dashboard/lansia/${part}`;
+          const person = getLansiaById(part);
+          if (person) name = person.nama;
+        }
+      }
       
       return { name, href };
     });

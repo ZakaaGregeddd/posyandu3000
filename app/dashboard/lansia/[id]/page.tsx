@@ -132,13 +132,6 @@ export default function LansiaDetailPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="max-w-5xl mx-auto w-full space-y-8 animate-in fade-in duration-300">
-      {/* Breadcrumbs */}
-      <div className="flex items-center gap-2 text-sm text-on-surface-variant font-medium">
-        <Link href="/dashboard/lansia" className="hover:text-tertiary">Lansia</Link>
-        <span className="text-xs">/</span>
-        <span className="text-on-background font-bold">{lansia.nama}</span>
-      </div>
-
       {/* Profile Header */}
       <Card className="p-6 border border-outline-variant/20 relative overflow-hidden bg-white">
         <div className="flex flex-col md:flex-row justify-between items-start gap-6">
