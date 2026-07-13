@@ -54,8 +54,8 @@ export default function Sidebar() {
               className={`${
                 isActive
                   ? 'bg-tertiary text-white shadow-sm'
-                  : 'text-on-secondary-container hover:bg-secondary-fixed'
-              } mx-4 px-4 py-3 flex items-center gap-3 rounded-full transition-all duration-150 font-medium text-sm`}
+                  : 'text-on-secondary-container hover:bg-white/60 hover:text-tertiary hover:translate-x-1.5'
+              } mx-4 px-4 py-3 flex items-center gap-3 rounded-full transition-all duration-200 font-medium text-sm`}
             >
               <span className="material-symbols-outlined">{item.icon}</span>
               <span>{item.name}</span>
@@ -79,7 +79,7 @@ export default function Sidebar() {
         
         <button
           onClick={handleLogout}
-          className="mt-2 text-error px-4 py-3 flex items-center gap-3 hover:bg-error-container rounded-full transition-all w-full text-left font-medium text-sm cursor-pointer"
+          className="mt-2 text-error px-4 py-3 flex items-center gap-3 hover:bg-error-container hover:translate-x-1.5 rounded-full transition-all duration-200 w-full text-left font-medium text-sm cursor-pointer"
         >
           <span className="material-symbols-outlined">logout</span>
           <span>Logout</span>
