@@ -121,7 +121,14 @@ export default function TambahKKPage() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="no_kk">No. Kartu Keluarga (KK)</Label>
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="no_kk">No. Kartu Keluarga (KK)</Label>
+                  <span className={`text-[11px] font-semibold transition-all ${
+                    noKk.length === 16 ? 'text-teal-600 font-bold' : 'text-on-surface-variant/80'
+                  }`}>
+                    {noKk.length} / 16 digit
+                  </span>
+                </div>
                 <Input
                   id="no_kk"
                   placeholder="16 digit nomor KK"
@@ -162,7 +169,14 @@ export default function TambahKKPage() {
                 
                 <div className="space-y-3">
                   <div className="space-y-1.5">
-                    <Label htmlFor="nik_ayah">NIK Ayah</Label>
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="nik_ayah">NIK Ayah</Label>
+                      <span className={`text-[11px] font-semibold transition-all ${
+                        nikAyah.length === 16 ? 'text-teal-600 font-bold' : 'text-on-surface-variant/80'
+                      }`}>
+                        {nikAyah.length} / 16 digit
+                      </span>
+                    </div>
                     <Input
                       id="nik_ayah"
                       placeholder="16 digit NIK Ayah"
@@ -191,7 +205,14 @@ export default function TambahKKPage() {
                 
                 <div className="space-y-3">
                   <div className="space-y-1.5">
-                    <Label htmlFor="nik_ibu">NIK Ibu</Label>
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="nik_ibu">NIK Ibu</Label>
+                      <span className={`text-[11px] font-semibold transition-all ${
+                        nikIbu.length === 16 ? 'text-teal-600 font-bold' : 'text-on-surface-variant/80'
+                      }`}>
+                        {nikIbu.length} / 16 digit
+                      </span>
+                    </div>
                     <Input
                       id="nik_ibu"
                       placeholder="16 digit NIK Ibu"
