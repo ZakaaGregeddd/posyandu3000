@@ -47,8 +47,15 @@ export default function LansiaDetailPage({ params }: { params: Promise<{ id: str
 
   if (!lansia) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-tertiary border-t-transparent rounded-full animate-spin" />
+      <div className="flex-1 flex items-center justify-center min-h-[300px]">
+        <div className="flex flex-col items-center gap-4">
+          <span className="material-symbols-outlined text-5xl text-tertiary animate-heartbeat" style={{ fontVariationSettings: "'FILL' 1" }}>
+            favorite
+          </span>
+          <div className="w-24 h-1 bg-tertiary-fixed rounded-full overflow-hidden relative">
+            <div className="absolute top-0 left-0 h-full w-full bg-tertiary rounded-full animate-progress-slide" />
+          </div>
+        </div>
       </div>
     );
   }
