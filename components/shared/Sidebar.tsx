@@ -1,30 +1,47 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { logoutUser, getCurrentUser } from '@/lib/data/db-service';
+import React from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { logoutUser, getCurrentUser } from "@/lib/fetch/auth";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = React.useState<{ username: string } | null>(null);
+  const [user, setUser] = React.useState<{
+    id: string;
+    email: string | null;
+  } | null>(null);
 
   React.useEffect(() => {
-    setUser(getCurrentUser());
+    let isMounted = true;
+    getCurrentUser().then((u) => {
+      if (isMounted) setUser(u);
+    });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const handleLogout = () => {
-    logoutUser();
-    router.push('/login');
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } finally {
+      router.push("/login");
+      router.refresh();
+    }
   };
 
   const navItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
-    { name: 'Tambah KK Baru', href: '/dashboard/tambah-kk', icon: 'person_add' },
-    { name: 'Balita', href: '/dashboard/balita', icon: 'child_care' },
-    { name: 'Ibu Hamil', href: '/dashboard/ibu-hamil', icon: 'pregnant_woman' },
-    { name: 'Lansia', href: '/dashboard/lansia', icon: 'elderly' },
+    { name: "Dashboard", href: "/dashboard", icon: "dashboard" },
+    {
+      name: "Tambah KK Baru",
+      href: "/dashboard/tambah-kk",
+      icon: "person_add",
+    },
+    { name: "Balita", href: "/dashboard/balita", icon: "child_care" },
+    { name: "Ibu Hamil", href: "/dashboard/ibu-hamil", icon: "pregnant_woman" },
+    { name: "Lansia", href: "/dashboard/lansia", icon: "elderly" },
   ];
 
   return (
@@ -32,12 +49,17 @@ export default function Sidebar() {
       <div className="px-6 mb-8">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-tertiary rounded-lg flex items-center justify-center shadow-sm">
-            <span className="material-symbols-outlined text-white" style={{ fontVariationSettings: "'FILL' 1" }}>
+            <span
+              className="material-symbols-outlined text-white"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
               volunteer_activism
             </span>
           </div>
           <div className="flex flex-col">
-            <span className="font-headline font-bold tracking-tight text-body-lg text-tertiary">Posyandu Digital</span>
+            <span className="font-headline font-bold tracking-tight text-body-lg text-tertiary">
+              Posyandu Digital
+            </span>
           </div>
         </div>
       </div>
@@ -45,16 +67,18 @@ export default function Sidebar() {
       <nav className="flex-1 flex flex-col gap-2">
         {navItems.map((item) => {
           // Check if item.href matches pathname (with prefix check for subroutes)
-          const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
-          
+          const isActive =
+            pathname === item.href ||
+            (item.href !== "/dashboard" && pathname.startsWith(item.href));
+
           return (
             <Link
               key={item.href}
               href={item.href}
               className={`${
                 isActive
-                  ? 'bg-tertiary text-white shadow-sm'
-                  : 'text-on-secondary-container hover:bg-white/60 hover:text-tertiary hover:translate-x-1.5'
+                  ? "bg-tertiary text-white shadow-sm"
+                  : "text-on-secondary-container hover:bg-white/60 hover:text-tertiary hover:translate-x-1.5"
               } mx-4 px-4 py-3 flex items-center gap-3 rounded-full transition-all duration-200 font-medium text-sm`}
             >
               <span className="material-symbols-outlined">{item.icon}</span>
@@ -67,16 +91,18 @@ export default function Sidebar() {
       <div className="mt-auto px-4 flex flex-col gap-2">
         <div className="mx-4 p-3 bg-white/60 rounded-xl flex items-center gap-3 border border-outline-variant/30">
           <div className="w-8 h-8 rounded-full bg-tertiary text-white flex items-center justify-center font-bold text-sm">
-            {user?.username ? user.username.charAt(0).toUpperCase() : 'K'}
+            {user?.id ? user.id.charAt(0).toUpperCase() : "K"}
           </div>
           <div className="flex flex-col overflow-hidden">
             <span className="text-xs font-semibold text-on-surface truncate">
-              {user?.username || 'Kader Posyandu'}
+              {user?.email || "Kader Posyandu"}
             </span>
-            <span className="text-[10px] text-on-surface-variant">Kader Posyandu</span>
+            <span className="text-[10px] text-on-surface-variant">
+              Kader Posyandu
+            </span>
           </div>
         </div>
-        
+
         <button
           onClick={handleLogout}
           className="mt-2 text-error px-4 py-3 flex items-center gap-3 hover:bg-error-container hover:translate-x-1.5 rounded-full transition-all duration-200 w-full text-left font-medium text-sm cursor-pointer"
