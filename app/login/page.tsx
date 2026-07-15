@@ -58,29 +58,42 @@ export default function LoginPage() {
       
       {/* SVG Wave Lines Background */}
       {/* SVG Wave Lines Background */}
-      <div className="absolute inset-x-0 bottom-0 pointer-events-none opacity-80 z-0 flex items-end overflow-hidden h-[50%] min-h-[300px]">
-        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 1440 300">
-          <path d="M -20,150 C 240,80 480,220 720,150 C 960,80 1200,220 1460,150" fill="none" stroke="url(#wave-grad-1)" strokeWidth="3.5" className="animate-wave-morph-slow" />
-          <path d="M -20,180 C 300,230 600,130 900,180 C 1100,230 1300,130 1460,180" fill="none" stroke="url(#wave-grad-2)" strokeWidth="4.5" className="animate-wave-morph-medium" />
-          <path d="M -20,120 C 200,80 400,160 720,120 C 1000,80 1200,160 1460,120" fill="none" stroke="url(#wave-grad-3)" strokeWidth="3" className="animate-wave-morph-fast" />
-          
+      {/* SVG Distorted Mesh Background */}
+      {/* SVG Distorted Mesh Background */}
+      {/* SVG Distorted Mesh Background */}
+      {/* SVG Distorted Mesh Ribbon Background */}
+      <div className="absolute inset-0 pointer-events-none opacity-85 z-0 overflow-hidden flex items-center justify-center">
+        <svg className="w-full h-[85%] min-h-[550px]" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 1440 600">
           <defs>
-            <linearGradient id="wave-grad-1" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#ab2c5d" stopOpacity="0.2" />
-              <stop offset="50%" stopColor="#ab2c5d" stopOpacity="0.95" />
-              <stop offset="100%" stopColor="#ab2c5d" stopOpacity="0.2" />
-            </linearGradient>
-            <linearGradient id="wave-grad-2" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#6b5a60" stopOpacity="0.1" />
-              <stop offset="50%" stopColor="#ab2c5d" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#6b5a60" stopOpacity="0.1" />
-            </linearGradient>
-            <linearGradient id="wave-grad-3" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#f4dce4" stopOpacity="0.3" />
-              <stop offset="50%" stopColor="#ab2c5d" stopOpacity="1.0" />
-              <stop offset="100%" stopColor="#f4dce4" stopOpacity="0.3" />
+            <linearGradient id="ribbon-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#ab2c5d" stopOpacity="0.05" />
+              <stop offset="25%" stopColor="#ab2c5d" stopOpacity="0.85" />
+              <stop offset="50%" stopColor="#6b5a60" stopOpacity="0.5" />
+              <stop offset="75%" stopColor="#ab2c5d" stopOpacity="0.85" />
+              <stop offset="100%" stopColor="#f4dce4" stopOpacity="0.05" />
             </linearGradient>
           </defs>
+          <g stroke="url(#ribbon-grad)" strokeWidth="2.4" fill="none">
+            {Array.from({ length: 15 }).map((_, i) => {
+              const offset = i * 10;
+              const delay = i * -0.3;
+              const opacity = 0.25 + (i % 4) * 0.2;
+              return (
+                <path
+                  key={i}
+                  d={`M -50,${250 + offset} 
+                      C 250,${50 + i * 6} 550,${450 - i * 10} 800,${250 + i * 4} 
+                      C 1050,${50 + i * 10} 1250,${450 - i * 6} 1490,${200 + offset}`}
+                  strokeOpacity={opacity}
+                  className="animate-ribbon-wave"
+                  style={{
+                    animationDelay: `${delay}s`,
+                    animationDuration: `${12 + (i % 3) * 3}s`
+                  }}
+                />
+              );
+            })}
+          </g>
         </svg>
       </div>
 
@@ -201,64 +214,23 @@ export default function LoginPage() {
       </main>
       {/* Direct inline style injection to bypass bundler CSS caching */}
       <style>{`
-        .animate-wave-morph-slow {
-          animation: wave-morph-slow-new 10s infinite linear !important;
+        .animate-ribbon-wave {
+          animation: ribbon-flow-new 15s infinite linear;
+          stroke-dasharray: 4 16;
+          stroke-linecap: round;
         }
-        .animate-wave-morph-medium {
-          animation: wave-morph-medium-new 8s infinite linear !important;
-        }
-        .animate-wave-morph-fast {
-          animation: wave-morph-fast-new 6s infinite linear !important;
-        }
-        @keyframes wave-morph-slow-new {
+
+        @keyframes ribbon-flow-new {
           0% {
-            d: path("M -20,150 C 200,50 400,250 720,150 C 1040,50 1240,250 1460,150") !important;
-          }
-          25% {
-            d: path("M -20,150 C 330,220 530,80 850,150 C 1170,220 1370,80 1460,150") !important;
+            stroke-dashoffset: 0;
+            transform: translateY(0) skewY(-0.5deg);
           }
           50% {
-            d: path("M -20,150 C 460,50 660,250 980,150 C 1300,50 1420,250 1460,150") !important;
-          }
-          75% {
-            d: path("M -20,150 C 330,80 530,220 850,150 C 1170,80 1370,220 1460,150") !important;
+            transform: translateY(-8px) skewY(0.5deg);
           }
           100% {
-            d: path("M -20,150 C 200,50 400,250 720,150 C 1040,50 1240,250 1460,150") !important;
-          }
-        }
-        @keyframes wave-morph-medium-new {
-          0% {
-            d: path("M -20,180 C 300,230 600,130 900,180 C 1100,230 1300,130 1460,180") !important;
-          }
-          25% {
-            d: path("M -20,180 C 450,130 750,230 1050,180 C 1250,130 1380,230 1460,180") !important;
-          }
-          50% {
-            d: path("M -20,180 C 600,230 900,130 1200,180 C 1350,230 1420,130 1460,180") !important;
-          }
-          75% {
-            d: path("M -20,180 C 450,230 750,130 1050,180 C 1250,230 1380,130 1460,180") !important;
-          }
-          100% {
-            d: path("M -20,180 C 300,230 600,130 900,180 C 1100,230 1300,130 1460,180") !important;
-          }
-        }
-        @keyframes wave-morph-fast-new {
-          0% {
-            d: path("M -20,120 C 200,80 400,160 720,120 C 1000,80 1200,160 1460,120") !important;
-          }
-          25% {
-            d: path("M -20,120 C 330,160 530,80 850,120 C 1130,160 1310,80 1460,120") !important;
-          }
-          50% {
-            d: path("M -20,120 C 460,80 660,160 980,120 C 1180,80 1340,160 1460,120") !important;
-          }
-          75% {
-            d: path("M -20,120 C 330,80 530,160 850,120 C 1130,80 1310,160 1460,120") !important;
-          }
-          100% {
-            d: path("M -20,120 C 200,80 400,160 720,120 C 1000,80 1200,160 1460,120") !important;
+            stroke-dashoffset: -200;
+            transform: translateY(0) skewY(-0.5deg);
           }
         }
       `}</style>
