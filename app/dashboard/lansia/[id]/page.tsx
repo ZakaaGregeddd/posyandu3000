@@ -1,55 +1,120 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter } from '@/components/ui/dialog';
-import StatusHidupControl from '@/components/shared/StatusHidupControl';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { getLansiaById, updateLansia, getLansiaRecords, addLansiaRecord } from '@/lib/data/db-service';
-import { Lansia, LansiaRecord, StatusHidup } from '@/lib/data/types';
-import { calculateAge, calculateIMT, classifyCategory } from '@/lib/utils/health';
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogContent,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import StatusHidupControl from "@/components/shared/StatusHidupControl";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import {
+  getLansiaById,
+  updateLansia,
+  getLansiaRecords,
+  addLansiaRecord,
+  deleteLansia,
+  Lansia,
+  LansiaRecord,
+  StatusHidup,
+} from "@/lib/fetch/lansia";
+import { calculateAge, classifyCategory } from "@/lib/utils/health";
 
-export default function LansiaDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function LansiaDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const router = useRouter();
-  const { id } = use(params);
+  const [id, setId] = useState<string | null>(null);
 
   // States
   const [lansia, setLansia] = useState<Lansia | null>(null);
   const [records, setRecords] = useState<LansiaRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
+  const [isSubmittingExam, setIsSubmittingExam] = useState(false);
 
   // Exam Form States
-  const [tanggalPemeriksaan, setTanggalPemeriksaan] = useState(new Date().toISOString().split('T')[0]);
-  const [tinggiBadan, setTinggiBadan] = useState('');
-  const [beratBadan, setBeratBadan] = useState('');
-  const [sistolik, setSistolik] = useState('');
-  const [diastolik, setDiastolik] = useState('');
-  const [riwayatPenyakit, setRiwayatPenyakit] = useState('-');
-  const [obat, setObat] = useState('-');
-  const [penyakitBaru, setPenyakitBaru] = useState('-');
-  const [examError, setExamError] = useState('');
+  const [tanggalPemeriksaan, setTanggalPemeriksaan] = useState(
+    new Date().toISOString().split("T")[0],
+  );
+  const [tinggiBadan, setTinggiBadan] = useState("");
+  const [beratBadan, setBeratBadan] = useState("");
+  const [sistolik, setSistolik] = useState("");
+  const [diastolik, setDiastolik] = useState("");
+  const [riwayatPenyakit, setRiwayatPenyakit] = useState("-");
+  const [obat, setObat] = useState("-");
+  const [penyakitBaru, setPenyakitBaru] = useState("-");
+  const [examError, setExamError] = useState("");
+
+  // Resolve params (Next.js 15 async params)
+  useEffect(() => {
+    params.then((p) => setId(p.id));
+  }, [params]);
 
   useEffect(() => {
-    const data = getLansiaById(id);
-    if (!data) {
-      router.push('/dashboard/lansia');
-      return;
-    }
-    setLansia(data);
-    setRecords(getLansiaRecords(id));
+    if (!id) return;
+    let active = true;
+
+    (async () => {
+      try {
+        const data = await getLansiaById(id);
+        if (!active) return;
+
+        if (!data) {
+          router.push("/dashboard/lansia");
+          return;
+        }
+        setLansia(data);
+
+        const recs = await getLansiaRecords(id);
+        if (active) setRecords(recs);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
   }, [id, router]);
 
-  if (!lansia) {
+  if (isLoading || !lansia) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-[300px]">
         <div className="flex flex-col items-center gap-4">
-          <span className="material-symbols-outlined text-5xl text-tertiary animate-heartbeat" style={{ fontVariationSettings: "'FILL' 1" }}>
+          <span
+            className="material-symbols-outlined text-5xl text-tertiary animate-heartbeat"
+            style={{ fontVariationSettings: "'FILL' 1" }}
+          >
             favorite
           </span>
           <div className="w-24 h-1 bg-tertiary-fixed rounded-full overflow-hidden relative">
@@ -61,27 +126,40 @@ export default function LansiaDetailPage({ params }: { params: Promise<{ id: str
   }
 
   const age = calculateAge(lansia.tanggalLahir);
-  const isDeceased = lansia.statusHidup === 'Meninggal';
-  const category = classifyCategory(lansia.tanggalLahir, 'lansia');
+  const isDeceased = lansia.statusHidup === "Meninggal";
+  const category = classifyCategory(lansia.tanggalLahir, "lansia");
   const canAddRecord = !isDeceased;
 
-  const handleStatusChange = (status: StatusHidup, tanggal?: string, penyebab?: string) => {
-    const updated = {
-      ...lansia,
-      statusHidup: status,
-      tanggalMeninggal: tanggal,
-      penyebabMeninggal: penyebab
-    };
-    updateLansia(updated);
-    setLansia(updated);
+  const handleStatusChange = async (
+    status: StatusHidup,
+    tanggal?: string,
+    penyebab?: string,
+  ) => {
+    try {
+      const updated = await updateLansia({
+        id: lansia.id,
+        statusHidup: status,
+        tanggalMeninggal: tanggal,
+        penyebabMeninggal: penyebab,
+      });
+      setLansia(updated);
+    } catch (err: any) {
+      alert(err.message || "Gagal mengubah status");
+    }
   };
 
-  const handleAddExam = (e: React.FormEvent) => {
+  const handleAddExam = async (e: React.FormEvent) => {
     e.preventDefault();
-    setExamError('');
+    setExamError("");
 
-    if (!tanggalPemeriksaan || !tinggiBadan || !beratBadan || !sistolik || !diastolik) {
-      setExamError('Semua parameter vital wajib diisi');
+    if (
+      !tanggalPemeriksaan ||
+      !tinggiBadan ||
+      !beratBadan ||
+      !sistolik ||
+      !diastolik
+    ) {
+      setExamError("Semua parameter vital wajib diisi");
       return;
     }
 
@@ -90,51 +168,87 @@ export default function LansiaDetailPage({ params }: { params: Promise<{ id: str
     const sisNum = parseInt(sistolik);
     const diaNum = parseInt(diastolik);
 
-    if (isNaN(tbNum) || tbNum <= 0 || isNaN(bbNum) || bbNum <= 0 || isNaN(sisNum) || isNaN(diaNum)) {
-      setExamError('Masukkan parameter vital berupa angka yang valid');
+    if (
+      isNaN(tbNum) ||
+      tbNum <= 0 ||
+      isNaN(bbNum) ||
+      bbNum <= 0 ||
+      isNaN(sisNum) ||
+      isNaN(diaNum)
+    ) {
+      setExamError("Masukkan parameter vital berupa angka yang valid");
       return;
     }
 
-    const imtVal = calculateIMT(bbNum, tbNum);
+    setIsSubmittingExam(true);
 
-    const newRec = addLansiaRecord({
-      lansiaId: id,
-      tanggalPemeriksaan,
-      tinggiBadan: tbNum,
-      beratBadan: bbNum,
-      tekananDarahSistolik: sisNum,
-      tekananDarahDiastolik: diaNum,
-      riwayatPenyakit: riwayatPenyakit || '-',
-      obat: obat || '-',
-      penyakitBaru: penyakitBaru || '-',
-      imt: imtVal
-    });
+    try {
+      // IMT tidak dihitung di sini - database yang menghitung otomatis.
+      const newRec = await addLansiaRecord({
+        lansiaId: lansia.id,
+        tanggalPemeriksaan,
+        tinggiBadan: tbNum,
+        beratBadan: bbNum,
+        tekananDarahSistolik: sisNum,
+        tekananDarahDiastolik: diaNum,
+        riwayatPenyakit: riwayatPenyakit || "-",
+        obat: obat || "-",
+        penyakitBaru: penyakitBaru || "-",
+      });
 
-    setRecords([...records, newRec].sort((a, b) => new Date(a.tanggalPemeriksaan).getTime() - new Date(b.tanggalPemeriksaan).getTime()));
-    setIsExamModalOpen(false);
-    resetExamForm();
+      setRecords((prev) =>
+        [...prev, newRec].sort(
+          (a, b) =>
+            new Date(a.tanggalPemeriksaan).getTime() -
+            new Date(b.tanggalPemeriksaan).getTime(),
+        ),
+      );
+      setIsExamModalOpen(false);
+      resetExamForm();
+    } catch (err: any) {
+      setExamError(err.message || "Gagal menyimpan pemeriksaan");
+    } finally {
+      setIsSubmittingExam(false);
+    }
   };
 
   const resetExamForm = () => {
-    setTanggalPemeriksaan(new Date().toISOString().split('T')[0]);
-    setTinggiBadan('');
-    setBeratBadan('');
-    setSistolik('');
-    setDiastolik('');
-    setRiwayatPenyakit('-');
-    setObat('-');
-    setPenyakitBaru('-');
-    setExamError('');
+    setTanggalPemeriksaan(new Date().toISOString().split("T")[0]);
+    setTinggiBadan("");
+    setBeratBadan("");
+    setSistolik("");
+    setDiastolik("");
+    setRiwayatPenyakit("-");
+    setObat("-");
+    setPenyakitBaru("-");
+    setExamError("");
+  };
+
+  const handleDelete = async () => {
+    const confirmDel = window.confirm(
+      "Apakah Anda yakin ingin menghapus data lansia ini?",
+    );
+    if (!confirmDel) return;
+
+    try {
+      await deleteLansia(lansia.id);
+      router.push("/dashboard/lansia");
+    } catch (err: any) {
+      alert(err.message || "Gagal menghapus data");
+    }
   };
 
   const latestRecord = records[records.length - 1];
 
   // Chart data
-  const chartData = records.map(r => ({
-    tanggal: new Date(r.tanggalPemeriksaan).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
-    'IMT (BB/TB²)': r.imt,
-    'Sistolik (mmHg)': r.tekananDarahSistolik,
-    'Diastolik (mmHg)': r.tekananDarahDiastolik,
+  const chartData = records.map((r) => ({
+    tanggal: new Date(r.tanggalPemeriksaan).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+    }),
+    "IMT (BB/TB²)": r.imt,
+    "Sistolik (mmHg)": r.tekananDarahSistolik,
+    "Diastolik (mmHg)": r.tekananDarahDiastolik,
   }));
 
   return (
@@ -144,28 +258,62 @@ export default function LansiaDetailPage({ params }: { params: Promise<{ id: str
         <div className="flex flex-col md:flex-row justify-between items-start gap-6">
           <div className="space-y-3 flex-1">
             <div>
-              <h2 className="font-headline text-2xl font-bold text-on-background">{lansia.nama}</h2>
+              <h2 className="font-headline text-2xl font-bold text-on-background">
+                {lansia.nama}
+              </h2>
               <div className="flex gap-2 items-center mt-1.5 flex-wrap">
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-                  category.includes('Resiko') 
-                    ? 'bg-red-50 text-red-700 border-red-200' 
-                    : category.includes('Pralansia')
-                    ? 'bg-amber-50 text-amber-700 border-amber-200'
-                    : 'bg-orange-50 text-orange-700 border-orange-200'
-                }`}>
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                    category.includes("Resiko")
+                      ? "bg-red-50 text-red-700 border-red-200"
+                      : category.includes("Pralansia")
+                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                        : "bg-orange-50 text-orange-700 border-orange-200"
+                  }`}
+                >
                   {category.toUpperCase()}
                 </span>
                 <span className="text-xs text-on-surface-variant">•</span>
-                <span className="text-xs font-semibold text-on-surface-variant">No. KK: {lansia.noKk}</span>
+                <span className="text-xs font-semibold text-on-surface-variant">
+                  No. KK: {lansia.noKk}
+                </span>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-6 text-sm text-on-surface-variant pt-2 border-t border-outline-variant/10">
-              <p><span className="font-medium text-on-surface">TTL:</span> {lansia.tempatLahir}, {new Date(lansia.tanggalLahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-              <p><span className="font-medium text-on-surface">Usia:</span> {age.years} tahun</p>
-              <p><span className="font-medium text-on-surface">Nama Ayah:</span> {lansia.namaAyah}</p>
-              <p><span className="font-medium text-on-surface">Nama Ibu:</span> {lansia.namaIbu}</p>
-              <p><span className="font-medium text-on-surface">Jenis Kelamin:</span> {lansia.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</p>
+              <p>
+                <span className="font-medium text-on-surface">TTL:</span>{" "}
+                {lansia.tempatLahir},{" "}
+                {new Date(lansia.tanggalLahir).toLocaleDateString("id-ID", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
+              <p>
+                <span className="font-medium text-on-surface">Usia:</span>{" "}
+                {age.years} tahun
+              </p>
+              <p>
+                <span className="font-medium text-on-surface">Nama Ayah:</span>{" "}
+                {lansia.namaAyah || "-"}
+              </p>
+              <p>
+                <span className="font-medium text-on-surface">Nama Ibu:</span>{" "}
+                {lansia.namaIbu || "-"}
+              </p>
+              <p>
+                <span className="font-medium text-on-surface">
+                  Jenis Kelamin:
+                </span>{" "}
+                {lansia.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}
+              </p>
+              <p>
+                <span className="font-medium text-on-surface">
+                  Golongan Darah:
+                </span>{" "}
+                {lansia.golonganDarah || "-"}
+              </p>
             </div>
           </div>
 
@@ -185,7 +333,7 @@ export default function LansiaDetailPage({ params }: { params: Promise<{ id: str
               </div>
             )}
 
-            <Button 
+            <Button
               onClick={() => setIsExamModalOpen(true)}
               disabled={!canAddRecord}
               className="flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed w-full md:w-auto"
@@ -195,15 +343,7 @@ export default function LansiaDetailPage({ params }: { params: Promise<{ id: str
             </Button>
 
             <Button
-              onClick={() => {
-                const confirmDel = window.confirm("Apakah Anda yakin ingin menghapus data lansia ini?");
-                if (confirmDel) {
-                  import('@/lib/data/db-service').then(m => {
-                    m.deleteLansia(lansia.id);
-                    router.push('/dashboard/lansia');
-                  });
-                }
-              }}
+              onClick={handleDelete}
               variant="destructive"
               className="flex items-center justify-center gap-2 shadow-sm cursor-pointer w-full md:w-auto animate-all"
             >
@@ -217,22 +357,47 @@ export default function LansiaDetailPage({ params }: { params: Promise<{ id: str
       {/* Stats Bento Grid */}
       <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-5 flex flex-col justify-between h-28 bg-white border border-outline-variant/20">
-          <span className="text-xs text-on-surface-variant font-medium">IMT Terakhir</span>
-          <p className="text-2xl font-extrabold text-tertiary">{latestRecord?.imt || '-'}</p>
+          <span className="text-xs text-on-surface-variant font-medium">
+            IMT Terakhir
+          </span>
+          <p className="text-2xl font-extrabold text-tertiary">
+            {latestRecord?.imt || "-"}
+          </p>
         </Card>
         <Card className="p-5 flex flex-col justify-between h-28 bg-white border border-outline-variant/20">
-          <span className="text-xs text-on-surface-variant font-medium">Berat Badan</span>
-          <p className="text-2xl font-extrabold text-on-background">{latestRecord?.beratBadan || '-'} <span className="text-sm font-normal text-on-surface-variant">kg</span></p>
-        </Card>
-        <Card className="p-5 flex flex-col justify-between h-28 bg-white border border-outline-variant/20">
-          <span className="text-xs text-on-surface-variant font-medium">Tinggi Badan</span>
-          <p className="text-2xl font-extrabold text-on-background">{latestRecord?.tinggiBadan || '-'} <span className="text-sm font-normal text-on-surface-variant">cm</span></p>
-        </Card>
-        <Card className="p-5 flex flex-col justify-between h-28 bg-white border border-outline-variant/20">
-          <span className="text-xs text-on-surface-variant font-medium">Tekanan Darah</span>
+          <span className="text-xs text-on-surface-variant font-medium">
+            Berat Badan
+          </span>
           <p className="text-2xl font-extrabold text-on-background">
-            {latestRecord ? `${latestRecord.tekananDarahSistolik}/${latestRecord.tekananDarahDiastolik}` : '-'}
-            <span className="text-sm font-normal text-on-surface-variant"> mmHg</span>
+            {latestRecord?.beratBadan || "-"}{" "}
+            <span className="text-sm font-normal text-on-surface-variant">
+              kg
+            </span>
+          </p>
+        </Card>
+        <Card className="p-5 flex flex-col justify-between h-28 bg-white border border-outline-variant/20">
+          <span className="text-xs text-on-surface-variant font-medium">
+            Tinggi Badan
+          </span>
+          <p className="text-2xl font-extrabold text-on-background">
+            {latestRecord?.tinggiBadan || "-"}{" "}
+            <span className="text-sm font-normal text-on-surface-variant">
+              cm
+            </span>
+          </p>
+        </Card>
+        <Card className="p-5 flex flex-col justify-between h-28 bg-white border border-outline-variant/20">
+          <span className="text-xs text-on-surface-variant font-medium">
+            Tekanan Darah
+          </span>
+          <p className="text-2xl font-extrabold text-on-background">
+            {latestRecord
+              ? `${latestRecord.tekananDarahSistolik}/${latestRecord.tekananDarahDiastolik}`
+              : "-"}
+            <span className="text-sm font-normal text-on-surface-variant">
+              {" "}
+              mmHg
+            </span>
           </p>
         </Card>
       </section>
@@ -241,26 +406,34 @@ export default function LansiaDetailPage({ params }: { params: Promise<{ id: str
       {latestRecord && (
         <Card className="p-6 bg-white border border-outline-variant/20 rounded-xl space-y-4">
           <h3 className="text-md font-bold text-tertiary flex items-center gap-2">
-            <span className="material-symbols-outlined">medical_information</span>
+            <span className="material-symbols-outlined">
+              medical_information
+            </span>
             Rangkuman Riwayat Klinis
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-on-surface-variant">
             <div>
-              <span className="font-semibold text-on-surface block mb-1">Riwayat Penyakit:</span>
+              <span className="font-semibold text-on-surface block mb-1">
+                Riwayat Penyakit:
+              </span>
               <p className="bg-secondary-container/10 border border-outline-variant/10 rounded-lg p-3 text-xs font-medium text-on-surface">
-                {latestRecord.riwayatPenyakit || '-'}
+                {latestRecord.riwayatPenyakit || "-"}
               </p>
             </div>
             <div>
-              <span className="font-semibold text-on-surface block mb-1">Obat Rutin yang Diminum:</span>
+              <span className="font-semibold text-on-surface block mb-1">
+                Obat Rutin yang Diminum:
+              </span>
               <p className="bg-secondary-container/10 border border-outline-variant/10 rounded-lg p-3 text-xs font-medium text-on-surface">
-                {latestRecord.obat || '-'}
+                {latestRecord.obat || "-"}
               </p>
             </div>
             <div>
-              <span className="font-semibold text-on-surface block mb-1">Penyakit Baru Terdeteksi:</span>
+              <span className="font-semibold text-on-surface block mb-1">
+                Penyakit Baru Terdeteksi:
+              </span>
               <p className="bg-red-50/50 border border-red-100 rounded-lg p-3 text-xs font-bold text-red-800">
-                {latestRecord.penyakitBaru || '-'}
+                {latestRecord.penyakitBaru || "-"}
               </p>
             </div>
           </div>
@@ -271,31 +444,56 @@ export default function LansiaDetailPage({ params }: { params: Promise<{ id: str
       {records.length > 0 && (
         <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="p-5 bg-white border border-outline-variant/20">
-            <h4 className="font-bold text-sm text-on-background mb-4">Grafik Tren IMT Lansia</h4>
+            <h4 className="font-bold text-sm text-on-background mb-4">
+              Grafik Tren IMT Lansia
+            </h4>
             <div className="h-[250px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <LineChart
+                  data={chartData}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="tanggal" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 10 }} />
                   <Tooltip />
-                  <Line type="monotone" dataKey="IMT (BB/TB²)" stroke="#ab2c5d" strokeWidth={3} />
+                  <Line
+                    type="monotone"
+                    dataKey="IMT (BB/TB²)"
+                    stroke="#ab2c5d"
+                    strokeWidth={3}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </Card>
           <Card className="p-5 bg-white border border-outline-variant/20">
-            <h4 className="font-bold text-sm text-on-background mb-4">Grafik Tensi Darah (mmHg)</h4>
+            <h4 className="font-bold text-sm text-on-background mb-4">
+              Grafik Tensi Darah (mmHg)
+            </h4>
             <div className="h-[250px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <LineChart
+                  data={chartData}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="tanggal" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 10 }} />
                   <Tooltip />
                   <Legend />
-                  <Line type="monotone" dataKey="Sistolik (mmHg)" stroke="#0284c7" strokeWidth={2} />
-                  <Line type="monotone" dataKey="Diastolik (mmHg)" stroke="#10b981" strokeWidth={2} />
+                  <Line
+                    type="monotone"
+                    dataKey="Sistolik (mmHg)"
+                    stroke="#0284c7"
+                    strokeWidth={2}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="Diastolik (mmHg)"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -306,7 +504,9 @@ export default function LansiaDetailPage({ params }: { params: Promise<{ id: str
       {/* Historical Record Table */}
       <section className="space-y-4">
         <h3 className="font-headline text-lg font-bold text-on-background flex items-center gap-2">
-          <span className="material-symbols-outlined text-tertiary">history</span>
+          <span className="material-symbols-outlined text-tertiary">
+            history
+          </span>
           Riwayat Pemeriksaan Lansia
         </h3>
 
@@ -326,7 +526,10 @@ export default function LansiaDetailPage({ params }: { params: Promise<{ id: str
             <TableBody>
               {records.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-on-surface-variant py-8">
+                  <TableCell
+                    colSpan={7}
+                    className="text-center text-on-surface-variant py-8"
+                  >
                     Belum ada riwayat pemeriksaan lansia.
                   </TableCell>
                 </TableRow>
@@ -334,18 +537,27 @@ export default function LansiaDetailPage({ params }: { params: Promise<{ id: str
                 records.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">
-                      {new Date(r.tanggalPemeriksaan).toLocaleDateString('id-ID', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric'
-                      })}
+                      {new Date(r.tanggalPemeriksaan).toLocaleDateString(
+                        "id-ID",
+                        {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        },
+                      )}
                     </TableCell>
                     <TableCell>{r.tinggiBadan} cm</TableCell>
                     <TableCell>{r.beratBadan} kg</TableCell>
-                    <TableCell className="font-bold text-tertiary">{r.imt}</TableCell>
-                    <TableCell>{r.tekananDarahSistolik}/{r.tekananDarahDiastolik} mmHg</TableCell>
-                    <TableCell className="text-red-700 font-medium">{r.penyakitBaru || '-'}</TableCell>
-                    <TableCell>{r.obat || '-'}</TableCell>
+                    <TableCell className="font-bold text-tertiary">
+                      {r.imt}
+                    </TableCell>
+                    <TableCell>
+                      {r.tekananDarahSistolik}/{r.tekananDarahDiastolik} mmHg
+                    </TableCell>
+                    <TableCell className="text-red-700 font-medium">
+                      {r.penyakitBaru || "-"}
+                    </TableCell>
+                    <TableCell>{r.obat || "-"}</TableCell>
                   </TableRow>
                 ))
               )}
@@ -355,12 +567,16 @@ export default function LansiaDetailPage({ params }: { params: Promise<{ id: str
       </section>
 
       {/* Update Examination Modal */}
-      <Dialog isOpen={isExamModalOpen} onClose={() => setIsExamModalOpen(false)}>
+      <Dialog
+        isOpen={isExamModalOpen}
+        onClose={() => setIsExamModalOpen(false)}
+      >
         <form onSubmit={handleAddExam}>
           <DialogHeader>
             <DialogTitle>Update Pemeriksaan Lansia</DialogTitle>
             <DialogDescription>
-              Masukkan hasil pengukuran antropometri, tensi, obat rutin, dan diagnosa penyakit baru.
+              Masukkan hasil pengukuran antropometri, tensi, obat rutin, dan
+              diagnosa penyakit baru.
             </DialogDescription>
           </DialogHeader>
 
@@ -378,7 +594,7 @@ export default function LansiaDetailPage({ params }: { params: Promise<{ id: str
                   id="ex_date"
                   type="date"
                   value={tanggalPemeriksaan}
-                  max={new Date().toISOString().split('T')[0]}
+                  max={new Date().toISOString().split("T")[0]}
                   onChange={(e) => setTanggalPemeriksaan(e.target.value)}
                   required
                 />
@@ -467,11 +683,15 @@ export default function LansiaDetailPage({ params }: { params: Promise<{ id: str
           </DialogContent>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIsExamModalOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsExamModalOpen(false)}
+            >
               Batal
             </Button>
-            <Button type="submit">
-              Simpan Pemeriksaan
+            <Button type="submit" disabled={isSubmittingExam}>
+              {isSubmittingExam ? "Menyimpan..." : "Simpan Pemeriksaan"}
             </Button>
           </DialogFooter>
         </form>
