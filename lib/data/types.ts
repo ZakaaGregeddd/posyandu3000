@@ -4,6 +4,17 @@ export interface KK {
   alamat: string;
   rt: string;
   rw: string;
+  nikAyah?: string;
+  namaAyah?: string;
+  tanggalLahirAyah?: string;
+  tempatLahirAyah?: string;
+  telpAyah?: string;
+  nikIbu?: string;
+  namaIbu?: string;
+  tanggalLahirIbu?: string;
+  tempatLahirIbu?: string;
+  telpIbu?: string;
+  noTelp?: string;
 }
 
 export type StatusHidup = 'Hidup' | 'Meninggal';
@@ -72,6 +83,8 @@ export interface Lansia extends BaseMember {
   jenisKelamin: 'L' | 'P';
   namaIbu: string;
   namaAyah: string;
+  namaWali?: string;
+  noTelpWali?: string;
 }
 
 export interface LansiaRecord {

@@ -11,8 +11,21 @@ import {
   initialLansiaRecords
 } from './mock-db';
 
-// Helper to check if client-side
 const isClient = typeof window !== 'undefined';
+
+if (isClient) {
+  const DB_VERSION = "v3";
+  if (localStorage.getItem("posyandu_db_version") !== DB_VERSION) {
+    localStorage.removeItem("posyandu_kks");
+    localStorage.removeItem("posyandu_balitas");
+    localStorage.removeItem("posyandu_ibu_hamils");
+    localStorage.removeItem("posyandu_lansias");
+    localStorage.removeItem("posyandu_balita_records");
+    localStorage.removeItem("posyandu_ibu_hamil_records");
+    localStorage.removeItem("posyandu_lansia_records");
+    localStorage.setItem("posyandu_db_version", DB_VERSION);
+  }
+}
 
 function getStorageItem<T>(key: string, defaultValue: T): T {
   if (!isClient) return defaultValue;
@@ -39,6 +52,10 @@ export function getKKs(): KK[] {
   return getStorageItem<KK[]>('posyandu_kks', initialKKs);
 }
 
+export function getKKByNoKk(noKk: string): KK | undefined {
+  return getKKs().find(item => item.noKk === noKk);
+}
+
 export function addKK(kk: KK): void {
   const kks = getKKs();
   if (kks.some(item => item.noKk === kk.noKk)) {
@@ -46,6 +63,12 @@ export function addKK(kk: KK): void {
   }
   kks.push(kk);
   setStorageItem('posyandu_kks', kks);
+}
+
+export function deleteKK(noKk: string): void {
+  const kks = getKKs();
+  const filtered = kks.filter(item => item.noKk !== noKk);
+  setStorageItem('posyandu_kks', filtered);
 }
 
 // Balita Services

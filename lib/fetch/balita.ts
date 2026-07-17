@@ -41,6 +41,14 @@ export interface KKOption {
   noTelp?: string;
   rt?: string;
   rw?: string;
+  nikAyah?: string;
+  namaAyah?: string;
+  tempatLahirAyah?: string;
+  tanggalLahirAyah?: string;
+  nikIbu?: string;
+  namaIbu?: string;
+  tempatLahirIbu?: string;
+  tanggalLahirIbu?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -116,16 +124,34 @@ export async function getKKs(): Promise<KKOption[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("keluarga")
-    .select("no_kk, alamat, no_telp, rt, rw")
+    .select(`
+      no_kk, 
+      alamat, 
+      no_telp, 
+      rt, 
+      rw,
+      nik_ayah,
+      nik_ibu,
+      ayah:individu!fk_keluarga_nik_ayah(nama, tempat_lahir, tanggal_lahir),
+      ibu:individu!fk_keluarga_nik_ibu(nama, tempat_lahir, tanggal_lahir)
+    `)
     .order("no_kk");
 
   if (error) throw new Error(error.message);
-  return (data ?? []).map((k) => ({
+  return (data ?? []).map((k: any) => ({
     noKk: k.no_kk,
     alamat: k.alamat ?? undefined,
     noTelp: k.no_telp ?? undefined,
     rt: k.rt ?? undefined,
     rw: k.rw ?? undefined,
+    nikAyah: k.nik_ayah ?? undefined,
+    namaAyah: k.ayah?.nama ?? undefined,
+    tempatLahirAyah: k.ayah?.tempat_lahir ?? undefined,
+    tanggalLahirAyah: k.ayah?.tanggal_lahir ?? undefined,
+    nikIbu: k.nik_ibu ?? undefined,
+    namaIbu: k.ibu?.nama ?? undefined,
+    tempatLahirIbu: k.ibu?.tempat_lahir ?? undefined,
+    tanggalLahirIbu: k.ibu?.tanggal_lahir ?? undefined,
   }));
 }
 

@@ -39,6 +39,11 @@ export default function Sidebar() {
       href: "/dashboard/tambah-kk",
       icon: "person_add",
     },
+    {
+      name: "KK Terdaftar",
+      href: "/dashboard/kk-terdaftar",
+      icon: "folder_shared",
+    },
     { name: "Balita", href: "/dashboard/balita", icon: "child_care" },
     { name: "Ibu Hamil", href: "/dashboard/ibu-hamil", icon: "pregnant_woman" },
     { name: "Lansia", href: "/dashboard/lansia", icon: "elderly" },

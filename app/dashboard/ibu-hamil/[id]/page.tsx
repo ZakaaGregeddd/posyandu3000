@@ -261,7 +261,7 @@ export default function IbuHamilDetailPage({
         tanggalLahir: babyTanggal,
         jenisKelamin: babyJk,
         caraLahir: babyCara,
-        usiaKehamilanSaatLahirWeeks: parseInt(babyGestationWeeks),
+        usiaKehamilanSaatLahirWeeks: parseInt(babyGestationWeeks) || 39,
       });
 
       setBumil(updated);
@@ -813,6 +813,7 @@ export default function IbuHamilDetailPage({
                 <Input
                   id="baby_weeks"
                   type="number"
+                  placeholder="Contoh: 38"
                   value={babyGestationWeeks}
                   onChange={(e) => setBabyGestationWeeks(e.target.value)}
                   required

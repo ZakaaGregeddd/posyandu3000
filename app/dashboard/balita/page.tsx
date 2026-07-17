@@ -47,6 +47,9 @@ export default function BalitaPage() {
   const [golonganDarah, setGolonganDarah] = useState("");
   const [caraLahir, setCaraLahir] = useState<"SC" | "Normal" | "">("");
   const [usiaKehamilanSaatLahir, setUsiaKehamilanSaatLahir] = useState("");
+  const [usiaKehamilanUnit, setUsiaKehamilanUnit] = useState<"minggu" | "tahun">("minggu");
+  const [namaAyah, setNamaAyah] = useState("");
+  const [namaIbu, setNamaIbu] = useState("");
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
@@ -97,6 +100,9 @@ export default function BalitaPage() {
     setIsSubmitting(true);
 
     try {
+      const val = parseInt(usiaKehamilanSaatLahir);
+      const ageInWeeks = isNaN(val) ? undefined : (usiaKehamilanUnit === "tahun" ? val * 52 : val);
+
       const newBalita = await addBalita({
         nama,
         tempatLahir,
@@ -106,9 +112,7 @@ export default function BalitaPage() {
         statusHidup: "Hidup",
         nik: nik || undefined,
         caraLahir: caraLahir || undefined,
-        usiaKehamilanSaatLahirWeeks: usiaKehamilanSaatLahir
-          ? parseInt(usiaKehamilanSaatLahir)
-          : undefined,
+        usiaKehamilanSaatLahirWeeks: ageInWeeks,
         golonganDarah: golonganDarah || undefined,
       });
 
@@ -132,6 +136,9 @@ export default function BalitaPage() {
     setGolonganDarah("");
     setCaraLahir("");
     setUsiaKehamilanSaatLahir("");
+    setUsiaKehamilanUnit("minggu");
+    setNamaAyah("");
+    setNamaIbu("");
     setFormError("");
   };
 
@@ -548,21 +555,52 @@ export default function BalitaPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="modal_no_kk">Nomor KK</Label>
-                <select
+                <Label htmlFor="modal_no_kk">KK Terdaftar</Label>
+                <input
                   id="modal_no_kk"
+                  type="text"
+                  pattern="[0-9]*"
+                  inputMode="numeric"
+                  placeholder="Ketik 16 digit nomor KK..."
+                  list="kk_options"
                   value={noKk}
-                  onChange={(e) => setNoKk(e.target.value)}
+                  onChange={(e) => {
+                    const cleanVal = e.target.value.replace(/[^0-9]/g, "").substring(0, 16);
+                    setNoKk(cleanVal);
+                    const kk = kks.find(k => k.noKk === cleanVal);
+                    if (kk) {
+                      setNamaAyah(kk.namaAyah || "");
+                      setNamaIbu(kk.namaIbu || "");
+                    }
+                  }}
                   className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
                   required
-                >
-                  <option value="">-- Pilih No KK --</option>
+                />
+                <datalist id="kk_options">
                   {kks.map((k) => (
-                    <option key={k.noKk} value={k.noKk}>
-                      {k.noKk}
-                    </option>
+                    <option key={k.noKk} value={k.noKk} />
                   ))}
-                </select>
+                </datalist>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="modal_nama_ayah">Nama Ayah</Label>
+                <Input
+                  id="modal_nama_ayah"
+                  value={namaAyah}
+                  onChange={(e) => setNamaAyah(e.target.value)}
+                  placeholder="Nama Ayah"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="modal_nama_ibu">Nama Ibu</Label>
+                <Input
+                  id="modal_nama_ibu"
+                  value={namaIbu}
+                  onChange={(e) => setNamaIbu(e.target.value)}
+                  placeholder="Nama Ibu"
+                />
               </div>
 
               <div className="space-y-1.5">
@@ -666,17 +704,26 @@ export default function BalitaPage() {
                 </select>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="modal_usia_kehamilan">
-                  Usia Kehamilan (Weeks - Opsional)
-                </Label>
-                <Input
-                  id="modal_usia_kehamilan"
-                  type="number"
-                  placeholder="Contoh: 38"
-                  value={usiaKehamilanSaatLahir}
-                  onChange={(e) => setUsiaKehamilanSaatLahir(e.target.value)}
-                />
+              <div className="space-y-1.5 col-span-2 md:col-span-1">
+                <Label htmlFor="modal_usia_kehamilan">Usia</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="modal_usia_kehamilan"
+                    type="number"
+                    placeholder="Contoh: 38 atau 2"
+                    value={usiaKehamilanSaatLahir}
+                    onChange={(e) => setUsiaKehamilanSaatLahir(e.target.value)}
+                    className="flex-1"
+                  />
+                  <select
+                    value={usiaKehamilanUnit}
+                    onChange={(e) => setUsiaKehamilanUnit(e.target.value as "minggu" | "tahun")}
+                    className="rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all w-28"
+                  >
+                    <option value="minggu">minggu</option>
+                    <option value="tahun">tahun</option>
+                  </select>
+                </div>
               </div>
             </div>
           </DialogContent>

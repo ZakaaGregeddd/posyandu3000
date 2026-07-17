@@ -47,8 +47,8 @@ export default function LansiaPage() {
   const [jenisKelamin, setJenisKelamin] = useState<"L" | "P">("L");
   const [tempatLahir, setTempatLahir] = useState("");
   const [tanggalLahir, setTanggalLahir] = useState("");
-  const [namaIbu, setNamaIbu] = useState("");
-  const [namaAyah, setNamaAyah] = useState("");
+  const [namaWali, setNamaWali] = useState("");
+  const [noTelpWali, setNoTelpWali] = useState("");
   const [golonganDarah, setGolonganDarah] = useState("");
   const [formError, setFormError] = useState("");
 
@@ -96,10 +96,9 @@ export default function LansiaPage() {
       !nama ||
       !tempatLahir ||
       !tanggalLahir ||
-      !namaIbu ||
-      !namaAyah
+      !namaWali
     ) {
-      setFormError("Semua field wajib diisi");
+      setFormError("Semua field wajib diisi (Wali wajib diisi)");
       return;
     }
 
@@ -119,8 +118,8 @@ export default function LansiaPage() {
         tanggalLahir,
         jenisKelamin,
         noKk,
-        namaIbu,
-        namaAyah,
+        namaIbu: noTelpWali || "Tidak ada nomor", // Map Nomor Wali to namaIbu
+        namaAyah: namaWali,                        // Map Nama Wali to namaAyah
         statusHidup: "Hidup",
         nik: nik || undefined,
         golonganDarah: golonganDarah || undefined,
@@ -143,8 +142,8 @@ export default function LansiaPage() {
     setJenisKelamin("L");
     setTempatLahir("");
     setTanggalLahir("");
-    setNamaIbu("");
-    setNamaAyah("");
+    setNamaWali("");
+    setNoTelpWali("");
     setGolonganDarah("");
     setFormError("");
   };
@@ -433,21 +432,27 @@ export default function LansiaPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="modal_no_kk">Nomor KK</Label>
-                <select
+                <Label htmlFor="modal_no_kk">KK Terdaftar</Label>
+                <input
                   id="modal_no_kk"
+                  type="text"
+                  pattern="[0-9]*"
+                  inputMode="numeric"
+                  placeholder="Ketik 16 digit nomor KK..."
+                  list="kk_options"
                   value={noKk}
-                  onChange={(e) => setNoKk(e.target.value)}
+                  onChange={(e) => {
+                    const cleanVal = e.target.value.replace(/[^0-9]/g, "").substring(0, 16);
+                    setNoKk(cleanVal);
+                  }}
                   className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
                   required
-                >
-                  <option value="">-- Pilih No KK --</option>
+                />
+                <datalist id="kk_options">
                   {kks.map((k) => (
-                    <option key={k.noKk} value={k.noKk}>
-                      {k.noKk}
-                    </option>
+                    <option key={k.noKk} value={k.noKk} />
                   ))}
-                </select>
+                </datalist>
               </div>
 
               <div className="space-y-1.5">
@@ -455,14 +460,39 @@ export default function LansiaPage() {
                 <Input
                   id="modal_nik"
                   placeholder="Masukkan 16 digit NIK"
+                  list="lansia_nik_options"
                   value={nik}
                   onChange={(e) => {
                     const clean = e.target.value
                       .replace(/[^0-9]/g, "")
                       .substring(0, 16);
                     setNik(clean);
+                    const selectedKK = kks.find(k => k.noKk === noKk);
+                    if (selectedKK) {
+                      if (clean === selectedKK.nikAyah && selectedKK.namaAyah) {
+                        setNama(selectedKK.namaAyah);
+                        setJenisKelamin("L");
+                        if (selectedKK.tempatLahirAyah) setTempatLahir(selectedKK.tempatLahirAyah);
+                        if (selectedKK.tanggalLahirAyah) setTanggalLahir(selectedKK.tanggalLahirAyah);
+                      } else if (clean === selectedKK.nikIbu && selectedKK.namaIbu) {
+                        setNama(selectedKK.namaIbu);
+                        setJenisKelamin("P");
+                        if (selectedKK.tempatLahirIbu) setTempatLahir(selectedKK.tempatLahirIbu);
+                        if (selectedKK.tanggalLahirIbu) setTanggalLahir(selectedKK.tanggalLahirIbu);
+                      }
+                    }
                   }}
                 />
+                {(kks.find(k => k.noKk === noKk)?.nikAyah || kks.find(k => k.noKk === noKk)?.nikIbu) && (
+                  <datalist id="lansia_nik_options">
+                    {kks.find(k => k.noKk === noKk)?.nikAyah && (
+                      <option value={kks.find(k => k.noKk === noKk)?.nikAyah} />
+                    )}
+                    {kks.find(k => k.noKk === noKk)?.nikIbu && (
+                      <option value={kks.find(k => k.noKk === noKk)?.nikIbu} />
+                    )}
+                  </datalist>
+                )}
               </div>
 
               <div className="md:col-span-2 space-y-1.5">
@@ -470,10 +500,38 @@ export default function LansiaPage() {
                 <Input
                   id="modal_nama"
                   placeholder="Nama Lengkap Lansia"
+                  list="lansia_nama_options"
                   value={nama}
-                  onChange={(e) => setNama(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setNama(val);
+                    const selectedKK = kks.find(k => k.noKk === noKk);
+                    if (selectedKK) {
+                      if (val.toLowerCase() === selectedKK.namaAyah?.toLowerCase() && selectedKK.nikAyah) {
+                        setNik(selectedKK.nikAyah);
+                        setJenisKelamin("L");
+                        if (selectedKK.tempatLahirAyah) setTempatLahir(selectedKK.tempatLahirAyah);
+                        if (selectedKK.tanggalLahirAyah) setTanggalLahir(selectedKK.tanggalLahirAyah);
+                      } else if (val.toLowerCase() === selectedKK.namaIbu?.toLowerCase() && selectedKK.nikIbu) {
+                        setNik(selectedKK.nikIbu);
+                        setJenisKelamin("P");
+                        if (selectedKK.tempatLahirIbu) setTempatLahir(selectedKK.tempatLahirIbu);
+                        if (selectedKK.tanggalLahirIbu) setTanggalLahir(selectedKK.tanggalLahirIbu);
+                      }
+                    }
+                  }}
                   required
                 />
+                {(kks.find(k => k.noKk === noKk)?.namaAyah || kks.find(k => k.noKk === noKk)?.namaIbu) && (
+                  <datalist id="lansia_nama_options">
+                    {kks.find(k => k.noKk === noKk)?.namaAyah && (
+                      <option value={kks.find(k => k.noKk === noKk)?.namaAyah} />
+                    )}
+                    {kks.find(k => k.noKk === noKk)?.namaIbu && (
+                      <option value={kks.find(k => k.noKk === noKk)?.namaIbu} />
+                    )}
+                  </datalist>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -512,10 +570,21 @@ export default function LansiaPage() {
                 <Input
                   id="modal_tempat"
                   placeholder="Kota / Kabupaten"
+                  list="lansia_tempat_options"
                   value={tempatLahir}
                   onChange={(e) => setTempatLahir(e.target.value)}
                   required
                 />
+                {(kks.find(k => k.noKk === noKk)?.tempatLahirAyah || kks.find(k => k.noKk === noKk)?.tempatLahirIbu) && (
+                  <datalist id="lansia_tempat_options">
+                    {kks.find(k => k.noKk === noKk)?.tempatLahirAyah && (
+                      <option value={kks.find(k => k.noKk === noKk)?.tempatLahirAyah} />
+                    )}
+                    {kks.find(k => k.noKk === noKk)?.tempatLahirIbu && (
+                      <option value={kks.find(k => k.noKk === noKk)?.tempatLahirIbu} />
+                    )}
+                  </datalist>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -523,32 +592,45 @@ export default function LansiaPage() {
                 <Input
                   id="modal_tanggal"
                   type="date"
+                  list="lansia_tgl_options"
                   value={tanggalLahir}
                   max={new Date().toISOString().split("T")[0]}
                   onChange={(e) => setTanggalLahir(e.target.value)}
                   required
                 />
+                {(kks.find(k => k.noKk === noKk)?.tanggalLahirAyah || kks.find(k => k.noKk === noKk)?.tanggalLahirIbu) && (
+                  <datalist id="lansia_tgl_options">
+                    {kks.find(k => k.noKk === noKk)?.tanggalLahirAyah && (
+                      <option value={kks.find(k => k.noKk === noKk)?.tanggalLahirAyah} />
+                    )}
+                    {kks.find(k => k.noKk === noKk)?.tanggalLahirIbu && (
+                      <option value={kks.find(k => k.noKk === noKk)?.tanggalLahirIbu} />
+                    )}
+                  </datalist>
+                )}
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="modal_ayah">Nama Ayah</Label>
+                <Label htmlFor="modal_wali">Nama Wali</Label>
                 <Input
-                  id="modal_ayah"
-                  placeholder="Nama Lengkap Ayah (boleh tidak terdaftar di sistem)"
-                  value={namaAyah}
-                  onChange={(e) => setNamaAyah(e.target.value)}
+                  id="modal_wali"
+                  placeholder="Nama Lengkap Wali"
+                  value={namaWali}
+                  onChange={(e) => setNamaWali(e.target.value)}
                   required
                 />
               </div>
 
               <div className="md:col-span-2 space-y-1.5">
-                <Label htmlFor="modal_ibu">Nama Ibu</Label>
+                <Label htmlFor="modal_telp_wali">Nomor HP / WA Wali</Label>
                 <Input
-                  id="modal_ibu"
-                  placeholder="Nama Lengkap Ibu (boleh tidak terdaftar di sistem)"
-                  value={namaIbu}
-                  onChange={(e) => setNamaIbu(e.target.value)}
-                  required
+                  id="modal_telp_wali"
+                  placeholder="Nomor Telepon Wali (Contoh: 081234567890)"
+                  value={noTelpWali}
+                  onChange={(e) => {
+                    const clean = e.target.value.replace(/[^0-9]/g, "").substring(0, 13);
+                    setNoTelpWali(clean);
+                  }}
                 />
               </div>
             </div>

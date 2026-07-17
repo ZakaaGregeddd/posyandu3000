@@ -2,10 +2,130 @@ import { KK, Balita, BalitaRecord, IbuHamil, IbuHamilRecord, Lansia, LansiaRecor
 
 // Seed KK
 export const initialKKs: KK[] = [
-  { noKk: '3201010101010001', namaKepalaKeluarga: 'Budi Santoso', alamat: 'Jl. Merdeka No. 10', rt: '01', rw: '05' },
-  { noKk: '3201010101010002', namaKepalaKeluarga: 'Heri Wijaya', alamat: 'Jl. Melati No. 5', rt: '02', rw: '05' },
-  { noKk: '3201010101010003', namaKepalaKeluarga: 'Suryo Kuncoro', alamat: 'Jl. Mawar No. 15', rt: '03', rw: '05' },
-  { noKk: '3201010101010004', namaKepalaKeluarga: 'Joko Widodo', alamat: 'Jl. Anggrek No. 1', rt: '04', rw: '05' },
+  { 
+    noKk: '3201010101010001', 
+    namaKepalaKeluarga: 'Budi Santoso', 
+    alamat: 'Jl. Merdeka No. 10', 
+    rt: '01', 
+    rw: '05',
+    nikAyah: '3201010101010001_A',
+    namaAyah: 'Budi Santoso',
+    tanggalLahirAyah: '1985-05-12',
+    tempatLahirAyah: 'Bogor',
+    telpAyah: '081234567891',
+    nikIbu: '3201011205980002',
+    namaIbu: 'Siti Rahma',
+    tanggalLahirIbu: '1998-05-12',
+    tempatLahirIbu: 'Bandung',
+    telpIbu: '081234567892',
+    noTelp: '081234567891'
+  },
+  { 
+    noKk: '3201010101010002', 
+    namaKepalaKeluarga: 'Heri Wijaya', 
+    alamat: 'Jl. Melati No. 5', 
+    rt: '02', 
+    rw: '05',
+    nikAyah: '3201010101010002_A',
+    namaAyah: 'Heri Wijaya',
+    tanggalLahirAyah: '1980-04-10',
+    tempatLahirAyah: 'Jakarta',
+    telpAyah: '081234567893',
+    nikIbu: '3201012208950005',
+    namaIbu: 'Dewi Lestari',
+    tanggalLahirIbu: '1995-08-22',
+    tempatLahirIbu: 'Bogor',
+    telpIbu: '081234567894',
+    noTelp: '081234567893'
+  },
+  { 
+    noKk: '3201010101010003', 
+    namaKepalaKeluarga: 'Suryo Kuncoro', 
+    alamat: 'Jl. Mawar No. 15', 
+    rt: '03', 
+    rw: '05',
+    nikAyah: '3201010101010003_A',
+    namaAyah: 'Suryo Kuncoro',
+    tanggalLahirAyah: '1982-12-04',
+    tempatLahirAyah: 'Sukabumi',
+    telpAyah: '081234567895',
+    nikIbu: '3201010412920003',
+    namaIbu: 'Rina Astuti',
+    tanggalLahirIbu: '1992-12-04',
+    tempatLahirIbu: 'Sukabumi',
+    telpIbu: '081234567896',
+    noTelp: '081234567895'
+  },
+  { 
+    noKk: '3201010101010004', 
+    namaKepalaKeluarga: 'Joko Widodo', 
+    alamat: 'Jl. Anggrek No. 1', 
+    rt: '04', 
+    rw: '05',
+    nikAyah: '3201010101010004_A',
+    namaAyah: 'Joko Widodo',
+    tanggalLahirAyah: '1961-06-21',
+    tempatLahirAyah: 'Surakarta',
+    telpAyah: '081234567897',
+    nikIbu: '3201010101010004_I',
+    namaIbu: 'Anisa Fitri',
+    tanggalLahirIbu: '1963-10-12',
+    tempatLahirIbu: 'Solo',
+    telpIbu: '081234567898',
+    noTelp: '081234567897'
+  },
+  {
+    noKk: '3201010101010005',
+    namaKepalaKeluarga: 'Hartono',
+    alamat: 'Jl. Merdeka No. 12',
+    rt: '01',
+    rw: '05',
+    nikAyah: '3201010101010005_A',
+    namaAyah: 'Hartono',
+    tanggalLahirAyah: '1979-04-12',
+    tempatLahirAyah: 'Solo',
+    telpAyah: '081234567801',
+    noTelp: '081234567801'
+  },
+  {
+    noKk: '3201010101010006',
+    namaKepalaKeluarga: 'Siti Aminah',
+    alamat: 'Jl. Melati No. 8',
+    rt: '02',
+    rw: '05',
+    nikIbu: '3201010101010006_I',
+    namaIbu: 'Siti Aminah',
+    tanggalLahirIbu: '1970-09-18',
+    tempatLahirIbu: 'Yogyakarta',
+    telpIbu: '081234567802',
+    noTelp: '081234567802'
+  },
+  {
+    noKk: '3201010101010007',
+    namaKepalaKeluarga: 'Kusnan',
+    alamat: 'Jl. Mawar No. 18',
+    rt: '03',
+    rw: '05',
+    nikAyah: '3201010101010007_A',
+    namaAyah: 'Kusnan',
+    tanggalLahirAyah: '1961-01-05',
+    tempatLahirAyah: 'Surabaya',
+    telpAyah: '081234567803',
+    noTelp: '081234567803'
+  },
+  {
+    noKk: '3201010101010008',
+    namaKepalaKeluarga: 'Siti Khotimah',
+    alamat: 'Jl. Anggrek No. 3',
+    rt: '04',
+    rw: '05',
+    nikIbu: '3201010101010008_I',
+    namaIbu: 'Siti Khotimah',
+    tanggalLahirIbu: '1955-06-15',
+    tempatLahirIbu: 'Semarang',
+    telpIbu: '081234567804',
+    noTelp: '081234567804'
+  }
 ];
 
 // Seed Balita
@@ -145,9 +265,11 @@ export const initialLansia: Lansia[] = [
     tempatLahir: 'Solo',
     tanggalLahir: '1979-04-12', // 47 years old (Pralansia)
     jenisKelamin: 'L',
-    noKk: '3201010101010001',
+    noKk: '3201010101010005',
     namaIbu: 'Sumarni',
     namaAyah: 'Wahyudi',
+    namaWali: 'Sumarni',
+    noTelpWali: '081234567801',
     statusHidup: 'Hidup'
   },
   {
@@ -156,9 +278,11 @@ export const initialLansia: Lansia[] = [
     tempatLahir: 'Yogyakarta',
     tanggalLahir: '1970-09-18', // 55 years old (Lansia)
     jenisKelamin: 'P',
-    noKk: '3201010101010002',
+    noKk: '3201010101010006',
     namaIbu: 'Kalsum',
     namaAyah: 'Achmad',
+    namaWali: 'Kalsum',
+    noTelpWali: '081234567802',
     statusHidup: 'Hidup'
   },
   {
@@ -167,9 +291,11 @@ export const initialLansia: Lansia[] = [
     tempatLahir: 'Surabaya',
     tanggalLahir: '1961-01-05', // 65 years old (Lansia Resiko Tinggi)
     jenisKelamin: 'L',
-    noKk: '3201010101010003',
+    noKk: '3201010101010007',
     namaIbu: 'Aminah',
     namaAyah: 'Kartorejo',
+    namaWali: 'Aminah',
+    noTelpWali: '081234567803',
     statusHidup: 'Hidup'
   },
   {
@@ -178,9 +304,11 @@ export const initialLansia: Lansia[] = [
     tempatLahir: 'Semarang',
     tanggalLahir: '1955-06-15', // 71 years old (Lansia Resiko Tinggi)
     jenisKelamin: 'P',
-    noKk: '3201010101010004',
+    noKk: '3201010101010008',
     namaIbu: 'Fatmawati',
     namaAyah: 'Suwarno',
+    namaWali: 'Fatmawati',
+    noTelpWali: '081234567804',
     statusHidup: 'Hidup'
   }
 ];

@@ -295,11 +295,11 @@ export default function LansiaDetailPage({
                 {age.years} tahun
               </p>
               <p>
-                <span className="font-medium text-on-surface">Nama Ayah:</span>{" "}
+                <span className="font-medium text-on-surface">Nama Wali:</span>{" "}
                 {lansia.namaAyah || "-"}
               </p>
               <p>
-                <span className="font-medium text-on-surface">Nama Ibu:</span>{" "}
+                <span className="font-medium text-on-surface">No. Telp Wali:</span>{" "}
                 {lansia.namaIbu || "-"}
               </p>
               <p>
