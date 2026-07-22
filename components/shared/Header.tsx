@@ -8,6 +8,7 @@ import {
   getBalitaById,
   getIbuHamilById,
   getLansiaById,
+  getKKByNoKk,
 } from "@/lib/data/db-service";
 
 export default function Header() {
@@ -19,6 +20,58 @@ export default function Header() {
     setUser(getCurrentUser());
     setMounted(true);
   }, []);
+
+  const [resolvedNames, setResolvedNames] = React.useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    let parts = pathname.split("/").filter((p) => p);
+    if (parts.length > 1 && parts[0] === "dashboard") {
+      parts = parts.slice(1);
+    }
+    if (parts.length === 2) {
+      const [parentType, id] = parts;
+      if (!resolvedNames[id]) {
+        let name = "";
+        if (parentType === "balita") {
+          const person = getBalitaById(id);
+          if (person) name = person.nama;
+        } else if (parentType === "ibu-hamil") {
+          const person = getIbuHamilById(id);
+          if (person) name = person.nama;
+        } else if (parentType === "lansia") {
+          const person = getLansiaById(id);
+          if (person) name = person.nama;
+        } else if (parentType === "kk-terdaftar") {
+          const kk = getKKByNoKk(id);
+          if (kk) name = kk.noKk;
+        }
+
+        if (name) {
+          setResolvedNames((prev) => ({ ...prev, [id]: name }));
+        } else {
+          (async () => {
+            try {
+              if (parentType === "ibu-hamil") {
+                const { getIbuHamilById: getSupabaseIbuHamil } = await import("@/lib/fetch/ibuHamil");
+                const person = await getSupabaseIbuHamil(id);
+                if (person) setResolvedNames((prev) => ({ ...prev, [id]: person.nama }));
+              } else if (parentType === "balita") {
+                const { getBalitaById: getSupabaseBalita } = await import("@/lib/fetch/balita");
+                const person = await getSupabaseBalita(id);
+                if (person) setResolvedNames((prev) => ({ ...prev, [id]: person.nama }));
+              } else if (parentType === "lansia") {
+                const { getLansiaById: getSupabaseLansia } = await import("@/lib/fetch/lansia");
+                const person = await getSupabaseLansia(id);
+                if (person) setResolvedNames((prev) => ({ ...prev, [id]: person.nama }));
+              }
+            } catch (err) {
+              console.error(err);
+            }
+          })();
+        }
+      }
+    }
+  }, [pathname, resolvedNames]);
 
   // Simple breadcrumbs builder
   const getBreadcrumbs = () => {
@@ -43,21 +96,21 @@ export default function Header() {
 
       let name = part.charAt(0).toUpperCase() + part.slice(1);
       if (part === "tambah-kk") name = "Tambah KK Baru";
-      if (part === "ibu-hamil") name = "Ibu Hamil";
+      else if (part === "ibu-hamil") name = "Ibu Hamil";
+      else if (part === "kk-terdaftar") name = "KK Terdaftar";
 
       if (mounted && isDetailPage) {
         if (parentType === "balita") {
           href = `/dashboard/balita/${part}`;
-          const person = getBalitaById(part);
-          if (person) name = person.nama;
         } else if (parentType === "ibu-hamil") {
           href = `/dashboard/ibu-hamil/${part}`;
-          const person = getIbuHamilById(part);
-          if (person) name = person.nama;
         } else if (parentType === "lansia") {
           href = `/dashboard/lansia/${part}`;
-          const person = getLansiaById(part);
-          if (person) name = person.nama;
+        } else if (parentType === "kk-terdaftar") {
+          href = `/dashboard/kk-terdaftar/${part}`;
+        }
+        if (resolvedNames[part]) {
+          name = resolvedNames[part];
         }
       }
 

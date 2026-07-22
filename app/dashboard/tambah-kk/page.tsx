@@ -15,13 +15,23 @@ export default function TambahKKPage() {
   // Form States
   const [noKk, setNoKk] = useState('');
   const [phone, setPhone] = useState('');
-  const [nikAyah, setNikAyah] = useState('');
-  const [namaAyah, setNamaAyah] = useState('');
-  const [nikIbu, setNikIbu] = useState('');
-  const [namaIbu, setNamaIbu] = useState('');
   const [alamat, setAlamat] = useState('');
   const [rt, setRt] = useState('');
   const [rw, setRw] = useState('');
+
+  // Father States
+  const [nikAyah, setNikAyah] = useState('');
+  const [namaAyah, setNamaAyah] = useState('');
+  const [tanggalLahirAyah, setTanggalLahirAyah] = useState('');
+  const [tempatLahirAyah, setTempatLahirAyah] = useState('');
+  const [telpAyah, setTelpAyah] = useState('');
+
+  // Mother States
+  const [nikIbu, setNikIbu] = useState('');
+  const [namaIbu, setNamaIbu] = useState('');
+  const [tanggalLahirIbu, setTanggalLahirIbu] = useState('');
+  const [tempatLahirIbu, setTempatLahirIbu] = useState('');
+  const [telpIbu, setTelpIbu] = useState('');
 
   // UI States
   const [loading, setLoading] = useState(false);
@@ -65,6 +75,17 @@ export default function TambahKKPage() {
           alamat: alamat || 'Jl. Raya Posyandu',
           rt: rt || '01',
           rw: rw || '05',
+          nikAyah: nikAyah || undefined,
+          namaAyah: namaAyah || undefined,
+          tanggalLahirAyah: tanggalLahirAyah || undefined,
+          tempatLahirAyah: tempatLahirAyah || undefined,
+          telpAyah: telpAyah || undefined,
+          nikIbu: nikIbu || undefined,
+          namaIbu: namaIbu || undefined,
+          tanggalLahirIbu: tanggalLahirIbu || undefined,
+          tempatLahirIbu: tempatLahirIbu || undefined,
+          telpIbu: telpIbu || undefined,
+          noTelp: phone || telpAyah || telpIbu || undefined,
         });
         
         setLoading(false);
@@ -78,7 +99,7 @@ export default function TambahKKPage() {
 
   const handleCloseSuccess = () => {
     setShowSuccess(false);
-    router.push('/dashboard');
+    router.push('/dashboard/kk-terdaftar');
   };
 
   return (
@@ -100,10 +121,10 @@ export default function TambahKKPage() {
       </div>
 
       {/* Form Card */}
-      <Card className="relative overflow-hidden border border-outline-variant/30">
+      <Card className="relative overflow-hidden border border-outline-variant/30 bg-white">
         <div className="absolute top-0 right-0 w-32 h-32 bg-secondary-container/10 rounded-bl-full pointer-events-none" />
         
-        <form onSubmit={handleSubmit} className="space-y-6 p-2 relative z-10">
+        <form onSubmit={handleSubmit} className="space-y-6 p-6 relative z-10">
           {error && (
             <div className="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 p-3.5 rounded-xl">
               {error}
@@ -139,7 +160,7 @@ export default function TambahKKPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="phone">Nomor Telepon Aktif</Label>
+                <Label htmlFor="phone">Nomor Telepon Keluarga (Umum)</Label>
                 <Input
                   id="phone"
                   placeholder="Contoh: 081234567890"
@@ -161,8 +182,8 @@ export default function TambahKKPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Father's Card */}
-              <div className="space-y-4 p-4 rounded-xl bg-white border border-outline-variant/30">
-                <h4 className="text-sm font-bold text-primary flex items-center gap-2">
+              <div className="space-y-4 p-4 rounded-xl bg-slate-50/50 border border-outline-variant/30">
+                <h4 className="text-sm font-bold text-primary flex items-center gap-2 border-b border-outline-variant/10 pb-2">
                   <span className="material-symbols-outlined text-sky-500">man</span>
                   Data Ayah
                 </h4>
@@ -184,6 +205,7 @@ export default function TambahKKPage() {
                       onChange={(e) => handleNumericInput(e.target.value, 16, setNikAyah)}
                     />
                   </div>
+                  
                   <div className="space-y-1.5">
                     <Label htmlFor="nama_ayah">Nama Lengkap Ayah</Label>
                     <Input
@@ -193,12 +215,43 @@ export default function TambahKKPage() {
                       onChange={(e) => setNamaAyah(e.target.value)}
                     />
                   </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="tempat_lahir_ayah">Tempat Lahir</Label>
+                      <Input
+                        id="tempat_lahir_ayah"
+                        placeholder="Kota Lahir"
+                        value={tempatLahirAyah}
+                        onChange={(e) => setTempatLahirAyah(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="tgl_lahir_ayah">Tanggal Lahir</Label>
+                      <Input
+                        id="tgl_lahir_ayah"
+                        type="date"
+                        value={tanggalLahirAyah}
+                        onChange={(e) => setTanggalLahirAyah(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="telp_ayah">No. Telp / WA Ayah</Label>
+                    <Input
+                      id="telp_ayah"
+                      placeholder="No HP Ayah"
+                      value={telpAyah}
+                      onChange={(e) => handleNumericInput(e.target.value, 13, setTelpAyah)}
+                    />
+                  </div>
                 </div>
               </div>
 
               {/* Mother's Card */}
-              <div className="space-y-4 p-4 rounded-xl bg-white border border-outline-variant/30">
-                <h4 className="text-sm font-bold text-tertiary flex items-center gap-2">
+              <div className="space-y-4 p-4 rounded-xl bg-slate-50/50 border border-outline-variant/30">
+                <h4 className="text-sm font-bold text-tertiary flex items-center gap-2 border-b border-outline-variant/10 pb-2">
                   <span className="material-symbols-outlined text-pink-500">woman</span>
                   Data Ibu
                 </h4>
@@ -220,6 +273,7 @@ export default function TambahKKPage() {
                       onChange={(e) => handleNumericInput(e.target.value, 16, setNikIbu)}
                     />
                   </div>
+
                   <div className="space-y-1.5">
                     <Label htmlFor="nama_ibu">Nama Lengkap Ibu</Label>
                     <Input
@@ -227,6 +281,37 @@ export default function TambahKKPage() {
                       placeholder="Nama sesuai KTP"
                       value={namaIbu}
                       onChange={(e) => setNamaIbu(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="tempat_lahir_ibu">Tempat Lahir</Label>
+                      <Input
+                        id="tempat_lahir_ibu"
+                        placeholder="Kota Lahir"
+                        value={tempatLahirIbu}
+                        onChange={(e) => setTempatLahirIbu(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="tgl_lahir_ibu">Tanggal Lahir</Label>
+                      <Input
+                        id="tgl_lahir_ibu"
+                        type="date"
+                        value={tanggalLahirIbu}
+                        onChange={(e) => setTanggalLahirIbu(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="telp_ibu">No. Telp / WA Ibu</Label>
+                    <Input
+                      id="telp_ibu"
+                      placeholder="No HP Ibu"
+                      value={telpIbu}
+                      onChange={(e) => handleNumericInput(e.target.value, 13, setTelpIbu)}
                     />
                   </div>
                 </div>
@@ -279,7 +364,7 @@ export default function TambahKKPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push('/dashboard/kk-terdaftar')}
             >
               Batalkan
             </Button>
@@ -287,7 +372,7 @@ export default function TambahKKPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 cursor-pointer"
+              className="flex items-center gap-2 cursor-pointer bg-tertiary hover:bg-tertiary/90 text-white font-bold"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -316,7 +401,7 @@ export default function TambahKKPage() {
         <DialogContent />
         <DialogFooter className="sm:justify-center">
           <Button onClick={handleCloseSuccess} className="w-full">
-            Kembali ke Dashboard
+            Lihat KK Terdaftar
           </Button>
         </DialogFooter>
       </Dialog>
