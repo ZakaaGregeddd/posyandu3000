@@ -42,6 +42,7 @@ export default function Sidebar() {
     { name: "Balita", href: "/dashboard/balita", icon: "child_care" },
     { name: "Ibu Hamil", href: "/dashboard/ibu-hamil", icon: "pregnant_woman" },
     { name: "Lansia", href: "/dashboard/lansia", icon: "elderly" },
+    { name: "Laporan PDF", href: "/dashboard/laporan", icon: "picture_as_pdf" },
   ];
 
   return (

@@ -31,6 +31,7 @@ export interface IbuHamilRecord {
   ibuHamilId: string;
   tanggalPemeriksaan: string;
   beratBadan: number;
+  tinggiBadan?: number;
   tekananDarahSistolik: number;
   tekananDarahDiastolik: number;
   usiaKehamilanWeeks: number;
@@ -82,6 +83,8 @@ function mapRowToRecord(row: any): IbuHamilRecord {
     ibuHamilId: row.ibu_hamil_id,
     tanggalPemeriksaan: row.tanggal_pemeriksaan,
     beratBadan: Number(row.berat_badan),
+    tinggiBadan:
+      row.tinggi_badan != null ? Number(row.tinggi_badan) : undefined,
     tekananDarahSistolik: Number(row.tekanan_sistolik),
     tekananDarahDiastolik: Number(row.tekanan_diastolik),
     usiaKehamilanWeeks: Number(row.usia_kehamilan_minggu),
@@ -256,6 +259,7 @@ export interface AddIbuHamilRecordInput {
   ibuHamilId: string;
   tanggalPemeriksaan: string;
   beratBadan: number;
+  tinggiBadan: number;
   tekananDarahSistolik: number;
   tekananDarahDiastolik: number;
   usiaKehamilanWeeks: number;
@@ -273,6 +277,7 @@ export async function addIbuHamilRecord(
       ibu_hamil_id: input.ibuHamilId,
       tanggal_pemeriksaan: input.tanggalPemeriksaan,
       berat_badan: input.beratBadan,
+      tinggi_badan: input.tinggiBadan,
       tekanan_sistolik: input.tekananDarahSistolik,
       tekanan_diastolik: input.tekananDarahDiastolik,
       usia_kehamilan_minggu: input.usiaKehamilanWeeks,
@@ -293,6 +298,27 @@ export async function addIbuHamilRecord(
   }
 
   return mapRowToRecord(data);
+}
+
+// ---------------------------------------------------------------------------
+// BULK FETCH riwayat pemeriksaan untuk beberapa episode sekaligus (dipakai
+// oleh laporan PDF, supaya tidak query satu-satu per episode)
+// ---------------------------------------------------------------------------
+export async function getIbuHamilRecordsForIds(
+  ibuHamilIds: string[],
+): Promise<IbuHamilRecord[]> {
+  if (ibuHamilIds.length === 0) return [];
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("ibu_hamil_pemeriksaan")
+    .select("*")
+    .in("ibu_hamil_id", ibuHamilIds)
+    .order("ibu_hamil_id", { ascending: true })
+    .order("tanggal_pemeriksaan", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapRowToRecord);
 }
 
 // ---------------------------------------------------------------------------

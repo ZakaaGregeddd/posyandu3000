@@ -68,6 +68,7 @@ export default function IbuHamilDetailPage({
     new Date().toISOString().split("T")[0],
   );
   const [beratBadan, setBeratBadan] = useState("");
+  const [tinggiBadan, setTinggiBadan] = useState("");
   const [sistolik, setSistolik] = useState("");
   const [diastolik, setDiastolik] = useState("");
   const [usiaKehamilanWeeks, setUsiaKehamilanWeeks] = useState("");
@@ -189,6 +190,7 @@ export default function IbuHamilDetailPage({
     if (
       !tanggalPemeriksaan ||
       !beratBadan ||
+      !tinggiBadan ||
       !sistolik ||
       !diastolik ||
       !usiaKehamilanWeeks
@@ -198,6 +200,7 @@ export default function IbuHamilDetailPage({
     }
 
     const bbNum = parseFloat(beratBadan);
+    const tbNum = parseFloat(tinggiBadan);
     const sisNum = parseInt(sistolik);
     const diaNum = parseInt(diastolik);
     const ukNum = parseInt(usiaKehamilanWeeks);
@@ -205,6 +208,8 @@ export default function IbuHamilDetailPage({
     if (
       isNaN(bbNum) ||
       bbNum <= 0 ||
+      isNaN(tbNum) ||
+      tbNum <= 0 ||
       isNaN(sisNum) ||
       isNaN(diaNum) ||
       isNaN(ukNum)
@@ -220,6 +225,7 @@ export default function IbuHamilDetailPage({
         ibuHamilId: id!,
         tanggalPemeriksaan,
         beratBadan: bbNum,
+        tinggiBadan: tbNum,
         tekananDarahSistolik: sisNum,
         tekananDarahDiastolik: diaNum,
         usiaKehamilanWeeks: ukNum,
@@ -279,6 +285,7 @@ export default function IbuHamilDetailPage({
   const resetExamForm = () => {
     setTanggalPemeriksaan(new Date().toISOString().split("T")[0]);
     setBeratBadan("");
+    setTinggiBadan("");
     setSistolik("");
     setDiastolik("");
     setUsiaKehamilanWeeks("");
@@ -388,7 +395,7 @@ export default function IbuHamilDetailPage({
       </Card>
 
       {/* Stats Bento Grid */}
-      <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <section className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card className="p-5 flex flex-col justify-between h-28 bg-white border border-outline-variant/20">
           <span className="text-xs text-on-surface-variant font-medium">
             Berat Badan Terbaru
@@ -397,6 +404,17 @@ export default function IbuHamilDetailPage({
             {latestRecord?.beratBadan || "-"}{" "}
             <span className="text-sm font-normal text-on-surface-variant">
               kg
+            </span>
+          </p>
+        </Card>
+        <Card className="p-5 flex flex-col justify-between h-28 bg-white border border-outline-variant/20">
+          <span className="text-xs text-on-surface-variant font-medium">
+            Tinggi Badan Terbaru
+          </span>
+          <p className="text-2xl font-extrabold text-on-background">
+            {latestRecord?.tinggiBadan || "-"}{" "}
+            <span className="text-sm font-normal text-on-surface-variant">
+              cm
             </span>
           </p>
         </Card>
@@ -552,6 +570,7 @@ export default function IbuHamilDetailPage({
                 <TableHead>Kunjungan</TableHead>
                 <TableHead>Tanggal Pemeriksaan</TableHead>
                 <TableHead>Berat Badan (kg)</TableHead>
+                <TableHead>Tinggi Badan (cm)</TableHead>
                 <TableHead>Tekanan Darah (mmHg)</TableHead>
                 <TableHead>Usia Kehamilan (Wk)</TableHead>
                 <TableHead>Vitamin Diberikan</TableHead>
@@ -561,7 +580,7 @@ export default function IbuHamilDetailPage({
               {records.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="text-center text-on-surface-variant py-8"
                   >
                     Belum ada riwayat pemeriksaan kehamilan.
@@ -584,6 +603,7 @@ export default function IbuHamilDetailPage({
                       )}
                     </TableCell>
                     <TableCell>{r.beratBadan} kg</TableCell>
+                    <TableCell>{r.tinggiBadan} cm</TableCell>
                     <TableCell>
                       {r.tekananDarahSistolik}/{r.tekananDarahDiastolik} mmHg
                     </TableCell>
@@ -639,6 +659,19 @@ export default function IbuHamilDetailPage({
                   placeholder="Contoh: 65"
                   value={beratBadan}
                   onChange={(e) => setBeratBadan(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ex_tb">Tinggi Badan Ibu (cm)</Label>
+                <Input
+                  id="ex_tb"
+                  type="number"
+                  step="0.1"
+                  placeholder="Contoh: 158"
+                  value={tinggiBadan}
+                  onChange={(e) => setTinggiBadan(e.target.value)}
                   required
                 />
               </div>

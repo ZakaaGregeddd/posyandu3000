@@ -229,6 +229,25 @@ export async function getLansiaRecords(
   return (data ?? []).map(mapRowToRecord);
 }
 
+// Bulk fetch untuk beberapa lansia sekaligus (dipakai laporan PDF, supaya
+// tidak query satu-satu per lansia)
+export async function getLansiaRecordsForNiks(
+  niks: string[],
+): Promise<LansiaRecord[]> {
+  if (niks.length === 0) return [];
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("lansia_pemeriksaan")
+    .select("*")
+    .in("nik", niks)
+    .order("nik", { ascending: true })
+    .order("tanggal_pemeriksaan", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapRowToRecord);
+}
+
 // ---------------------------------------------------------------------------
 // STATISTIK PENYAKIT DOMINAN
 // Diambil dari catatan riwayat_penyakit TERBARU tiap lansia (bukan semua

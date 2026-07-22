@@ -10,10 +10,8 @@ export interface Balita {
   tempatLahir: string;
   tanggalLahir: string;
   jenisKelamin: "L" | "P";
-  namaIbu: string;
-  ttlIbu: string;
-  namaAyah: string;
-  ttlAyah: string;
+  namaIbu: string; // read-only, diambil dari keluarga.nik_ibu -> individu.nama
+  namaAyah: string; // read-only, diambil dari keluarga.nik_ayah -> individu.nama
   golonganDarah?: string;
   statusHidup: StatusHidup;
   tanggalMeninggal?: string;
@@ -56,9 +54,7 @@ function mapRowToBalita(row: any): Balita {
     tanggalLahir: row.tanggal_lahir,
     jenisKelamin: row.jenis_kelamin,
     namaIbu: row.nama_ibu ?? "",
-    ttlIbu: row.tanggal_lahir_ibu ?? "",
     namaAyah: row.nama_ayah ?? "",
-    ttlAyah: row.tanggal_lahir_ayah ?? "",
     golonganDarah: row.golongan_darah ?? undefined,
     statusHidup: row.status_hidup,
     tanggalMeninggal: row.tanggal_meninggal ?? undefined,
@@ -245,6 +241,26 @@ export async function getBalitaRecords(
   return (data ?? []).map(mapRowToRecord);
 }
 
+// ---------------------------------------------------------------------------
+// BULK FETCH riwayat pemeriksaan untuk beberapa anak sekaligus (dipakai
+// oleh laporan PDF, supaya tidak query satu-satu per anak)
+// ---------------------------------------------------------------------------
+export async function getBalitaRecordsForNiks(
+  niks: string[],
+): Promise<BalitaRecord[]> {
+  if (niks.length === 0) return [];
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("balita_pemeriksaan")
+    .select("*")
+    .in("nik", niks)
+    .order("nik", { ascending: true })
+    .order("tanggal_pemeriksaan", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapRowToRecord);
+}
 export interface AddBalitaRecordInput {
   balitaId: string;
   tanggalPemeriksaan: string;
