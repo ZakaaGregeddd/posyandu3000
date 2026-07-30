@@ -7,6 +7,7 @@ import { getBalitas } from "@/lib/fetch/balita";
 import { getIbuHamils } from "@/lib/fetch/ibuHamil";
 import { getLansias } from "@/lib/fetch/lansia";
 import { calculateAge } from "@/lib/utils/health";
+import { AttendanceChart } from "@/components/charts/AttendanceChart";
 
 export default function DashboardOverviewPage() {
   const [stats, setStats] = useState({
@@ -257,6 +258,11 @@ export default function DashboardOverviewPage() {
                 </Card>
               </Link>
             </div>
+          </div>
+
+          <div className="mt-8">
+            {/* Statistik Kehadiran Bulanan Chart */}
+            <AttendanceChart />
           </div>
         </>
       )}

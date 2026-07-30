@@ -325,3 +325,35 @@ export const initialLansiaRecords: LansiaRecord[] = [
   // Kusnan (l3)
   { id: 'lr4', lansiaId: 'l3', tanggalPemeriksaan: '2026-05-05', tinggiBadan: 162, beratBadan: 58, tekananDarahSistolik: 150, tekananDarahDiastolik: 95, riwayatPenyakit: 'Asam Urat, Hipertensi', obat: 'Allopurinol, Amlodipine', penyakitBaru: '-', imt: 22.1 },
 ];
+
+// Seed Data for Attendance Chart
+export const attendanceData = {
+  "2024": [
+    { name: 'Jan', kehadiran: 90 },
+    { name: 'Feb', kehadiran: 110 },
+    { name: 'Mar', kehadiran: 140 },
+    { name: 'Apr', kehadiran: 150 },
+    { name: 'Mei', kehadiran: 180 },
+    { name: 'Jun', kehadiran: 200 },
+    { name: 'Jul', kehadiran: 240 },
+    { name: 'Agu', kehadiran: 270 },
+    { name: 'Sep', kehadiran: 300 },
+    { name: 'Okt', kehadiran: 340 },
+    { name: 'Nov', kehadiran: 380 },
+    { name: 'Des', kehadiran: 400 },
+  ],
+  "2025": [
+    { name: 'Jan', kehadiran: 120 },
+    { name: 'Feb', kehadiran: 150 },
+    { name: 'Mar', kehadiran: 180 },
+    { name: 'Apr', kehadiran: 220 },
+    { name: 'Mei', kehadiran: 210 },
+    { name: 'Jun', kehadiran: 280 },
+    { name: 'Jul', kehadiran: 310 },
+    { name: 'Agu', kehadiran: 350 },
+    { name: 'Sep', kehadiran: 420 },
+    { name: 'Okt', kehadiran: 650 },
+    { name: 'Nov', kehadiran: 1037 },
+    { name: 'Des', kehadiran: 850 },
+  ]
+};
