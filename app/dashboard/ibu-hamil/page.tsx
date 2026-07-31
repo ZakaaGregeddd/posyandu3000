@@ -190,7 +190,8 @@ export default function IbuHamilPage() {
       ) : (
         <Card className="border border-outline-variant/15 overflow-hidden p-0 bg-transparent shadow-none border-none">
           <CardContent className="p-0">
-            <table className="w-full border-separate border-spacing-y-2">
+            <div className="w-full overflow-x-auto pb-2">
+              <table className="w-full border-separate border-spacing-y-2 min-w-[850px]">
               <thead>
                 <tr className="text-left text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                   <th className="px-6 py-4 bg-secondary-container rounded-l-xl">
@@ -299,6 +300,7 @@ export default function IbuHamilPage() {
                 )}
               </tbody>
             </table>
+            </div>
 
             {/* Pagination */}
             {filteredBumils.length > itemsPerPage && (

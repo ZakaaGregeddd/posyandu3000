@@ -5,7 +5,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { logoutUser, getCurrentUser } from "@/lib/fetch/auth";
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = React.useState<{
@@ -51,8 +56,12 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-[280px] bg-secondary-container flex flex-col py-8 border-r border-outline-variant z-40 shadow-sm">
-      <div className="px-6 mb-8">
+    <aside
+      className={`fixed left-0 top-0 h-full w-[280px] bg-secondary-container flex flex-col py-8 border-r border-outline-variant z-40 shadow-sm transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      }`}
+    >
+      <div className="px-6 mb-8 flex justify-between items-center">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-tertiary rounded-lg flex items-center justify-center shadow-sm">
             <span
@@ -68,6 +77,14 @@ export default function Sidebar() {
             </span>
           </div>
         </div>
+
+        {/* Close Button on Mobile */}
+        <button
+          onClick={onClose}
+          className="lg:hidden text-on-secondary-container hover:bg-white/60 p-1.5 rounded-full transition-colors cursor-pointer flex items-center justify-center"
+        >
+          <span className="material-symbols-outlined text-[20px]">close</span>
+        </button>
       </div>
 
       <nav className="flex-1 flex flex-col gap-2">

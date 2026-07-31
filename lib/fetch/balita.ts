@@ -18,6 +18,8 @@ export interface Balita {
   penyebabMeninggal?: string;
   caraLahir?: "SC" | "Normal";
   usiaKehamilanSaatLahirWeeks?: number;
+  ttlAyah?: string;
+  ttlIbu?: string;
 }
 
 export interface BalitaRecord {
@@ -69,6 +71,8 @@ function mapRowToBalita(row: any): Balita {
     penyebabMeninggal: row.keterangan_meninggal ?? undefined,
     caraLahir: row.cara_lahir ?? undefined,
     usiaKehamilanSaatLahirWeeks: row.usia_kehamilan_lahir_minggu ?? undefined,
+    ttlAyah: row.ttl_ayah ?? undefined,
+    ttlIbu: row.ttl_ibu ?? undefined,
   };
 }
 

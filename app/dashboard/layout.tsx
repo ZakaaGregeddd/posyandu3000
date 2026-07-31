@@ -14,6 +14,8 @@ export default function DashboardLayout({
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   useEffect(() => {
     const user = getCurrentUser();
     if (!user) {
@@ -21,6 +23,11 @@ export default function DashboardLayout({
     } else {
       setLoading(false);
     }
+  }, [router]);
+
+  // Close sidebar on route change (in case of navigation on mobile)
+  useEffect(() => {
+    setIsSidebarOpen(false);
   }, [router]);
 
   if (loading) {
@@ -45,16 +52,24 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background overflow-x-hidden">
+      {/* Sidebar Mobile Overlay Backdrop */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-30 lg:hidden transition-opacity duration-300"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <Sidebar />
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
       {/* Main Panel */}
-      <div className="flex-1 ml-[280px] flex flex-col min-h-screen">
-        <Header />
+      <div className="flex-1 lg:ml-[280px] flex flex-col min-h-screen w-full min-w-0 pt-16">
+        <Header onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
 
         {/* Main Workspace Canvas */}
-        <main className="flex-1 p-8 overflow-y-auto">{children}</main>
+        <main className="flex-1 p-4 md:p-8 overflow-y-auto w-full min-w-0">{children}</main>
       </div>
     </div>
   );
