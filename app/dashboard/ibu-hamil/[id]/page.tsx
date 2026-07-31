@@ -622,7 +622,7 @@ export default function IbuHamilDetailPage({
         isOpen={isExamModalOpen}
         onClose={() => setIsExamModalOpen(false)}
       >
-        <form onSubmit={handleAddExam}>
+        <form onSubmit={handleAddExam} className="flex flex-col max-h-[85vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>Update Data Pemeriksaan Bumil</DialogTitle>
             <DialogDescription>
@@ -721,7 +721,7 @@ export default function IbuHamilDetailPage({
                   className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
                 >
                   {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                    <option key={n} value={n.toString()}>
+                    <option key={n} value={n.toString()} className="text-xs md:text-sm bg-white text-on-surface">
                       Kunjungan Ke-{n}
                     </option>
                   ))}
@@ -760,7 +760,7 @@ export default function IbuHamilDetailPage({
         isOpen={isBirthModalOpen}
         onClose={() => setIsBirthModalOpen(false)}
       >
-        <form onSubmit={handleAddBirth}>
+        <form onSubmit={handleAddBirth} className="flex flex-col max-h-[85vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>Formulir Kelahiran Bayi</DialogTitle>
             <DialogDescription>
@@ -796,8 +796,8 @@ export default function IbuHamilDetailPage({
                   onChange={(e) => setBabyJk(e.target.value as "L" | "P")}
                   className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
                 >
-                  <option value="L">Laki-laki</option>
-                  <option value="P">Perempuan</option>
+                  <option value="L" className="text-xs md:text-sm bg-white text-on-surface">Laki-laki</option>
+                  <option value="P" className="text-xs md:text-sm bg-white text-on-surface">Perempuan</option>
                 </select>
               </div>
 
@@ -811,8 +811,8 @@ export default function IbuHamilDetailPage({
                   }
                   className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
                 >
-                  <option value="Normal">Normal (Pervaginam)</option>
-                  <option value="SC">Sectio Caesarea (SC)</option>
+                  <option value="Normal" className="text-xs md:text-sm bg-white text-on-surface">Normal (Pervaginam)</option>
+                  <option value="SC" className="text-xs md:text-sm bg-white text-on-surface">Sectio Caesarea (SC)</option>
                 </select>
               </div>
 

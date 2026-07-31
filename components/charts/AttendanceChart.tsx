@@ -61,7 +61,11 @@ export function AttendanceChart() {
               className="bg-surface-container border border-outline-variant text-sm rounded-md px-2 py-1 text-on-surface"
             >
               {yearOptions.map((y) => (
-                <option key={y} value={y}>
+                <option
+                  key={y}
+                  value={y}
+                  className="text-xs md:text-sm bg-white text-on-surface"
+                >
                   {y}
                 </option>
               ))}

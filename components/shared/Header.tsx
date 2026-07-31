@@ -146,11 +146,18 @@ export default function Header({ onMenuToggle }: HeaderProps) {
             <span
               className={
                 idx === breadcrumbs.length - 1
-                  ? "text-on-background font-semibold"
+                  ? "text-on-background font-semibold truncate max-w-[140px] xs:max-w-[180px] sm:max-w-none"
                   : "text-on-surface-variant"
               }
             >
-              {crumb.name}
+              {idx === breadcrumbs.length - 1 ? (
+                crumb.name
+              ) : (
+                <>
+                  <span className="hidden md:inline">{crumb.name}</span>
+                  <span className="inline md:hidden">...</span>
+                </>
+              )}
             </span>
           </React.Fragment>
         ))}

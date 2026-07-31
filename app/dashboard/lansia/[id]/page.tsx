@@ -571,7 +571,7 @@ export default function LansiaDetailPage({
         isOpen={isExamModalOpen}
         onClose={() => setIsExamModalOpen(false)}
       >
-        <form onSubmit={handleAddExam}>
+        <form onSubmit={handleAddExam} className="flex flex-col max-h-[85vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>Update Pemeriksaan Lansia</DialogTitle>
             <DialogDescription>

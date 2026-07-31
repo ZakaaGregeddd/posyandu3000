@@ -411,11 +411,12 @@ export default function TambahKKPage() {
           </div>
 
           {/* Submission Panel */}
-          <div className="pt-4 flex items-center justify-end gap-4 border-t border-outline-variant/30">
+          <div className="pt-4 flex w-full justify-between sm:justify-end gap-4 border-t border-outline-variant/30">
             <Button
               type="button"
               variant="outline"
               onClick={() => router.push("/dashboard/kk-terdaftar")}
+              className="flex items-center justify-center flex-1 sm:flex-initial"
             >
               Batalkan
             </Button>
@@ -423,7 +424,7 @@ export default function TambahKKPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 cursor-pointer bg-tertiary hover:bg-tertiary/90 text-white font-bold"
+              className="flex items-center justify-center gap-2 cursor-pointer bg-tertiary hover:bg-tertiary/90 text-white font-bold flex-1 sm:flex-initial"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />

@@ -97,7 +97,7 @@ export default function StatusHidupControl({
 
       {/* Modal Kematian */}
       <Dialog isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="flex flex-col max-h-[85vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-red-700 flex items-center gap-2">
               <span className="material-symbols-outlined text-red-600">warning</span>

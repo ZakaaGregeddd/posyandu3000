@@ -132,7 +132,7 @@ export default function KKTerdaftarPage() {
               folder_shared
             </span>
           </div>
-          <div className="font-headline text-3xl font-extrabold text-on-background">
+          <div className="font-headline text-2xl md:text-3xl font-extrabold text-on-background">
             {totalKK}
           </div>
         </Card>
@@ -146,7 +146,7 @@ export default function KKTerdaftarPage() {
               groups
             </span>
           </div>
-          <div className="font-headline text-3xl font-extrabold text-on-background">
+          <div className="font-headline text-2xl md:text-3xl font-extrabold text-on-background">
             {totalJiwa} Jiwa
           </div>
         </Card>

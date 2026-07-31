@@ -126,7 +126,7 @@ export default function DashboardOverviewPage() {
                     child_care
                   </span>
                 </div>
-                <div className="font-headline text-4xl font-extrabold text-on-background">
+                <div className="font-headline text-2xl md:text-4xl font-extrabold text-on-background">
                   {stats.bayi}
                 </div>
               </Card>
@@ -146,7 +146,7 @@ export default function DashboardOverviewPage() {
                     accessibility_new
                   </span>
                 </div>
-                <div className="font-headline text-4xl font-extrabold text-on-background">
+                <div className="font-headline text-2xl md:text-4xl font-extrabold text-on-background">
                   {stats.balita}
                 </div>
               </Card>
@@ -166,7 +166,7 @@ export default function DashboardOverviewPage() {
                     pregnant_woman
                   </span>
                 </div>
-                <div className="font-headline text-4xl font-extrabold text-on-background">
+                <div className="font-headline text-2xl md:text-4xl font-extrabold text-on-background">
                   {stats.ibuHamil}
                 </div>
               </Card>
@@ -198,7 +198,7 @@ export default function DashboardOverviewPage() {
                     </span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-headline text-3xl font-extrabold text-on-background">
+                    <span className="font-headline text-2xl md:text-3xl font-extrabold text-on-background">
                       {stats.pralansia}
                     </span>
                     <span className="text-xs text-on-surface-variant mt-1">
@@ -223,7 +223,7 @@ export default function DashboardOverviewPage() {
                     </span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-headline text-3xl font-extrabold text-on-background">
+                    <span className="font-headline text-2xl md:text-3xl font-extrabold text-on-background">
                       {stats.lansia}
                     </span>
                     <span className="text-xs text-on-surface-variant mt-1">
@@ -248,7 +248,7 @@ export default function DashboardOverviewPage() {
                     </span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-headline text-3xl font-extrabold text-on-background">
+                    <span className="font-headline text-2xl md:text-3xl font-extrabold text-on-background">
                       {stats.resikoTinggi}
                     </span>
                     <span className="text-xs text-on-surface-variant mt-1">

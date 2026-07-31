@@ -62,5 +62,5 @@ export function DialogContent({ className = '', ...props }: React.HTMLAttributes
 }
 
 export function DialogFooter({ className = '', ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={`px-6 py-4 border-t border-outline-variant/20 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 ${className}`} {...props} />;
+  return <div className={`px-6 py-4 border-t border-outline-variant/20 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-0 sm:space-x-2 ${className}`} {...props} />;
 }

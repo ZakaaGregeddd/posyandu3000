@@ -132,9 +132,9 @@ export default function TambahBalitaModal({
                 className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
                 required
               >
-                <option value="">-- Pilih No KK --</option>
+                <option value="" className="text-xs md:text-sm bg-white text-on-surface">-- Pilih No KK --</option>
                 {kks.map((k) => (
-                  <option key={k.noKk} value={k.noKk}>
+                  <option key={k.noKk} value={k.noKk} className="text-xs md:text-sm bg-white text-on-surface">
                     {k.noKk}
                   </option>
                 ))}
@@ -175,8 +175,8 @@ export default function TambahBalitaModal({
                 onChange={(e) => setJenisKelamin(e.target.value as "L" | "P")}
                 className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
               >
-                <option value="L">Laki-laki</option>
-                <option value="P">Perempuan</option>
+                <option value="L" className="text-xs md:text-sm bg-white text-on-surface">Laki-laki</option>
+                <option value="P" className="text-xs md:text-sm bg-white text-on-surface">Perempuan</option>
               </select>
             </div>
 
@@ -213,11 +213,11 @@ export default function TambahBalitaModal({
                 onChange={(e) => setGolonganDarah(e.target.value)}
                 className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
               >
-                <option value="">-- Belum diketahui --</option>
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="AB">AB</option>
-                <option value="O">O</option>
+                <option value="" className="text-xs md:text-sm bg-white text-on-surface">-- Belum diketahui --</option>
+                <option value="A" className="text-xs md:text-sm bg-white text-on-surface">A</option>
+                <option value="B" className="text-xs md:text-sm bg-white text-on-surface">B</option>
+                <option value="AB" className="text-xs md:text-sm bg-white text-on-surface">AB</option>
+                <option value="O" className="text-xs md:text-sm bg-white text-on-surface">O</option>
               </select>
             </div>
 
@@ -236,9 +236,9 @@ export default function TambahBalitaModal({
                 }
                 className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
               >
-                <option value="">-- Pilih Cara Lahir --</option>
-                <option value="Normal">Normal</option>
-                <option value="SC">SC</option>
+                <option value="" className="text-xs md:text-sm bg-white text-on-surface">-- Pilih Cara Lahir --</option>
+                <option value="Normal" className="text-xs md:text-sm bg-white text-on-surface">Normal</option>
+                <option value="SC" className="text-xs md:text-sm bg-white text-on-surface">SC</option>
               </select>
             </div>
 
