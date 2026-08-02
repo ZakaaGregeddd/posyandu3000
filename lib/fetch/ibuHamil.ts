@@ -134,7 +134,8 @@ export async function getKKs(): Promise<KKOption[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("keluarga")
-    .select(`
+    .select(
+      `
       no_kk, 
       alamat, 
       no_telp, 
@@ -144,7 +145,8 @@ export async function getKKs(): Promise<KKOption[]> {
       nik_ibu,
       ayah:individu!fk_keluarga_nik_ayah(nama, tempat_lahir, tanggal_lahir),
       ibu:individu!fk_keluarga_nik_ibu(nama, tempat_lahir, tanggal_lahir)
-    `)
+    `,
+    )
     .order("no_kk");
 
   if (error) throw new Error(error.message);
@@ -255,6 +257,50 @@ export async function updateIbuHamil(
 }
 
 // ---------------------------------------------------------------------------
+// EDIT IDENTITAS & DATA KEHAMILAN (nama, tempat/tgl lahir, HPHT, gol. darah)
+// ---------------------------------------------------------------------------
+export interface UpdateIbuHamilDataInput {
+  id: string; // episode id (ibu_hamil.id)
+  nik: string; // dipakai untuk UPDATE biodata di tabel individu
+  nama: string;
+  tempatLahir: string;
+  tanggalLahir: string;
+  hpht: string;
+  golonganDarah?: string;
+}
+
+export async function updateIbuHamilData(
+  input: UpdateIbuHamilDataInput,
+): Promise<IbuHamil> {
+  const supabase = createClient();
+
+  const { error: individuError } = await supabase
+    .from("individu")
+    .update({
+      nama: input.nama,
+      tempat_lahir: input.tempatLahir,
+      tanggal_lahir: input.tanggalLahir,
+    })
+    .eq("nik", input.nik);
+
+  if (individuError) throw new Error(individuError.message);
+
+  const { error: ibuHamilError } = await supabase
+    .from("ibu_hamil")
+    .update({
+      hpht: input.hpht,
+      golongan_darah: input.golonganDarah || null,
+    })
+    .eq("id", input.id);
+
+  if (ibuHamilError) throw new Error(ibuHamilError.message);
+
+  const updated = await getIbuHamilById(input.id);
+  if (!updated) throw new Error("Data tidak ditemukan setelah update");
+  return updated;
+}
+
+// ---------------------------------------------------------------------------
 // HAPUS (menghapus EPISODE kehamilan ini saja, bukan biodata orangnya -
 // individu bisa saja masih dipakai di riwayat/KK lain)
 // ---------------------------------------------------------------------------
@@ -327,6 +373,19 @@ export async function addIbuHamilRecord(
 }
 
 // ---------------------------------------------------------------------------
+// HAPUS SATU DATA PEMERIKSAAN (ANC)
+// ---------------------------------------------------------------------------
+export async function deleteIbuHamilRecord(recordId: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("ibu_hamil_pemeriksaan")
+    .delete()
+    .eq("id", recordId);
+
+  if (error) throw new Error(error.message);
+}
+
+// ---------------------------------------------------------------------------
 // BULK FETCH riwayat pemeriksaan untuk beberapa episode sekaligus (dipakai
 // oleh laporan PDF, supaya tidak query satu-satu per episode)
 // ---------------------------------------------------------------------------
@@ -357,6 +416,7 @@ export interface AddPostBirthRecordInput {
   jenisKelamin: "L" | "P";
   caraLahir: "Normal" | "SC";
   usiaKehamilanSaatLahirWeeks: number;
+  golonganDarah?: string;
 }
 
 // NIK asli bayi sebaiknya diisi belakangan setelah terbit dari Dukcapil.
@@ -399,6 +459,17 @@ export async function addPostBirthRecord(
     usia_kehamilan_minggu: input.usiaKehamilanSaatLahirWeeks,
   });
   if (rkError) throw new Error(rkError.message);
+
+  // 3. Isi tabel `bayi` dengan data cara lahir / usia kehamilan / golongan
+  //    darah - ini sumber data yang dibaca halaman Balita (v_balita_lengkap),
+  //    jadi tanpa langkah ini field-field tsb akan tampil kosong di sana.
+  const { error: bayiError } = await supabase.from("bayi").insert({
+    nik: babyNik,
+    cara_lahir: input.caraLahir,
+    usia_kehamilan_lahir_minggu: input.usiaKehamilanSaatLahirWeeks,
+    golongan_darah: input.golonganDarah ?? null,
+  });
+  if (bayiError) throw new Error(bayiError.message);
 
   const updated = await getIbuHamilById(ibuHamilId);
   if (!updated)

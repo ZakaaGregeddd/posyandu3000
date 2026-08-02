@@ -124,7 +124,8 @@ export async function getKKs(): Promise<KKOption[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("keluarga")
-    .select(`
+    .select(
+      `
       no_kk, 
       alamat, 
       no_telp, 
@@ -134,7 +135,8 @@ export async function getKKs(): Promise<KKOption[]> {
       nik_ibu,
       ayah:individu!fk_keluarga_nik_ayah(nama, tempat_lahir, tanggal_lahir),
       ibu:individu!fk_keluarga_nik_ibu(nama, tempat_lahir, tanggal_lahir)
-    `)
+    `,
+    )
     .order("no_kk");
 
   if (error) throw new Error(error.message);
@@ -209,7 +211,22 @@ export async function addBalita(input: AddBalitaInput): Promise<Balita> {
       usia_kehamilan_lahir_minggu: input.usiaKehamilanSaatLahirWeeks ?? null,
       golongan_darah: input.golonganDarah ?? null,
     });
-    if (bayiError) throw new Error(bayiError.message);
+
+    if (bayiError) {
+      // Kompensasi: baris `individu` sudah terlanjur tersimpan di atas, tapi
+      // baris pelengkapnya di `bayi` gagal (mis. RLS policy tabel bayi
+      // belum diset - lihat fix-rls-bayi.sql). Daripada meninggalkan data
+      // "yatim" (individu ada tapi tanpa data bayi, sementara user melihat
+      // pesan error seolah-olah tidak ada apapun yang tersimpan), kita
+      // hapus lagi baris individu tsb supaya operasi ini bersih: sukses
+      // penuh, atau gagal penuh (tidak meninggalkan sisa data).
+      await supabase.from("individu").delete().eq("nik", nik);
+      throw new Error(
+        `Gagal menyimpan data bayi (${bayiError.message}). Data batal disimpan - ` +
+          `kemungkinan besar ini masalah RLS policy pada tabel "bayi" di Supabase, ` +
+          `bukan kesalahan input Anda. Lihat fix-rls-bayi.sql.`,
+      );
+    }
   }
 
   const balita = await getBalitaById(nik);
@@ -243,6 +260,59 @@ export async function updateBalita(input: UpdateBalitaInput): Promise<Balita> {
   const balita = await getBalitaById(input.id);
   if (!balita) throw new Error("Data balita tidak ditemukan setelah update");
   return balita;
+}
+
+// ---------------------------------------------------------------------------
+// EDIT IDENTITAS & DATA KELAHIRAN (nama, TTL, jenis kelamin, cara lahir,
+// usia kehamilan saat lahir, golongan darah)
+// ---------------------------------------------------------------------------
+export interface UpdateBalitaDataInput {
+  id: string; // nik
+  nama: string;
+  tempatLahir: string;
+  tanggalLahir: string;
+  jenisKelamin: "L" | "P";
+  caraLahir?: "SC" | "Normal";
+  usiaKehamilanSaatLahirWeeks?: number;
+  golonganDarah?: string;
+}
+
+export async function updateBalitaData(
+  input: UpdateBalitaDataInput,
+): Promise<Balita> {
+  const supabase = createClient();
+
+  const { error: individuError } = await supabase
+    .from("individu")
+    .update({
+      nama: input.nama,
+      tempat_lahir: input.tempatLahir,
+      tanggal_lahir: input.tanggalLahir,
+      jenis_kelamin: input.jenisKelamin,
+    })
+    .eq("nik", input.id);
+
+  if (individuError) throw new Error(individuError.message);
+
+  // Baris `bayi` sifatnya opsional - mungkin belum pernah dibuat kalau saat
+  // pendaftaran awal semua field opsionalnya dikosongkan. Pakai upsert
+  // supaya jalan baik saat baris itu sudah ada (update) maupun belum ada
+  // (insert), asalkan `nik` adalah primary/unique key di tabel bayi.
+  const { error: bayiError } = await supabase.from("bayi").upsert(
+    {
+      nik: input.id,
+      cara_lahir: input.caraLahir ?? null,
+      usia_kehamilan_lahir_minggu: input.usiaKehamilanSaatLahirWeeks ?? null,
+      golongan_darah: input.golonganDarah || null,
+    },
+    { onConflict: "nik" },
+  );
+
+  if (bayiError) throw new Error(bayiError.message);
+
+  const updated = await getBalitaById(input.id);
+  if (!updated) throw new Error("Data tidak ditemukan setelah update");
+  return updated;
 }
 
 // ---------------------------------------------------------------------------
@@ -326,4 +396,54 @@ export async function addBalitaRecord(
 
   if (error) throw new Error(error.message);
   return mapRowToRecord(data);
+}
+
+// ---------------------------------------------------------------------------
+// EDIT SATU DATA PEMERIKSAAN
+// ---------------------------------------------------------------------------
+export interface UpdateBalitaRecordInput {
+  id: string; // record id
+  tanggalPemeriksaan: string;
+  tinggiBadan: number;
+  beratBadan: number;
+  lingkarKepala: number;
+  lingkarLengan: number;
+  imunisasi: string;
+  obatVitamin: string;
+}
+
+export async function updateBalitaRecord(
+  input: UpdateBalitaRecordInput,
+): Promise<BalitaRecord> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("balita_pemeriksaan")
+    .update({
+      tanggal_pemeriksaan: input.tanggalPemeriksaan,
+      tinggi_badan: input.tinggiBadan,
+      berat_badan: input.beratBadan,
+      lingkar_kepala: input.lingkarKepala,
+      lingkar_lengan: input.lingkarLengan,
+      imunisasi: input.imunisasi,
+      obat_vitamin: input.obatVitamin,
+    })
+    .eq("id", input.id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return mapRowToRecord(data);
+}
+
+// ---------------------------------------------------------------------------
+// HAPUS SATU DATA PEMERIKSAAN
+// ---------------------------------------------------------------------------
+export async function deleteBalitaRecord(recordId: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("balita_pemeriksaan")
+    .delete()
+    .eq("id", recordId);
+
+  if (error) throw new Error(error.message);
 }

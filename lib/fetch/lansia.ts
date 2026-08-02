@@ -118,7 +118,8 @@ export async function getKKs(): Promise<KKOption[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("keluarga")
-    .select(`
+    .select(
+      `
       no_kk, 
       alamat, 
       no_telp, 
@@ -128,7 +129,8 @@ export async function getKKs(): Promise<KKOption[]> {
       nik_ibu,
       ayah:individu!fk_keluarga_nik_ayah(nama, tempat_lahir, tanggal_lahir),
       ibu:individu!fk_keluarga_nik_ibu(nama, tempat_lahir, tanggal_lahir)
-    `)
+    `,
+    )
     .order("no_kk");
 
   if (error) throw new Error(error.message);
@@ -176,16 +178,30 @@ export async function addLansia(input: AddLansiaInput): Promise<Lansia> {
   const nik =
     input.nik && input.nik.length === 16 ? input.nik : generateTempNik();
 
-  const { error: individuError } = await supabase.from("individu").insert({
-    nik,
-    no_kk: input.noKk,
-    nama: input.nama,
-    tempat_lahir: input.tempatLahir,
-    tanggal_lahir: input.tanggalLahir,
-    jenis_kelamin: input.jenisKelamin,
-  });
+  // Cek dulu apakah individu dengan NIK ini SUDAH ada (mis. warga ini
+  // sudah tercatat sebagai kepala keluarga/anggota KK lain sebelumnya).
+  // Kalau sudah ada, jangan insert biodata lagi - cukup tambahkan
+  // ekstensi data lansia untuk NIK yang sama.
+  const { data: existing, error: checkError } = await supabase
+    .from("individu")
+    .select("nik")
+    .eq("nik", nik)
+    .maybeSingle();
 
-  if (individuError) throw new Error(individuError.message);
+  if (checkError) throw new Error(checkError.message);
+
+  if (!existing) {
+    const { error: individuError } = await supabase.from("individu").insert({
+      nik,
+      no_kk: input.noKk,
+      nama: input.nama,
+      tempat_lahir: input.tempatLahir,
+      tanggal_lahir: input.tanggalLahir,
+      jenis_kelamin: input.jenisKelamin,
+    });
+
+    if (individuError) throw new Error(individuError.message);
+  }
 
   const { error: lansiaError } = await supabase.from("lansia").insert({
     nik,
@@ -230,11 +246,78 @@ export async function updateLansia(input: UpdateLansiaInput): Promise<Lansia> {
 }
 
 // ---------------------------------------------------------------------------
-// HAPUS LANSIA
+// EDIT IDENTITAS & DATA LANSIA (nama, tempat/tgl lahir, jenis kelamin,
+// wali, golongan darah)
+// ---------------------------------------------------------------------------
+export interface UpdateLansiaDataInput {
+  id: string; // nik
+  nama: string;
+  tempatLahir: string;
+  tanggalLahir: string;
+  jenisKelamin: "L" | "P";
+  namaAyah: string; // "Nama Wali" di form
+  namaIbu: string; // "No. Telp Wali" di form (mengikuti konvensi form tambah)
+  golonganDarah?: string;
+}
+
+export async function updateLansiaData(
+  input: UpdateLansiaDataInput,
+): Promise<Lansia> {
+  const supabase = createClient();
+
+  const { error: individuError } = await supabase
+    .from("individu")
+    .update({
+      nama: input.nama,
+      tempat_lahir: input.tempatLahir,
+      tanggal_lahir: input.tanggalLahir,
+      jenis_kelamin: input.jenisKelamin,
+    })
+    .eq("nik", input.id);
+
+  if (individuError) throw new Error(individuError.message);
+
+  const { error: lansiaError } = await supabase
+    .from("lansia")
+    .update({
+      nama_ayah: input.namaAyah,
+      nama_ibu: input.namaIbu,
+      golongan_darah: input.golonganDarah || null,
+    })
+    .eq("nik", input.id);
+
+  if (lansiaError) throw new Error(lansiaError.message);
+
+  const updated = await getLansiaById(input.id);
+  if (!updated) throw new Error("Data tidak ditemukan setelah update");
+  return updated;
+}
+
+// ---------------------------------------------------------------------------
+// HAPUS LANSIA (dari modul pelacakan Lansia saja)
+//
+// PENTING: sebelumnya fungsi ini menghapus baris di tabel `individu`. Itu
+// keliru dan jadi sumber error "violates foreign key constraint
+// fk_keluarga_nik_ayah on table keluarga" - karena NIK lansia yang sama
+// sangat mungkin masih dipakai sebagai referensi Kepala Keluarga/Ibu di
+// tabel `keluarga` (kolom nik_ayah / nik_ibu). Menghapus baris individu-nya
+// akan memutus referensi itu sehingga database menolaknya.
+//
+// Sekarang "Hapus" hanya menghapus ekstensi data lansia (baris di tabel
+// `lansia` + seluruh riwayat pemeriksaannya). Biodata warga tsb di tabel
+// `individu` (dan keanggotaannya di KK) TETAP tersimpan - orang ini hanya
+// tidak lagi dilacak/masuk daftar modul Lansia.
 // ---------------------------------------------------------------------------
 export async function deleteLansia(id: string): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase.from("individu").delete().eq("nik", id);
+
+  const { error: recError } = await supabase
+    .from("lansia_pemeriksaan")
+    .delete()
+    .eq("nik", id);
+  if (recError) throw new Error(recError.message);
+
+  const { error } = await supabase.from("lansia").delete().eq("nik", id);
   if (error) throw new Error(error.message);
 }
 
@@ -356,4 +439,56 @@ export async function addLansiaRecord(
 
   if (error) throw new Error(error.message);
   return mapRowToRecord(data);
+}
+
+// ---------------------------------------------------------------------------
+// EDIT SATU DATA PEMERIKSAAN
+// ---------------------------------------------------------------------------
+export interface UpdateLansiaRecordInput {
+  id: string; // record id
+  tanggalPemeriksaan: string;
+  tinggiBadan: number;
+  beratBadan: number;
+  tekananDarahSistolik: number;
+  tekananDarahDiastolik: number;
+  riwayatPenyakit: string;
+  obat: string;
+  penyakitBaru: string;
+}
+
+export async function updateLansiaRecord(
+  input: UpdateLansiaRecordInput,
+): Promise<LansiaRecord> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("lansia_pemeriksaan")
+    .update({
+      tanggal_pemeriksaan: input.tanggalPemeriksaan,
+      tinggi_badan: input.tinggiBadan,
+      berat_badan: input.beratBadan,
+      tekanan_sistolik: input.tekananDarahSistolik,
+      tekanan_diastolik: input.tekananDarahDiastolik,
+      riwayat_penyakit: input.riwayatPenyakit,
+      obat: input.obat,
+      penyakit_baru: input.penyakitBaru,
+    })
+    .eq("id", input.id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return mapRowToRecord(data);
+}
+
+// ---------------------------------------------------------------------------
+// HAPUS SATU DATA PEMERIKSAAN
+// ---------------------------------------------------------------------------
+export async function deleteLansiaRecord(recordId: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("lansia_pemeriksaan")
+    .delete()
+    .eq("id", recordId);
+
+  if (error) throw new Error(error.message);
 }

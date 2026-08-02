@@ -304,6 +304,128 @@ export async function addKK(input: AddKKInput): Promise<KK> {
 }
 
 // ---------------------------------------------------------------------------
+// EDIT KK (alamat/kontak + biodata Ayah/Ibu - update kalau sudah ada,
+// buat baru & tautkan kalau belum ada sama sekali)
+// ---------------------------------------------------------------------------
+export interface UpdateKKInput {
+  noKk: string;
+  alamat?: string;
+  rt?: string;
+  rw?: string;
+  noTelp?: string;
+  nikAyah?: string;
+  namaAyah?: string;
+  tanggalLahirAyah?: string;
+  tempatLahirAyah?: string;
+  nikIbu?: string;
+  namaIbu?: string;
+  tanggalLahirIbu?: string;
+  tempatLahirIbu?: string;
+}
+
+export async function updateKK(input: UpdateKKInput): Promise<KK> {
+  const supabase = createClient();
+
+  const existingKK = await getKKByNoKk(input.noKk);
+  if (!existingKK) throw new Error("KK tidak ditemukan");
+
+  if (input.namaAyah && !input.tanggalLahirAyah) {
+    throw new Error("Tanggal lahir Ayah wajib diisi kalau nama Ayah diisi");
+  }
+  if (input.namaIbu && !input.tanggalLahirIbu) {
+    throw new Error("Tanggal lahir Ibu wajib diisi kalau nama Ibu diisi");
+  }
+
+  // 1. Update data keluarga (alamat, rt, rw, no_telp)
+  const { error: kkError } = await supabase
+    .from("keluarga")
+    .update({
+      alamat: input.alamat || null,
+      rt: input.rt || null,
+      rw: input.rw || null,
+      no_telp: input.noTelp || null,
+    })
+    .eq("no_kk", input.noKk);
+  if (kkError) throw new Error(kkError.message);
+
+  // 2. Ayah: update kalau sudah ada individu-nya, buat baru kalau belum
+  if (input.namaAyah) {
+    if (existingKK.nikAyah) {
+      const { error } = await supabase
+        .from("individu")
+        .update({
+          nama: input.namaAyah,
+          tanggal_lahir: input.tanggalLahirAyah,
+          tempat_lahir: input.tempatLahirAyah || null,
+        })
+        .eq("nik", existingKK.nikAyah);
+      if (error) throw new Error(error.message);
+    } else {
+      const nikAyah =
+        input.nikAyah && input.nikAyah.length === 16
+          ? input.nikAyah
+          : generateTempNik();
+      const { error } = await supabase.from("individu").insert({
+        nik: nikAyah,
+        no_kk: input.noKk,
+        nama: input.namaAyah,
+        tempat_lahir: input.tempatLahirAyah || null,
+        tanggal_lahir: input.tanggalLahirAyah,
+        jenis_kelamin: "L",
+        hubungan_keluarga: "Kepala Keluarga",
+      });
+      if (error) throw new Error(error.message);
+
+      const { error: linkError } = await supabase
+        .from("keluarga")
+        .update({ nik_ayah: nikAyah })
+        .eq("no_kk", input.noKk);
+      if (linkError) throw new Error(linkError.message);
+    }
+  }
+
+  // 3. Ibu: update kalau sudah ada individu-nya, buat baru kalau belum
+  if (input.namaIbu) {
+    if (existingKK.nikIbu) {
+      const { error } = await supabase
+        .from("individu")
+        .update({
+          nama: input.namaIbu,
+          tanggal_lahir: input.tanggalLahirIbu,
+          tempat_lahir: input.tempatLahirIbu || null,
+        })
+        .eq("nik", existingKK.nikIbu);
+      if (error) throw new Error(error.message);
+    } else {
+      const nikIbu =
+        input.nikIbu && input.nikIbu.length === 16
+          ? input.nikIbu
+          : generateTempNik();
+      const { error } = await supabase.from("individu").insert({
+        nik: nikIbu,
+        no_kk: input.noKk,
+        nama: input.namaIbu,
+        tempat_lahir: input.tempatLahirIbu || null,
+        tanggal_lahir: input.tanggalLahirIbu,
+        jenis_kelamin: "P",
+        hubungan_keluarga: "Istri",
+      });
+      if (error) throw new Error(error.message);
+
+      const { error: linkError } = await supabase
+        .from("keluarga")
+        .update({ nik_ibu: nikIbu })
+        .eq("no_kk", input.noKk);
+      if (linkError) throw new Error(linkError.message);
+    }
+  }
+
+  const updated = await getKKByNoKk(input.noKk);
+  if (!updated) throw new Error("Gagal memuat ulang data setelah update");
+  return updated;
+}
+
+// ---------------------------------------------------------------------------
 // HAPUS KK (cascade menghapus semua individu & seluruh riwayat mereka -
 // balita, ibu hamil, lansia - karena FK on delete cascade dari individu.no_kk)
 // ---------------------------------------------------------------------------

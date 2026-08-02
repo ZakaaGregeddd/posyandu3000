@@ -192,114 +192,114 @@ export default function IbuHamilPage() {
           <CardContent className="p-0">
             <div className="w-full overflow-x-auto pb-2">
               <table className="w-full border-separate border-spacing-y-2 min-w-[850px]">
-              <thead>
-                <tr className="text-left text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                  <th className="px-6 py-4 bg-secondary-container rounded-l-xl">
-                    Status Kelahiran
-                  </th>
-                  <th className="px-6 py-4 bg-secondary-container">
-                    No. KK / NIK
-                  </th>
-                  <th className="px-6 py-4 bg-secondary-container">
-                    Nama Anggota
-                  </th>
-                  <th className="px-6 py-4 bg-secondary-container">Usia Ibu</th>
-                  <th className="px-6 py-4 bg-secondary-container">
-                    Usia Kandungan
-                  </th>
-                  <th className="px-6 py-4 bg-secondary-container">Status</th>
-                  <th className="px-6 py-4 text-right bg-secondary-container rounded-r-xl">
-                    Aksi
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedBumils.length === 0 ? (
-                  <tr className="bg-white">
-                    <td
-                      colSpan={7}
-                      className="text-center text-on-surface-variant py-8 border border-outline-variant/10 rounded-xl"
-                    >
-                      Tidak ada data ibu hamil ditemukan
-                    </td>
+                <thead>
+                  <tr className="text-left text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                    <th className="px-6 py-4 bg-secondary-container rounded-l-xl">
+                      Status Kelahiran
+                    </th>
+                    <th className="px-6 py-4 bg-secondary-container">
+                      No. KK / NIK
+                    </th>
+                    <th className="px-6 py-4 bg-secondary-container">
+                      Nama Anggota
+                    </th>
+                    <th className="px-6 py-4 bg-secondary-container">
+                      Usia Ibu
+                    </th>
+                    <th className="px-6 py-4 bg-secondary-container">
+                      Usia Kandungan
+                    </th>
+                    <th className="px-6 py-4 bg-secondary-container">Status</th>
+                    <th className="px-6 py-4 text-right bg-secondary-container rounded-r-xl">
+                      Aksi
+                    </th>
                   </tr>
-                ) : (
-                  paginatedBumils.map((bumil) => (
-                    <tr
-                      key={bumil.id}
-                      className={`bg-white hover:bg-slate-50 transition-colors ${bumil.statusHidup === "Meninggal" ? "opacity-75" : ""}`}
-                    >
-                      <td className="px-6 py-4 border-y border-l border-outline-variant/10 rounded-l-xl">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            bumil.postBirthRecord
-                              ? "bg-teal-50 text-teal-700 border-teal-200"
-                              : "bg-amber-50 text-amber-700 border-amber-200"
-                          }`}
-                        >
-                          {bumil.postBirthRecord
-                            ? "Sudah Lahir"
-                            : "Belum Lahir"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm border-y border-outline-variant/10 text-on-surface">
-                        <div className="flex flex-col">
-                          <span className="font-medium text-on-surface-variant">
-                            {bumil.noKk}
-                          </span>
-                          <span className="text-xs text-outline">
-                            {bumil.nik}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm font-bold border-y border-outline-variant/10 text-on-surface">
-                        {bumil.nama}
-                      </td>
-                      <td className="px-6 py-4 text-sm border-y border-outline-variant/10 text-on-surface">
-                        {calculateAge(bumil.tanggalLahir).text}
-                      </td>
-                      <td className="px-6 py-4 text-sm border-y border-outline-variant/10 text-on-surface">
-                        {bumil.postBirthRecord ? (
-                          <span className="text-xs text-on-surface-variant italic">
-                            Melahirkan pada{" "}
-                            {new Date(
-                              bumil.postBirthRecord.tanggalLahir,
-                            ).toLocaleDateString("id-ID")}
-                          </span>
-                        ) : (
-                          <span className="text-xs font-semibold text-tertiary">
-                            {calculateGestationWeeks(bumil.hpht)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 border-y border-outline-variant/10">
-                        <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
-                            bumil.statusHidup === "Hidup"
-                              ? "bg-teal-50 text-teal-700 border border-teal-200"
-                              : "bg-red-50 text-red-700 border border-red-200"
-                          }`}
-                        >
-                          {bumil.statusHidup}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right border-y border-r border-outline-variant/10 rounded-r-xl">
-                        <Link href={`/dashboard/ibu-hamil/${bumil.id}`}>
-                          <button className="group inline-flex items-center gap-2 text-tertiary hover:bg-secondary-brand/40 px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer">
-                            <span className="text-xs font-bold">
-                              Lihat Detail
-                            </span>
-                            <span className="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">
-                              arrow_forward
-                            </span>
-                          </button>
-                        </Link>
+                </thead>
+                <tbody>
+                  {paginatedBumils.length === 0 ? (
+                    <tr className="bg-white">
+                      <td
+                        colSpan={7}
+                        className="text-center text-on-surface-variant py-8 border border-outline-variant/10 rounded-xl"
+                      >
+                        Tidak ada data ibu hamil ditemukan
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    paginatedBumils.map((bumil) => (
+                      <tr
+                        key={bumil.id}
+                        className={`bg-white hover:bg-slate-50 transition-colors ${bumil.statusHidup === "Meninggal" ? "opacity-75" : ""}`}
+                      >
+                        <td className="px-6 py-4 border-y border-l border-outline-variant/10 rounded-l-xl">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                              bumil.postBirthRecord
+                                ? "bg-teal-50 text-teal-700 border-teal-200"
+                                : "bg-amber-50 text-amber-700 border-amber-200"
+                            }`}
+                          >
+                            {bumil.postBirthRecord ? "Melahirkan" : "Belum"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm border-y border-outline-variant/10 text-on-surface">
+                          <div className="flex flex-col">
+                            <span className="font-medium text-on-surface-variant">
+                              {bumil.noKk}
+                            </span>
+                            <span className="text-xs text-outline">
+                              {bumil.nik}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm font-bold border-y border-outline-variant/10 text-on-surface">
+                          {bumil.nama}
+                        </td>
+                        <td className="px-6 py-4 text-sm border-y border-outline-variant/10 text-on-surface">
+                          {calculateAge(bumil.tanggalLahir).text}
+                        </td>
+                        <td className="px-6 py-4 text-sm border-y border-outline-variant/10 text-on-surface">
+                          {bumil.postBirthRecord ? (
+                            <span className="text-xs text-on-surface-variant italic">
+                              Melahirkan pada{" "}
+                              {new Date(
+                                bumil.postBirthRecord.tanggalLahir,
+                              ).toLocaleDateString("id-ID")}
+                            </span>
+                          ) : (
+                            <span className="text-xs font-semibold text-tertiary">
+                              {calculateGestationWeeks(bumil.hpht)}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 border-y border-outline-variant/10">
+                          <span
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
+                              bumil.statusHidup === "Hidup"
+                                ? "bg-teal-50 text-teal-700 border border-teal-200"
+                                : "bg-red-50 text-red-700 border border-red-200"
+                            }`}
+                          >
+                            {bumil.statusHidup}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right border-y border-r border-outline-variant/10 rounded-r-xl">
+                          <Link href={`/dashboard/ibu-hamil/${bumil.id}`}>
+                            <button className="group inline-flex items-center gap-2 text-tertiary hover:bg-secondary-brand/40 px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer">
+                              <span className="text-xs font-bold">
+                                Lihat Detail
+                              </span>
+                              <span className="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">
+                                arrow_forward
+                              </span>
+                            </button>
+                          </Link>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
 
             {/* Pagination */}
@@ -377,7 +377,9 @@ export default function IbuHamilPage() {
                   list="kk_options"
                   value={noKk}
                   onChange={(e) => {
-                    const cleanVal = e.target.value.replace(/[^0-9]/g, "").substring(0, 16);
+                    const cleanVal = e.target.value
+                      .replace(/[^0-9]/g, "")
+                      .substring(0, 16);
                     setNoKk(cleanVal);
                   }}
                   className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
@@ -402,18 +404,20 @@ export default function IbuHamilPage() {
                       .replace(/[^0-9]/g, "")
                       .substring(0, 16);
                     setNik(clean);
-                    const selectedKK = kks.find(k => k.noKk === noKk);
+                    const selectedKK = kks.find((k) => k.noKk === noKk);
                     if (selectedKK && clean === selectedKK.nikIbu) {
                       if (selectedKK.namaIbu) setNama(selectedKK.namaIbu);
-                      if (selectedKK.tempatLahirIbu) setTempatLahir(selectedKK.tempatLahirIbu);
-                      if (selectedKK.tanggalLahirIbu) setTanggalLahir(selectedKK.tanggalLahirIbu);
+                      if (selectedKK.tempatLahirIbu)
+                        setTempatLahir(selectedKK.tempatLahirIbu);
+                      if (selectedKK.tanggalLahirIbu)
+                        setTanggalLahir(selectedKK.tanggalLahirIbu);
                     }
                   }}
                   required
                 />
-                {kks.find(k => k.noKk === noKk)?.nikIbu && (
+                {kks.find((k) => k.noKk === noKk)?.nikIbu && (
                   <datalist id="ibu_nik_options">
-                    <option value={kks.find(k => k.noKk === noKk)?.nikIbu} />
+                    <option value={kks.find((k) => k.noKk === noKk)?.nikIbu} />
                   </datalist>
                 )}
               </div>
@@ -428,18 +432,23 @@ export default function IbuHamilPage() {
                   onChange={(e) => {
                     const val = e.target.value;
                     setNama(val);
-                    const selectedKK = kks.find(k => k.noKk === noKk);
-                    if (selectedKK && val.toLowerCase() === selectedKK.namaIbu?.toLowerCase()) {
+                    const selectedKK = kks.find((k) => k.noKk === noKk);
+                    if (
+                      selectedKK &&
+                      val.toLowerCase() === selectedKK.namaIbu?.toLowerCase()
+                    ) {
                       if (selectedKK.nikIbu) setNik(selectedKK.nikIbu);
-                      if (selectedKK.tempatLahirIbu) setTempatLahir(selectedKK.tempatLahirIbu);
-                      if (selectedKK.tanggalLahirIbu) setTanggalLahir(selectedKK.tanggalLahirIbu);
+                      if (selectedKK.tempatLahirIbu)
+                        setTempatLahir(selectedKK.tempatLahirIbu);
+                      if (selectedKK.tanggalLahirIbu)
+                        setTanggalLahir(selectedKK.tanggalLahirIbu);
                     }
                   }}
                   required
                 />
-                {kks.find(k => k.noKk === noKk)?.namaIbu && (
+                {kks.find((k) => k.noKk === noKk)?.namaIbu && (
                   <datalist id="ibu_nama_options">
-                    <option value={kks.find(k => k.noKk === noKk)?.namaIbu} />
+                    <option value={kks.find((k) => k.noKk === noKk)?.namaIbu} />
                   </datalist>
                 )}
               </div>
@@ -454,9 +463,11 @@ export default function IbuHamilPage() {
                   onChange={(e) => setTempatLahir(e.target.value)}
                   required
                 />
-                {kks.find(k => k.noKk === noKk)?.tempatLahirIbu && (
+                {kks.find((k) => k.noKk === noKk)?.tempatLahirIbu && (
                   <datalist id="ibu_tempat_options">
-                    <option value={kks.find(k => k.noKk === noKk)?.tempatLahirIbu} />
+                    <option
+                      value={kks.find((k) => k.noKk === noKk)?.tempatLahirIbu}
+                    />
                   </datalist>
                 )}
               </div>
@@ -472,9 +483,11 @@ export default function IbuHamilPage() {
                   onChange={(e) => setTanggalLahir(e.target.value)}
                   required
                 />
-                {kks.find(k => k.noKk === noKk)?.tanggalLahirIbu && (
+                {kks.find((k) => k.noKk === noKk)?.tanggalLahirIbu && (
                   <datalist id="ibu_tgl_options">
-                    <option value={kks.find(k => k.noKk === noKk)?.tanggalLahirIbu} />
+                    <option
+                      value={kks.find((k) => k.noKk === noKk)?.tanggalLahirIbu}
+                    />
                   </datalist>
                 )}
               </div>

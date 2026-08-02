@@ -28,8 +28,11 @@ import {
 import {
   getBalitaById,
   updateBalita,
+  updateBalitaData,
   getBalitaRecords,
   addBalitaRecord,
+  updateBalitaRecord,
+  deleteBalitaRecord,
   getKKs,
   deleteBalita,
   Balita,
@@ -52,10 +55,13 @@ export default function BalitaDetailPage({
   const [alamatKk, setAlamatKk] = useState("-");
   const [isLoading, setIsLoading] = useState(true);
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSubmittingExam, setIsSubmittingExam] = useState(false);
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
-  // Exam Form States
+  // Exam Form States (dipakai untuk TAMBAH & EDIT - lihat editingRecordId)
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [tanggalPemeriksaan, setTanggalPemeriksaan] = useState(
     new Date().toISOString().split("T")[0],
   );
@@ -66,6 +72,16 @@ export default function BalitaDetailPage({
   const [imunisasi, setImunisasi] = useState("-");
   const [obatVitamin, setObatVitamin] = useState("-");
   const [formError, setFormError] = useState("");
+
+  // Edit Identitas Form States
+  const [editNama, setEditNama] = useState("");
+  const [editTempatLahir, setEditTempatLahir] = useState("");
+  const [editTanggalLahir, setEditTanggalLahir] = useState("");
+  const [editJenisKelamin, setEditJenisKelamin] = useState<"L" | "P">("L");
+  const [editCaraLahir, setEditCaraLahir] = useState<"" | "SC" | "Normal">("");
+  const [editUsiaKehamilan, setEditUsiaKehamilan] = useState("");
+  const [editGolonganDarah, setEditGolonganDarah] = useState("");
+  const [editError, setEditError] = useState("");
 
   // Resolve params (Next.js 15 async params)
   useEffect(() => {
@@ -151,8 +167,8 @@ export default function BalitaDetailPage({
     }
   };
 
-  // Handle new exam record
-  const handleAddExam = async (e: React.FormEvent) => {
+  // Handle new/edit exam record (submit tunggal, tergantung editingRecordId)
+  const handleSubmitExam = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
 
@@ -180,36 +196,65 @@ export default function BalitaDetailPage({
     setIsSubmittingExam(true);
 
     try {
-      // IMT tidak dihitung di sini - database yang menghitung otomatis
-      // dan mengembalikan nilainya lewat baris yang baru di-insert.
-      const newRec = await addBalitaRecord({
-        balitaId: balita.id,
-        tanggalPemeriksaan,
-        tinggiBadan: tbNum,
-        beratBadan: bbNum,
-        lingkarKepala: lkNum,
-        lingkarLengan: llNum,
-        imunisasi,
-        obatVitamin,
-      });
+      if (editingRecordId) {
+        // IMT tidak dikirim - dihitung ulang otomatis oleh database.
+        const updatedRec = await updateBalitaRecord({
+          id: editingRecordId,
+          tanggalPemeriksaan,
+          tinggiBadan: tbNum,
+          beratBadan: bbNum,
+          lingkarKepala: lkNum,
+          lingkarLengan: llNum,
+          imunisasi,
+          obatVitamin,
+        });
 
-      setRecords((prev) =>
-        [...prev, newRec].sort(
-          (a, b) =>
-            new Date(a.tanggalPemeriksaan).getTime() -
-            new Date(b.tanggalPemeriksaan).getTime(),
-        ),
-      );
+        setRecords((prev) =>
+          prev
+            .map((r) => (r.id === editingRecordId ? updatedRec : r))
+            .sort(
+              (a, b) =>
+                new Date(a.tanggalPemeriksaan).getTime() -
+                new Date(b.tanggalPemeriksaan).getTime(),
+            ),
+        );
+      } else {
+        const newRec = await addBalitaRecord({
+          balitaId: balita.id,
+          tanggalPemeriksaan,
+          tinggiBadan: tbNum,
+          beratBadan: bbNum,
+          lingkarKepala: lkNum,
+          lingkarLengan: llNum,
+          imunisasi,
+          obatVitamin,
+        });
+
+        setRecords((prev) =>
+          [...prev, newRec].sort(
+            (a, b) =>
+              new Date(a.tanggalPemeriksaan).getTime() -
+              new Date(b.tanggalPemeriksaan).getTime(),
+          ),
+        );
+      }
+
       setIsExamModalOpen(false);
       resetForm();
     } catch (err: any) {
-      setFormError(err.message || "Gagal menyimpan pemeriksaan");
+      setFormError(
+        err.message ||
+          (editingRecordId
+            ? "Gagal menyimpan perubahan pemeriksaan"
+            : "Gagal menyimpan pemeriksaan"),
+      );
     } finally {
       setIsSubmittingExam(false);
     }
   };
 
   const resetForm = () => {
+    setEditingRecordId(null);
     setTanggalPemeriksaan(new Date().toISOString().split("T")[0]);
     setTinggiBadan("");
     setBeratBadan("");
@@ -218,6 +263,90 @@ export default function BalitaDetailPage({
     setImunisasi("-");
     setObatVitamin("-");
     setFormError("");
+  };
+
+  const openAddExamModal = () => {
+    resetForm();
+    setIsExamModalOpen(true);
+  };
+
+  const openEditExamModal = (r: BalitaRecord) => {
+    setEditingRecordId(r.id);
+    setTanggalPemeriksaan(r.tanggalPemeriksaan.split("T")[0]);
+    setTinggiBadan(String(r.tinggiBadan));
+    setBeratBadan(String(r.beratBadan));
+    setLingkarKepala(String(r.lingkarKepala));
+    setLingkarLengan(String(r.lingkarLengan));
+    setImunisasi(r.imunisasi || "-");
+    setObatVitamin(r.obatVitamin || "-");
+    setFormError("");
+    setIsExamModalOpen(true);
+  };
+
+  const handleDeleteRecord = async (recordId: string) => {
+    const confirmDel = window.confirm(
+      "Apakah Anda yakin ingin menghapus data pemeriksaan ini?",
+    );
+    if (!confirmDel) return;
+
+    try {
+      await deleteBalitaRecord(recordId);
+      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+    } catch (err: any) {
+      alert(err.message || "Gagal menghapus data pemeriksaan");
+    }
+  };
+
+  const openEditIdentityModal = () => {
+    setIsMenuOpen(false);
+    setEditNama(balita.nama);
+    setEditTempatLahir(balita.tempatLahir);
+    setEditTanggalLahir(
+      balita.tanggalLahir ? balita.tanggalLahir.split("T")[0] : "",
+    );
+    setEditJenisKelamin(balita.jenisKelamin);
+    setEditCaraLahir(balita.caraLahir || "");
+    setEditUsiaKehamilan(
+      balita.usiaKehamilanSaatLahirWeeks
+        ? String(balita.usiaKehamilanSaatLahirWeeks)
+        : "",
+    );
+    setEditGolonganDarah(balita.golonganDarah || "");
+    setEditError("");
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditIdentitySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditError("");
+
+    if (!editNama || !editTempatLahir || !editTanggalLahir) {
+      setEditError("Nama, tempat lahir, dan tanggal lahir wajib diisi");
+      return;
+    }
+
+    setIsSubmittingEdit(true);
+
+    try {
+      const updated = await updateBalitaData({
+        id: balita.id,
+        nama: editNama,
+        tempatLahir: editTempatLahir,
+        tanggalLahir: editTanggalLahir,
+        jenisKelamin: editJenisKelamin,
+        caraLahir: editCaraLahir || undefined,
+        usiaKehamilanSaatLahirWeeks: editUsiaKehamilan
+          ? parseInt(editUsiaKehamilan)
+          : undefined,
+        golonganDarah: editGolonganDarah || undefined,
+      });
+      setBalita(updated);
+      setIsEditModalOpen(false);
+    } catch (err: any) {
+      setEditError(err.message || "Gagal menyimpan perubahan identitas");
+    } finally {
+      setIsSubmittingEdit(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -288,7 +417,7 @@ export default function BalitaDetailPage({
 
         <div className="flex items-center gap-3 relative">
           <Button
-            onClick={() => setIsExamModalOpen(true)}
+            onClick={openAddExamModal}
             disabled={!canAddRecord}
             className="flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-tertiary text-white hover:bg-[#8b224a] px-6 py-3 rounded-xl text-sm font-bold animate-all"
           >
@@ -340,16 +469,13 @@ export default function BalitaDetailPage({
                 </button>
 
                 <button
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    alert("Fitur edit profile balita terintegrasi dengan KK.");
-                  }}
+                  onClick={openEditIdentityModal}
                   className="w-full px-4 py-3 text-left text-xs font-bold text-on-surface hover:bg-slate-100 transition-colors flex items-center gap-2 cursor-pointer border-b border-outline-variant/10"
                 >
                   <span className="material-symbols-outlined text-sm">
                     edit
                   </span>{" "}
-                  Edit
+                  Edit Identitas
                 </button>
 
                 <button
@@ -464,6 +590,10 @@ export default function BalitaDetailPage({
               </p>
             </div>
           </div>
+          <p className="text-xs text-on-surface-variant italic">
+            Nama & TTL orang tua diambil dari data KK dan tidak diedit di
+            halaman ini.
+          </p>
         </div>
       </div>
 
@@ -631,6 +761,29 @@ export default function BalitaDetailPage({
                         </span>
                       ) : null}
                     </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openEditExamModal(r)}
+                        title="Edit data pemeriksaan"
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-slate-100 hover:text-tertiary transition-colors cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-lg">
+                          edit
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteRecord(r.id)}
+                        title="Hapus data pemeriksaan"
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-lg">
+                          delete
+                        </span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4">
@@ -695,20 +848,28 @@ export default function BalitaDetailPage({
         </div>
       </section>
 
-      {/* Add Examination Modal */}
+      {/* Add/Edit Examination Modal */}
       <Dialog
         isOpen={isExamModalOpen}
-        onClose={() => setIsExamModalOpen(false)}
+        onClose={() => {
+          setIsExamModalOpen(false);
+          resetForm();
+        }}
       >
         <form
-          onSubmit={handleAddExam}
+          onSubmit={handleSubmitExam}
           className="flex flex-col max-h-[85vh] overflow-hidden"
         >
           <DialogHeader>
-            <DialogTitle>Update Pemeriksaan Balita</DialogTitle>
+            <DialogTitle>
+              {editingRecordId
+                ? "Edit Data Pemeriksaan"
+                : "Update Pemeriksaan Balita"}
+            </DialogTitle>
             <DialogDescription>
-              Masukkan hasil pengukuran antropometri dan pemberian obat/vitamin
-              terbaru.
+              {editingRecordId
+                ? "Perbarui hasil pengukuran antropometri dan pemberian obat/vitamin untuk tanggal ini."
+                : "Masukkan hasil pengukuran antropometri dan pemberian obat/vitamin terbaru."}
             </DialogDescription>
           </DialogHeader>
 
@@ -818,7 +979,146 @@ export default function BalitaDetailPage({
               Batal
             </Button>
             <Button type="submit" disabled={isSubmittingExam}>
-              {isSubmittingExam ? "Menyimpan..." : "Simpan Pemeriksaan"}
+              {isSubmittingExam
+                ? "Menyimpan..."
+                : editingRecordId
+                  ? "Simpan Perubahan"
+                  : "Simpan Pemeriksaan"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </Dialog>
+
+      {/* Edit Identitas Modal */}
+      <Dialog
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+      >
+        <form
+          onSubmit={handleEditIdentitySubmit}
+          className="flex flex-col max-h-[85vh] overflow-hidden"
+        >
+          <DialogHeader>
+            <DialogTitle>Edit Identitas Balita</DialogTitle>
+            <DialogDescription>
+              Perbarui data diri dan data kelahiran anggota ini. Nama & TTL
+              orang tua diambil dari KK dan tidak diedit di sini.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogContent className="space-y-4">
+            {editError && (
+              <div className="text-xs font-semibold text-red-700 bg-red-50 p-2.5 rounded-lg border border-red-200">
+                {editError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2 space-y-1.5">
+                <Label htmlFor="edit_nama">Nama Lengkap</Label>
+                <Input
+                  id="edit_nama"
+                  value={editNama}
+                  onChange={(e) => setEditNama(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_tempat">Tempat Lahir</Label>
+                <Input
+                  id="edit_tempat"
+                  value={editTempatLahir}
+                  onChange={(e) => setEditTempatLahir(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_tgl_lahir">Tanggal Lahir</Label>
+                <Input
+                  id="edit_tgl_lahir"
+                  type="date"
+                  value={editTanggalLahir}
+                  max={new Date().toISOString().split("T")[0]}
+                  onChange={(e) => setEditTanggalLahir(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_jk">Jenis Kelamin</Label>
+                <select
+                  id="edit_jk"
+                  value={editJenisKelamin}
+                  onChange={(e) =>
+                    setEditJenisKelamin(e.target.value as "L" | "P")
+                  }
+                  className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
+                >
+                  <option value="L">Laki-laki</option>
+                  <option value="P">Perempuan</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_golongan_darah">Golongan Darah</Label>
+                <select
+                  id="edit_golongan_darah"
+                  value={editGolonganDarah}
+                  onChange={(e) => setEditGolonganDarah(e.target.value)}
+                  className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
+                >
+                  <option value="">Tidak diketahui</option>
+                  {["A", "B", "AB", "O"].map((gd) => (
+                    <option key={gd} value={gd}>
+                      {gd}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_cara_lahir">Cara Lahir</Label>
+                <select
+                  id="edit_cara_lahir"
+                  value={editCaraLahir}
+                  onChange={(e) =>
+                    setEditCaraLahir(e.target.value as "" | "SC" | "Normal")
+                  }
+                  className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
+                >
+                  <option value="">Tidak diketahui</option>
+                  <option value="Normal">Normal (Pervaginam)</option>
+                  <option value="SC">Sectio Caesarea (SC)</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_usia_kehamilan">
+                  Usia Kehamilan Saat Lahir (Minggu)
+                </Label>
+                <Input
+                  id="edit_usia_kehamilan"
+                  type="number"
+                  placeholder="Contoh: 38"
+                  value={editUsiaKehamilan}
+                  onChange={(e) => setEditUsiaKehamilan(e.target.value)}
+                />
+              </div>
+            </div>
+          </DialogContent>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsEditModalOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button type="submit" disabled={isSubmittingEdit}>
+              {isSubmittingEdit ? "Menyimpan..." : "Simpan Perubahan"}
             </Button>
           </DialogFooter>
         </form>

@@ -36,8 +36,10 @@ import {
 import {
   getIbuHamilById,
   updateIbuHamil,
+  updateIbuHamilData,
   getIbuHamilRecords,
   addIbuHamilRecord,
+  deleteIbuHamilRecord,
   addPostBirthRecord,
   deleteIbuHamil,
   IbuHamil,
@@ -60,8 +62,10 @@ export default function IbuHamilDetailPage({
   const [isLoading, setIsLoading] = useState(true);
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
   const [isBirthModalOpen, setIsBirthModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSubmittingExam, setIsSubmittingExam] = useState(false);
   const [isSubmittingBirth, setIsSubmittingBirth] = useState(false);
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
   // Exam Form States
   const [tanggalPemeriksaan, setTanggalPemeriksaan] = useState(
@@ -83,7 +87,16 @@ export default function IbuHamilDetailPage({
   const [babyJk, setBabyJk] = useState<"L" | "P">("L");
   const [babyCara, setBabyCara] = useState<"Normal" | "SC">("Normal");
   const [babyGestationWeeks, setBabyGestationWeeks] = useState("39");
+  const [babyGolonganDarah, setBabyGolonganDarah] = useState("");
   const [birthError, setBirthError] = useState("");
+
+  // Edit Identitas & Kehamilan Form States
+  const [editNama, setEditNama] = useState("");
+  const [editTempatLahir, setEditTempatLahir] = useState("");
+  const [editTanggalLahir, setEditTanggalLahir] = useState("");
+  const [editHpht, setEditHpht] = useState("");
+  const [editGolonganDarah, setEditGolonganDarah] = useState("");
+  const [editError, setEditError] = useState("");
 
   // Resolve params (Next.js 15 async params)
   useEffect(() => {
@@ -249,6 +262,20 @@ export default function IbuHamilDetailPage({
     }
   };
 
+  const handleDeleteRecord = async (recordId: string) => {
+    const confirmDel = window.confirm(
+      "Apakah Anda yakin ingin menghapus data pemeriksaan ini?",
+    );
+    if (!confirmDel) return;
+
+    try {
+      await deleteIbuHamilRecord(recordId);
+      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+    } catch (err: any) {
+      alert(err.message || "Gagal menghapus data pemeriksaan");
+    }
+  };
+
   const handleAddBirth = async (e: React.FormEvent) => {
     e.preventDefault();
     setBirthError("");
@@ -268,6 +295,7 @@ export default function IbuHamilDetailPage({
         jenisKelamin: babyJk,
         caraLahir: babyCara,
         usiaKehamilanSaatLahirWeeks: parseInt(babyGestationWeeks) || 39,
+        golonganDarah: babyGolonganDarah || undefined,
       });
 
       setBumil(updated);
@@ -292,6 +320,48 @@ export default function IbuHamilDetailPage({
     setKunjunganKe("1");
     setVitamin("Asam Folat");
     setExamError("");
+  };
+
+  const openEditModal = () => {
+    setEditNama(bumil.nama);
+    setEditTempatLahir(bumil.tempatLahir);
+    setEditTanggalLahir(
+      bumil.tanggalLahir ? bumil.tanggalLahir.split("T")[0] : "",
+    );
+    setEditHpht(bumil.hpht ? bumil.hpht.split("T")[0] : "");
+    setEditGolonganDarah(bumil.golonganDarah || "");
+    setEditError("");
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditError("");
+
+    if (!editNama || !editTempatLahir || !editTanggalLahir || !editHpht) {
+      setEditError("Semua field wajib diisi");
+      return;
+    }
+
+    setIsSubmittingEdit(true);
+
+    try {
+      const updated = await updateIbuHamilData({
+        id: bumil.id,
+        nik: bumil.nik,
+        nama: editNama,
+        tempatLahir: editTempatLahir,
+        tanggalLahir: editTanggalLahir,
+        hpht: editHpht,
+        golonganDarah: editGolonganDarah || undefined,
+      });
+      setBumil(updated);
+      setIsEditModalOpen(false);
+    } catch (err: any) {
+      setEditError(err.message || "Gagal menyimpan perubahan");
+    } finally {
+      setIsSubmittingEdit(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -356,13 +426,22 @@ export default function IbuHamilDetailPage({
             )}
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto flex-wrap">
             <StatusHidupControl
               currentStatus={bumil.statusHidup}
               tanggalMeninggal={bumil.tanggalMeninggal}
               penyebabMeninggal={bumil.penyebabMeninggal}
               onStatusChange={handleStatusChange}
             />
+
+            <Button
+              onClick={openEditModal}
+              variant="outline"
+              className="flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+            >
+              <span className="material-symbols-outlined">edit</span>
+              <span>Edit Data</span>
+            </Button>
 
             <Button
               onClick={() => setIsExamModalOpen(true)}
@@ -574,13 +653,14 @@ export default function IbuHamilDetailPage({
                 <TableHead>Tekanan Darah (mmHg)</TableHead>
                 <TableHead>Usia Kehamilan (Wk)</TableHead>
                 <TableHead>Vitamin Diberikan</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {records.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={8}
                     className="text-center text-on-surface-variant py-8"
                   >
                     Belum ada riwayat pemeriksaan kehamilan.
@@ -609,6 +689,18 @@ export default function IbuHamilDetailPage({
                     </TableCell>
                     <TableCell>{r.usiaKehamilanWeeks} minggu</TableCell>
                     <TableCell>{r.vitamin || "-"}</TableCell>
+                    <TableCell className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteRecord(r.id)}
+                        title="Hapus data pemeriksaan"
+                        className="inline-flex items-center gap-1 text-red-600 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-sm">
+                          delete
+                        </span>
+                      </button>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -622,7 +714,10 @@ export default function IbuHamilDetailPage({
         isOpen={isExamModalOpen}
         onClose={() => setIsExamModalOpen(false)}
       >
-        <form onSubmit={handleAddExam} className="flex flex-col max-h-[85vh] overflow-hidden">
+        <form
+          onSubmit={handleAddExam}
+          className="flex flex-col max-h-[85vh] overflow-hidden"
+        >
           <DialogHeader>
             <DialogTitle>Update Data Pemeriksaan Bumil</DialogTitle>
             <DialogDescription>
@@ -721,7 +816,11 @@ export default function IbuHamilDetailPage({
                   className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
                 >
                   {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                    <option key={n} value={n.toString()} className="text-xs md:text-sm bg-white text-on-surface">
+                    <option
+                      key={n}
+                      value={n.toString()}
+                      className="text-xs md:text-sm bg-white text-on-surface"
+                    >
                       Kunjungan Ke-{n}
                     </option>
                   ))}
@@ -755,12 +854,122 @@ export default function IbuHamilDetailPage({
         </form>
       </Dialog>
 
+      {/* Edit Identitas & Data Kehamilan Modal */}
+      <Dialog
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+      >
+        <form
+          onSubmit={handleEditSubmit}
+          className="flex flex-col max-h-[85vh] overflow-hidden"
+        >
+          <DialogHeader>
+            <DialogTitle>Edit Identitas & Data Kehamilan</DialogTitle>
+            <DialogDescription>
+              Perbarui biodata ibu hamil serta data kehamilan (HPHT dan golongan
+              darah).
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogContent className="space-y-4">
+            {editError && (
+              <div className="text-xs font-semibold text-red-700 bg-red-50 p-2.5 rounded-lg border border-red-200">
+                {editError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2 space-y-1.5">
+                <Label htmlFor="edit_nama">Nama Lengkap</Label>
+                <Input
+                  id="edit_nama"
+                  placeholder="Nama Lengkap Ibu Hamil"
+                  value={editNama}
+                  onChange={(e) => setEditNama(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_tempat">Tempat Lahir</Label>
+                <Input
+                  id="edit_tempat"
+                  placeholder="Kota / Kabupaten"
+                  value={editTempatLahir}
+                  onChange={(e) => setEditTempatLahir(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_tgl_lahir">Tanggal Lahir</Label>
+                <Input
+                  id="edit_tgl_lahir"
+                  type="date"
+                  value={editTanggalLahir}
+                  max={new Date().toISOString().split("T")[0]}
+                  onChange={(e) => setEditTanggalLahir(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_golongan_darah">Golongan Darah</Label>
+                <select
+                  id="edit_golongan_darah"
+                  value={editGolonganDarah}
+                  onChange={(e) => setEditGolonganDarah(e.target.value)}
+                  className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
+                >
+                  <option value="">Tidak diketahui</option>
+                  {["A", "B", "AB", "O"].map((gd) => (
+                    <option key={gd} value={gd}>
+                      {gd}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_hpht">
+                  Hari Pertama Haid Terakhir (HPHT)
+                </Label>
+                <Input
+                  id="edit_hpht"
+                  type="date"
+                  value={editHpht}
+                  max={new Date().toISOString().split("T")[0]}
+                  onChange={(e) => setEditHpht(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+          </DialogContent>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsEditModalOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button type="submit" disabled={isSubmittingEdit}>
+              {isSubmittingEdit ? "Menyimpan..." : "Simpan Perubahan"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </Dialog>
+
       {/* Sudah Melahirkan Modal */}
       <Dialog
         isOpen={isBirthModalOpen}
         onClose={() => setIsBirthModalOpen(false)}
       >
-        <form onSubmit={handleAddBirth} className="flex flex-col max-h-[85vh] overflow-hidden">
+        <form
+          onSubmit={handleAddBirth}
+          className="flex flex-col max-h-[85vh] overflow-hidden"
+        >
           <DialogHeader>
             <DialogTitle>Formulir Kelahiran Bayi</DialogTitle>
             <DialogDescription>
@@ -796,8 +1005,18 @@ export default function IbuHamilDetailPage({
                   onChange={(e) => setBabyJk(e.target.value as "L" | "P")}
                   className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
                 >
-                  <option value="L" className="text-xs md:text-sm bg-white text-on-surface">Laki-laki</option>
-                  <option value="P" className="text-xs md:text-sm bg-white text-on-surface">Perempuan</option>
+                  <option
+                    value="L"
+                    className="text-xs md:text-sm bg-white text-on-surface"
+                  >
+                    Laki-laki
+                  </option>
+                  <option
+                    value="P"
+                    className="text-xs md:text-sm bg-white text-on-surface"
+                  >
+                    Perempuan
+                  </option>
                 </select>
               </div>
 
@@ -811,8 +1030,18 @@ export default function IbuHamilDetailPage({
                   }
                   className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
                 >
-                  <option value="Normal" className="text-xs md:text-sm bg-white text-on-surface">Normal (Pervaginam)</option>
-                  <option value="SC" className="text-xs md:text-sm bg-white text-on-surface">Sectio Caesarea (SC)</option>
+                  <option
+                    value="Normal"
+                    className="text-xs md:text-sm bg-white text-on-surface"
+                  >
+                    Normal (Pervaginam)
+                  </option>
+                  <option
+                    value="SC"
+                    className="text-xs md:text-sm bg-white text-on-surface"
+                  >
+                    Sectio Caesarea (SC)
+                  </option>
                 </select>
               </div>
 
@@ -839,7 +1068,7 @@ export default function IbuHamilDetailPage({
                 />
               </div>
 
-              <div className="space-y-1.5 md:col-span-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="baby_weeks">
                   Lahir Pada Usia Kehamilan (Minggu)
                 </Label>
@@ -851,6 +1080,25 @@ export default function IbuHamilDetailPage({
                   onChange={(e) => setBabyGestationWeeks(e.target.value)}
                   required
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="baby_golongan_darah">
+                  Golongan Darah Bayi (Opsional)
+                </Label>
+                <select
+                  id="baby_golongan_darah"
+                  value={babyGolonganDarah}
+                  onChange={(e) => setBabyGolonganDarah(e.target.value)}
+                  className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
+                >
+                  <option value="">Tidak diketahui</option>
+                  {["A", "B", "AB", "O"].map((gd) => (
+                    <option key={gd} value={gd}>
+                      {gd}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </DialogContent>

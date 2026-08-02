@@ -18,6 +18,7 @@ import {
   KK,
   KKMember,
 } from "@/lib/fetch/keluarga";
+import EditKKModal from "@/components/keluarga/EditKKModal";
 import { calculateAge } from "@/lib/utils/health";
 
 export default function KKDetailPage({
@@ -36,6 +37,7 @@ export default function KKDetailPage({
   // Modal States
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   // Resolve params
   useEffect(() => {
@@ -43,6 +45,15 @@ export default function KKDetailPage({
   }, [params]);
 
   // Load Data
+  const loadMembers = async (noKk: string) => {
+    try {
+      const memberList = await getKKMembers(noKk);
+      setMembers(memberList);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     if (!id) return;
     let active = true;
@@ -98,6 +109,11 @@ export default function KKDetailPage({
     }
   };
 
+  const handleEditSuccess = async (updated: KK) => {
+    setKk(updated);
+    await loadMembers(updated.noKk);
+  };
+
   return (
     <div className="max-w-[1440px] mx-auto w-full space-y-6 animate-in fade-in duration-300">
       {/* Action Header & Back Button */}
@@ -110,7 +126,7 @@ export default function KKDetailPage({
             Manajemen data kesehatan terpadu untuk keluarga terdaftar.
           </p>
         </div>
-        <div className="flex gap-2 w-full md:w-auto">
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
           <Button
             variant="outline"
             onClick={() => router.push("/dashboard/kk-terdaftar")}
@@ -120,6 +136,14 @@ export default function KKDetailPage({
               arrow_back
             </span>
             <span>Kembali</span>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setIsEditOpen(true)}
+            className="flex items-center justify-center gap-2 font-bold flex-1 md:flex-initial text-tertiary border-tertiary/40 hover:bg-secondary-container"
+          >
+            <span className="material-symbols-outlined text-sm">edit</span>
+            <span>Edit</span>
           </Button>
           <Button
             variant="destructive"
@@ -322,6 +346,16 @@ export default function KKDetailPage({
           </div>
         )}
       </div>
+
+      {/* Edit KK Modal */}
+      {kk && (
+        <EditKKModal
+          isOpen={isEditOpen}
+          onClose={() => setIsEditOpen(false)}
+          kk={kk}
+          onSuccess={handleEditSuccess}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <Dialog isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)}>
