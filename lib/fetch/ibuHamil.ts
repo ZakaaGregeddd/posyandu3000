@@ -373,6 +373,54 @@ export async function addIbuHamilRecord(
 }
 
 // ---------------------------------------------------------------------------
+// EDIT SATU DATA PEMERIKSAAN (ANC) YANG SUDAH ADA
+// ---------------------------------------------------------------------------
+export interface UpdateIbuHamilRecordInput {
+  id: string; // id baris ibu_hamil_pemeriksaan yang diedit
+  tanggalPemeriksaan: string;
+  beratBadan: number;
+  tinggiBadan: number;
+  tekananDarahSistolik: number;
+  tekananDarahDiastolik: number;
+  usiaKehamilanWeeks: number;
+  kunjunganKe: number;
+  vitamin: string;
+}
+
+export async function updateIbuHamilRecord(
+  input: UpdateIbuHamilRecordInput,
+): Promise<IbuHamilRecord> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("ibu_hamil_pemeriksaan")
+    .update({
+      tanggal_pemeriksaan: input.tanggalPemeriksaan,
+      berat_badan: input.beratBadan,
+      tinggi_badan: input.tinggiBadan,
+      tekanan_sistolik: input.tekananDarahSistolik,
+      tekanan_diastolik: input.tekananDarahDiastolik,
+      usia_kehamilan_minggu: input.usiaKehamilanWeeks,
+      kunjungan_ke: input.kunjunganKe,
+      vitamin: input.vitamin,
+    })
+    .eq("id", input.id)
+    .select()
+    .single();
+
+  if (error) {
+    // Kunjungan ke-N untuk episode yang sama tidak boleh dobel (unique constraint)
+    if (error.code === "23505") {
+      throw new Error(
+        `Kunjungan ke-${input.kunjunganKe} untuk episode ini sudah pernah diinput sebelumnya.`,
+      );
+    }
+    throw new Error(error.message);
+  }
+
+  return mapRowToRecord(data);
+}
+
+// ---------------------------------------------------------------------------
 // HAPUS SATU DATA PEMERIKSAAN (ANC)
 // ---------------------------------------------------------------------------
 export async function deleteIbuHamilRecord(recordId: string): Promise<void> {

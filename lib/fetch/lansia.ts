@@ -210,7 +210,21 @@ export async function addLansia(input: AddLansiaInput): Promise<Lansia> {
     golongan_darah: input.golonganDarah ?? null,
   });
 
-  if (lansiaError) throw new Error(lansiaError.message);
+  if (lansiaError) {
+    // Kompensasi: kalau baris individu ini baru kita buat sendiri di atas
+    // (bukan warga yang sudah ada sebelumnya) tapi ekstensi datanya di
+    // tabel `lansia` gagal tersimpan, hapus lagi baris individu tsb supaya
+    // tidak nyangkut sebagai data "yatim" (individu ada, tapi tanpa baris
+    // lansia - persis yang menyebabkan "Edit Data" gagal dengan 0 baris
+    // terupdate belakangan). Kalau individu-nya SUDAH ada sebelumnya
+    // (warga lama), jangan dihapus - itu bukan punya kita untuk dihapus.
+    if (!existing) {
+      await supabase.from("individu").delete().eq("nik", nik);
+    }
+    throw new Error(
+      `Gagal menyimpan data lansia (${lansiaError.message}). Data batal disimpan.`,
+    );
+  }
 
   const lansia = await getLansiaById(nik);
   if (!lansia) throw new Error("Data tersimpan tapi gagal dimuat ulang");
@@ -229,16 +243,28 @@ export interface UpdateLansiaInput {
 
 export async function updateLansia(input: UpdateLansiaInput): Promise<Lansia> {
   const supabase = createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("individu")
     .update({
       status_hidup: input.statusHidup,
       tanggal_meninggal: input.tanggalMeninggal || null,
       keterangan_meninggal: input.penyebabMeninggal || null,
     })
-    .eq("nik", input.id);
+    .eq("nik", input.id)
+    .select("nik");
 
   if (error) throw new Error(error.message);
+  // Supabase TIDAK melempar error kalau RLS policy UPDATE cocok tapi tidak
+  // ada baris yang lolos (atau nik tidak ditemukan) - dia cuma balas sukses
+  // dengan array kosong. Tanpa pengecekan ini, form akan terlihat "berhasil"
+  // padahal sebenarnya tidak ada yang tersimpan. Lihat fix-rls-individu.sql
+  // kalau ini yang terjadi.
+  if (!data || data.length === 0) {
+    throw new Error(
+      "Perubahan tidak tersimpan (0 baris terupdate). Kemungkinan besar ini " +
+        'masalah RLS policy UPDATE pada tabel "individu" di Supabase - lihat fix-rls-individu.sql.',
+    );
+  }
 
   const lansia = await getLansiaById(input.id);
   if (!lansia) throw new Error("Data lansia tidak ditemukan setelah update");
@@ -265,7 +291,7 @@ export async function updateLansiaData(
 ): Promise<Lansia> {
   const supabase = createClient();
 
-  const { error: individuError } = await supabase
+  const { data: individuData, error: individuError } = await supabase
     .from("individu")
     .update({
       nama: input.nama,
@@ -273,20 +299,37 @@ export async function updateLansiaData(
       tanggal_lahir: input.tanggalLahir,
       jenis_kelamin: input.jenisKelamin,
     })
-    .eq("nik", input.id);
+    .eq("nik", input.id)
+    .select("nik");
 
   if (individuError) throw new Error(individuError.message);
+  if (!individuData || individuData.length === 0) {
+    throw new Error(
+      "Identitas tidak tersimpan (0 baris terupdate di tabel individu). " +
+        "Kemungkinan besar ini masalah RLS policy UPDATE - lihat fix-rls-individu.sql.",
+    );
+  }
 
-  const { error: lansiaError } = await supabase
+  const { data: lansiaData, error: lansiaError } = await supabase
     .from("lansia")
-    .update({
-      nama_ayah: input.namaAyah,
-      nama_ibu: input.namaIbu,
-      golongan_darah: input.golonganDarah || null,
-    })
-    .eq("nik", input.id);
+    .upsert(
+      {
+        nik: input.id,
+        nama_ayah: input.namaAyah,
+        nama_ibu: input.namaIbu,
+        golongan_darah: input.golonganDarah || null,
+      },
+      { onConflict: "nik" },
+    )
+    .select("nik");
 
   if (lansiaError) throw new Error(lansiaError.message);
+  if (!lansiaData || lansiaData.length === 0) {
+    throw new Error(
+      "Data wali/golongan darah tidak tersimpan. Kemungkinan besar ini " +
+        'masalah RLS policy INSERT/UPDATE pada tabel "lansia" - lihat fix-rls-lansia.sql.',
+    );
+  }
 
   const updated = await getLansiaById(input.id);
   if (!updated) throw new Error("Data tidak ditemukan setelah update");

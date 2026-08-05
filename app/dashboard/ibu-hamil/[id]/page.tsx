@@ -39,6 +39,7 @@ import {
   updateIbuHamilData,
   getIbuHamilRecords,
   addIbuHamilRecord,
+  updateIbuHamilRecord,
   deleteIbuHamilRecord,
   addPostBirthRecord,
   deleteIbuHamil,
@@ -63,11 +64,13 @@ export default function IbuHamilDetailPage({
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
   const [isBirthModalOpen, setIsBirthModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSubmittingExam, setIsSubmittingExam] = useState(false);
   const [isSubmittingBirth, setIsSubmittingBirth] = useState(false);
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
-  // Exam Form States
+  // Exam Form States (dipakai untuk TAMBAH & EDIT - lihat editingRecordId)
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [tanggalPemeriksaan, setTanggalPemeriksaan] = useState(
     new Date().toISOString().split("T")[0],
   );
@@ -196,7 +199,8 @@ export default function IbuHamilDetailPage({
     }
   };
 
-  const handleAddExam = async (e: React.FormEvent) => {
+  // Handle new/edit exam record (submit tunggal, tergantung editingRecordId)
+  const handleSubmitExam = async (e: React.FormEvent) => {
     e.preventDefault();
     setExamError("");
 
@@ -234,29 +238,59 @@ export default function IbuHamilDetailPage({
     setIsSubmittingExam(true);
 
     try {
-      const newRec = await addIbuHamilRecord({
-        ibuHamilId: id!,
-        tanggalPemeriksaan,
-        beratBadan: bbNum,
-        tinggiBadan: tbNum,
-        tekananDarahSistolik: sisNum,
-        tekananDarahDiastolik: diaNum,
-        usiaKehamilanWeeks: ukNum,
-        kunjunganKe: parseInt(kunjunganKe),
-        vitamin,
-      });
+      if (editingRecordId) {
+        const updatedRec = await updateIbuHamilRecord({
+          id: editingRecordId,
+          tanggalPemeriksaan,
+          beratBadan: bbNum,
+          tinggiBadan: tbNum,
+          tekananDarahSistolik: sisNum,
+          tekananDarahDiastolik: diaNum,
+          usiaKehamilanWeeks: ukNum,
+          kunjunganKe: parseInt(kunjunganKe),
+          vitamin,
+        });
 
-      setRecords((prev) =>
-        [...prev, newRec].sort(
-          (a, b) =>
-            new Date(a.tanggalPemeriksaan).getTime() -
-            new Date(b.tanggalPemeriksaan).getTime(),
-        ),
-      );
+        setRecords((prev) =>
+          prev
+            .map((r) => (r.id === editingRecordId ? updatedRec : r))
+            .sort(
+              (a, b) =>
+                new Date(a.tanggalPemeriksaan).getTime() -
+                new Date(b.tanggalPemeriksaan).getTime(),
+            ),
+        );
+      } else {
+        const newRec = await addIbuHamilRecord({
+          ibuHamilId: id!,
+          tanggalPemeriksaan,
+          beratBadan: bbNum,
+          tinggiBadan: tbNum,
+          tekananDarahSistolik: sisNum,
+          tekananDarahDiastolik: diaNum,
+          usiaKehamilanWeeks: ukNum,
+          kunjunganKe: parseInt(kunjunganKe),
+          vitamin,
+        });
+
+        setRecords((prev) =>
+          [...prev, newRec].sort(
+            (a, b) =>
+              new Date(a.tanggalPemeriksaan).getTime() -
+              new Date(b.tanggalPemeriksaan).getTime(),
+          ),
+        );
+      }
+
       setIsExamModalOpen(false);
       resetExamForm();
     } catch (err: any) {
-      setExamError(err.message || "Gagal menyimpan pemeriksaan");
+      setExamError(
+        err.message ||
+          (editingRecordId
+            ? "Gagal menyimpan perubahan pemeriksaan"
+            : "Gagal menyimpan pemeriksaan"),
+      );
     } finally {
       setIsSubmittingExam(false);
     }
@@ -311,6 +345,7 @@ export default function IbuHamilDetailPage({
   };
 
   const resetExamForm = () => {
+    setEditingRecordId(null);
     setTanggalPemeriksaan(new Date().toISOString().split("T")[0]);
     setBeratBadan("");
     setTinggiBadan("");
@@ -322,7 +357,27 @@ export default function IbuHamilDetailPage({
     setExamError("");
   };
 
+  const openAddExamModal = () => {
+    resetExamForm();
+    setIsExamModalOpen(true);
+  };
+
+  const openEditExamModal = (r: IbuHamilRecord) => {
+    setEditingRecordId(r.id);
+    setTanggalPemeriksaan(r.tanggalPemeriksaan.split("T")[0]);
+    setBeratBadan(String(r.beratBadan));
+    setTinggiBadan(r.tinggiBadan != null ? String(r.tinggiBadan) : "");
+    setSistolik(String(r.tekananDarahSistolik));
+    setDiastolik(String(r.tekananDarahDiastolik));
+    setUsiaKehamilanWeeks(String(r.usiaKehamilanWeeks));
+    setKunjunganKe(String(r.kunjunganKe));
+    setVitamin(r.vitamin || "Asam Folat");
+    setExamError("");
+    setIsExamModalOpen(true);
+  };
+
   const openEditModal = () => {
+    setIsMenuOpen(false);
     setEditNama(bumil.nama);
     setEditTempatLahir(bumil.tempatLahir);
     setEditTanggalLahir(
@@ -365,6 +420,7 @@ export default function IbuHamilDetailPage({
   };
 
   const handleDelete = async () => {
+    setIsMenuOpen(false);
     const confirmDel = window.confirm(
       "Apakah Anda yakin ingin menghapus data ibu hamil ini?",
     );
@@ -394,8 +450,10 @@ export default function IbuHamilDetailPage({
   return (
     <div className="max-w-5xl mx-auto w-full space-y-8 animate-in fade-in duration-300">
       {/* Profile Header */}
-      <Card className="p-6 border border-outline-variant/20 relative overflow-hidden bg-white">
-        <div className="absolute -right-20 -top-20 w-64 h-64 bg-tertiary-fixed/30 opacity-50 rounded-full blur-3xl -z-10" />
+      <Card className="p-6 border border-outline-variant/20 relative bg-white">
+        <div className="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
+          <div className="absolute -right-20 -top-20 w-64 h-64 bg-tertiary-fixed/30 opacity-50 rounded-full blur-3xl" />
+        </div>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
           <div>
             <h2 className="font-headline text-2xl font-bold text-on-background">
@@ -426,7 +484,8 @@ export default function IbuHamilDetailPage({
             )}
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto flex-wrap">
+          {/* Aksi: samakan pola dengan halaman Balita - tombol utama + menu "lainnya" */}
+          <div className="flex items-center gap-3 relative">
             <StatusHidupControl
               currentStatus={bumil.statusHidup}
               tanggalMeninggal={bumil.tanggalMeninggal}
@@ -435,16 +494,7 @@ export default function IbuHamilDetailPage({
             />
 
             <Button
-              onClick={openEditModal}
-              variant="outline"
-              className="flex items-center justify-center gap-2 shadow-sm cursor-pointer"
-            >
-              <span className="material-symbols-outlined">edit</span>
-              <span>Edit Data</span>
-            </Button>
-
-            <Button
-              onClick={() => setIsExamModalOpen(true)}
+              onClick={openAddExamModal}
               disabled={!canAddRecord}
               className="flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
@@ -452,23 +502,52 @@ export default function IbuHamilDetailPage({
               <span>Update Pemeriksaan</span>
             </Button>
 
-            <Button
-              onClick={() => setIsBirthModalOpen(true)}
-              disabled={isDeceased || hasBorn}
-              className="flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-pink-100 text-pink-800 hover:bg-pink-200 border-none"
-            >
-              <span className="material-symbols-outlined">child_care</span>
-              <span>Sudah Melahirkan</span>
-            </Button>
+            {/* More options menu */}
+            <div className="relative">
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="p-3 text-outline hover:bg-slate-100 border border-outline-variant/20 rounded-xl transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined">more_vert</span>
+              </button>
+              {isMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-outline-variant/20 z-20 overflow-hidden">
+                  <button
+                    onClick={openEditModal}
+                    className="w-full px-4 py-3 text-left text-xs font-bold text-on-surface hover:bg-slate-100 transition-colors flex items-center gap-2 cursor-pointer border-b border-outline-variant/10"
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      edit
+                    </span>
+                    <span>Edit Data</span>
+                  </button>
 
-            <Button
-              onClick={handleDelete}
-              variant="destructive"
-              className="flex items-center justify-center gap-2 shadow-sm cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-sm">delete</span>
-              <span>Hapus</span>
-            </Button>
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      setIsBirthModalOpen(true);
+                    }}
+                    disabled={isDeceased || hasBorn}
+                    className="w-full px-4 py-3 text-left text-xs font-bold text-pink-700 hover:bg-pink-50 transition-colors flex items-center gap-2 cursor-pointer border-b border-outline-variant/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      child_care
+                    </span>
+                    <span>Sudah Melahirkan</span>
+                  </button>
+
+                  <button
+                    onClick={handleDelete}
+                    className="w-full px-4 py-3 text-left text-xs font-bold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      delete
+                    </span>
+                    <span>Hapus</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </Card>
@@ -690,16 +769,28 @@ export default function IbuHamilDetailPage({
                     <TableCell>{r.usiaKehamilanWeeks} minggu</TableCell>
                     <TableCell>{r.vitamin || "-"}</TableCell>
                     <TableCell className="text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteRecord(r.id)}
-                        title="Hapus data pemeriksaan"
-                        className="inline-flex items-center gap-1 text-red-600 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
-                      >
-                        <span className="material-symbols-outlined text-sm">
-                          delete
-                        </span>
-                      </button>
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openEditExamModal(r)}
+                          title="Edit data pemeriksaan"
+                          className="inline-flex items-center gap-1 text-on-surface-variant hover:bg-slate-100 hover:text-tertiary px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-sm">
+                            edit
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteRecord(r.id)}
+                          title="Hapus data pemeriksaan"
+                          className="inline-flex items-center gap-1 text-red-600 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-sm">
+                            delete
+                          </span>
+                        </button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -709,19 +800,28 @@ export default function IbuHamilDetailPage({
         </Card>
       </section>
 
-      {/* Update Examination Modal */}
+      {/* Add/Edit Examination Modal */}
       <Dialog
         isOpen={isExamModalOpen}
-        onClose={() => setIsExamModalOpen(false)}
+        onClose={() => {
+          setIsExamModalOpen(false);
+          resetExamForm();
+        }}
       >
         <form
-          onSubmit={handleAddExam}
+          onSubmit={handleSubmitExam}
           className="flex flex-col max-h-[85vh] overflow-hidden"
         >
           <DialogHeader>
-            <DialogTitle>Update Data Pemeriksaan Bumil</DialogTitle>
+            <DialogTitle>
+              {editingRecordId
+                ? "Edit Data Pemeriksaan"
+                : "Update Data Pemeriksaan Bumil"}
+            </DialogTitle>
             <DialogDescription>
-              Masukkan hasil pemeriksaan klinis berkala ibu hamil.
+              {editingRecordId
+                ? "Perbarui hasil pemeriksaan klinis berkala ibu hamil untuk tanggal ini."
+                : "Masukkan hasil pemeriksaan klinis berkala ibu hamil."}
             </DialogDescription>
           </DialogHeader>
 
@@ -843,12 +943,19 @@ export default function IbuHamilDetailPage({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsExamModalOpen(false)}
+              onClick={() => {
+                setIsExamModalOpen(false);
+                resetExamForm();
+              }}
             >
               Batal
             </Button>
             <Button type="submit" disabled={isSubmittingExam}>
-              {isSubmittingExam ? "Menyimpan..." : "Simpan Data"}
+              {isSubmittingExam
+                ? "Menyimpan..."
+                : editingRecordId
+                  ? "Simpan Perubahan"
+                  : "Simpan Data"}
             </Button>
           </DialogFooter>
         </form>

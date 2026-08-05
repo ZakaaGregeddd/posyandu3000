@@ -2,8 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-// import Link from "next/link";
-// import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -15,7 +13,6 @@ import {
   DialogContent,
   DialogFooter,
 } from "@/components/ui/dialog";
-// import StatusHidupControl from "@/components/shared/StatusHidupControl";
 import {
   LineChart,
   Line,
@@ -41,6 +38,24 @@ import {
 } from "@/lib/fetch/balita";
 import { calculateAge, isRecordEntryLocked } from "@/lib/utils/health";
 
+// ---------------------------------------------------------------------------
+// Konfirmasi & Toast generik - menggantikan window.confirm()/alert() bawaan
+// browser (yang menampilkan "localhost says") dengan modal & notifikasi
+// yang konsisten dengan desain aplikasi.
+// ---------------------------------------------------------------------------
+interface ConfirmState {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  variant?: "danger" | "default";
+  onConfirm: () => void;
+}
+
+interface ToastState {
+  type: "error" | "success";
+  message: string;
+}
+
 export default function BalitaDetailPage({
   params,
 }: {
@@ -53,12 +68,28 @@ export default function BalitaDetailPage({
   const [balita, setBalita] = useState<Balita | null>(null);
   const [records, setRecords] = useState<BalitaRecord[]>([]);
   const [alamatKk, setAlamatKk] = useState("-");
+  const [ttlAyah, setTtlAyah] = useState("-");
+  const [ttlIbu, setTtlIbu] = useState("-");
   const [isLoading, setIsLoading] = useState(true);
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSubmittingExam, setIsSubmittingExam] = useState(false);
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+
+  // Konfirmasi & toast
+  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  const [isConfirmSubmitting, setIsConfirmSubmitting] = useState(false);
+  const [toast, setToast] = useState<ToastState | null>(null);
+
+  // Ubah Status Hidup modal (menggantikan window.confirm + window.prompt)
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [statusTarget, setStatusTarget] = useState<StatusHidup>("Meninggal");
+  const [statusTanggalMeninggal, setStatusTanggalMeninggal] = useState(
+    new Date().toISOString().split("T")[0],
+  );
+  const [statusPenyebab, setStatusPenyebab] = useState("");
+  const [isSubmittingStatus, setIsSubmittingStatus] = useState(false);
 
   // Exam Form States (dipakai untuk TAMBAH & EDIT - lihat editingRecordId)
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
@@ -82,6 +113,13 @@ export default function BalitaDetailPage({
   const [editUsiaKehamilan, setEditUsiaKehamilan] = useState("");
   const [editGolonganDarah, setEditGolonganDarah] = useState("");
   const [editError, setEditError] = useState("");
+
+  // Auto-dismiss toast setelah beberapa detik
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // Resolve params (Next.js 15 async params)
   useEffect(() => {
@@ -109,6 +147,32 @@ export default function BalitaDetailPage({
           const rtRw =
             kk.rt || kk.rw ? `, RT ${kk.rt || "-"}/RW ${kk.rw || "-"}` : "";
           setAlamatKk(`${kk.alamat || "-"}${rtRw}`);
+
+          // TTL Ayah/Ibu diambil langsung dari data KK (bukan dari view
+          // v_balita_lengkap yang kolom ttl_ayah/ttl_ibu-nya kosong),
+          // karena getKKs() sudah mengembalikan tempatLahirAyah/Ibu dan
+          // tanggalLahirAyah/Ibu lewat join ke tabel individu.
+          if (kk.tempatLahirAyah || kk.tanggalLahirAyah) {
+            const tglAyah = kk.tanggalLahirAyah
+              ? new Date(kk.tanggalLahirAyah).toLocaleDateString("id-ID", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })
+              : "-";
+            setTtlAyah(`${kk.tempatLahirAyah || "-"}, ${tglAyah}`);
+          }
+
+          if (kk.tempatLahirIbu || kk.tanggalLahirIbu) {
+            const tglIbu = kk.tanggalLahirIbu
+              ? new Date(kk.tanggalLahirIbu).toLocaleDateString("id-ID", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })
+              : "-";
+            setTtlIbu(`${kk.tempatLahirIbu || "-"}, ${tglIbu}`);
+          }
         }
 
         const recs = await getBalitaRecords(id);
@@ -162,8 +226,41 @@ export default function BalitaDetailPage({
         penyebabMeninggal: penyebab,
       });
       setBalita(updated);
+      setToast({ type: "success", message: "Status hidup berhasil diubah." });
     } catch (err: any) {
-      alert(err.message || "Gagal mengubah status");
+      setToast({
+        type: "error",
+        message: err.message || "Gagal mengubah status",
+      });
+    }
+  };
+
+  // Buka modal "Ubah Status Hidup" (menggantikan window.confirm + window.prompt)
+  const openStatusModal = () => {
+    setIsMenuOpen(false);
+    const target: StatusHidup =
+      balita.statusHidup === "Hidup" ? "Meninggal" : "Hidup";
+    setStatusTarget(target);
+    setStatusTanggalMeninggal(new Date().toISOString().split("T")[0]);
+    setStatusPenyebab("");
+    setIsStatusModalOpen(true);
+  };
+
+  const handleConfirmStatusChange = async () => {
+    setIsSubmittingStatus(true);
+    try {
+      if (statusTarget === "Meninggal") {
+        await handleStatusChange(
+          "Meninggal",
+          statusTanggalMeninggal,
+          statusPenyebab,
+        );
+      } else {
+        await handleStatusChange("Hidup");
+      }
+      setIsStatusModalOpen(false);
+    } finally {
+      setIsSubmittingStatus(false);
     }
   };
 
@@ -283,18 +380,33 @@ export default function BalitaDetailPage({
     setIsExamModalOpen(true);
   };
 
-  const handleDeleteRecord = async (recordId: string) => {
-    const confirmDel = window.confirm(
-      "Apakah Anda yakin ingin menghapus data pemeriksaan ini?",
-    );
-    if (!confirmDel) return;
-
-    try {
-      await deleteBalitaRecord(recordId);
-      setRecords((prev) => prev.filter((r) => r.id !== recordId));
-    } catch (err: any) {
-      alert(err.message || "Gagal menghapus data pemeriksaan");
-    }
+  const handleDeleteRecord = (recordId: string) => {
+    setConfirmState({
+      title: "Hapus Data Pemeriksaan",
+      message:
+        "Apakah Anda yakin ingin menghapus data pemeriksaan ini? Tindakan ini tidak dapat dibatalkan.",
+      confirmLabel: "Hapus",
+      variant: "danger",
+      onConfirm: async () => {
+        setIsConfirmSubmitting(true);
+        try {
+          await deleteBalitaRecord(recordId);
+          setRecords((prev) => prev.filter((r) => r.id !== recordId));
+          setToast({
+            type: "success",
+            message: "Data pemeriksaan berhasil dihapus.",
+          });
+          setConfirmState(null);
+        } catch (err: any) {
+          setToast({
+            type: "error",
+            message: err.message || "Gagal menghapus data pemeriksaan",
+          });
+        } finally {
+          setIsConfirmSubmitting(false);
+        }
+      },
+    });
   };
 
   const openEditIdentityModal = () => {
@@ -349,19 +461,28 @@ export default function BalitaDetailPage({
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     setIsMenuOpen(false);
-    const confirmDel = window.confirm(
-      "Apakah Anda yakin ingin menghapus data balita ini?",
-    );
-    if (!confirmDel) return;
-
-    try {
-      await deleteBalita(balita.id);
-      router.push("/dashboard/balita");
-    } catch (err: any) {
-      alert(err.message || "Gagal menghapus data");
-    }
+    setConfirmState({
+      title: "Hapus Data Balita",
+      message:
+        "Apakah Anda yakin ingin menghapus data balita ini? Seluruh riwayat pemeriksaannya juga akan ikut terhapus dan tindakan ini tidak dapat dibatalkan.",
+      confirmLabel: "Hapus",
+      variant: "danger",
+      onConfirm: async () => {
+        setIsConfirmSubmitting(true);
+        try {
+          await deleteBalita(balita.id);
+          router.push("/dashboard/balita");
+        } catch (err: any) {
+          setToast({
+            type: "error",
+            message: err.message || "Gagal menghapus data",
+          });
+          setIsConfirmSubmitting(false);
+        }
+      },
+    });
   };
 
   // Formatting chart data
@@ -436,30 +557,9 @@ export default function BalitaDetailPage({
               <span className="material-symbols-outlined">more_vert</span>
             </button>
             {isMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-outline-variant/20 z-10 overflow-hidden">
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-outline-variant/20 z-20 overflow-hidden">
                 <button
-                  onClick={() => {
-                    const confirmChange = window.confirm(
-                      `Ubah status anggota menjadi ${balita.statusHidup === "Hidup" ? "Meninggal" : "Hidup"}?`,
-                    );
-                    if (confirmChange) {
-                      if (balita.statusHidup === "Hidup") {
-                        const penyebab =
-                          window.prompt(
-                            "Masukkan penyebab meninggal (opsional):",
-                          ) || "";
-                        const tanggal =
-                          window.prompt(
-                            "Masukkan tanggal meninggal (YYYY-MM-DD):",
-                            new Date().toISOString().split("T")[0],
-                          ) || "";
-                        handleStatusChange("Meninggal", tanggal, penyebab);
-                      } else {
-                        handleStatusChange("Hidup");
-                      }
-                    }
-                    setIsMenuOpen(false);
-                  }}
+                  onClick={openStatusModal}
                   className="w-full px-4 py-3 text-left text-xs font-bold text-on-surface hover:bg-slate-100 transition-colors flex items-center gap-2 cursor-pointer border-b border-outline-variant/10"
                 >
                   <span className="material-symbols-outlined text-sm">
@@ -580,13 +680,13 @@ export default function BalitaDetailPage({
             <div>
               <p className="font-bold text-outline text-xs mb-1">TTL Ayah</p>
               <p className="font-semibold text-on-surface">
-                {(balita.ttlAyah || "-").toUpperCase()}
+                {ttlAyah.toUpperCase()}
               </p>
             </div>
             <div>
               <p className="font-bold text-outline text-xs mb-1">TTL Ibu</p>
               <p className="font-semibold text-on-surface">
-                {(balita.ttlIbu || "-").toUpperCase()}
+                {ttlIbu.toUpperCase()}
               </p>
             </div>
           </div>
@@ -1123,6 +1223,132 @@ export default function BalitaDetailPage({
           </DialogFooter>
         </form>
       </Dialog>
+
+      {/* Ubah Status Hidup Modal (pengganti window.confirm + window.prompt) */}
+      <Dialog
+        isOpen={isStatusModalOpen}
+        onClose={() => setIsStatusModalOpen(false)}
+      >
+        <div className="flex flex-col max-h-[85vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Ubah Status Hidup</DialogTitle>
+            <DialogDescription>
+              {statusTarget === "Meninggal"
+                ? "Anggota ini akan ditandai sebagai Meninggal. Isi tanggal dan penyebab (opsional) di bawah."
+                : `Status anggota akan diubah kembali menjadi "Hidup".`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogContent className="space-y-4">
+            {statusTarget === "Meninggal" && (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="status_tanggal">Tanggal Meninggal</Label>
+                  <Input
+                    id="status_tanggal"
+                    type="date"
+                    value={statusTanggalMeninggal}
+                    max={new Date().toISOString().split("T")[0]}
+                    onChange={(e) => setStatusTanggalMeninggal(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="status_penyebab">
+                    Penyebab Meninggal (Opsional)
+                  </Label>
+                  <Input
+                    id="status_penyebab"
+                    placeholder="Contoh: Sakit, kecelakaan, dll."
+                    value={statusPenyebab}
+                    onChange={(e) => setStatusPenyebab(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+          </DialogContent>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsStatusModalOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmStatusChange}
+              disabled={isSubmittingStatus}
+              className={
+                statusTarget === "Meninggal"
+                  ? "bg-red-600 hover:bg-red-700"
+                  : ""
+              }
+            >
+              {isSubmittingStatus ? "Menyimpan..." : "Konfirmasi"}
+            </Button>
+          </DialogFooter>
+        </div>
+      </Dialog>
+
+      {/* Modal Konfirmasi generik (pengganti window.confirm) */}
+      <Dialog isOpen={!!confirmState} onClose={() => setConfirmState(null)}>
+        {confirmState && (
+          <div className="flex flex-col max-h-[85vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle>{confirmState.title}</DialogTitle>
+              <DialogDescription>{confirmState.message}</DialogDescription>
+            </DialogHeader>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setConfirmState(null)}
+                disabled={isConfirmSubmitting}
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                onClick={confirmState.onConfirm}
+                disabled={isConfirmSubmitting}
+                className={
+                  confirmState.variant === "danger"
+                    ? "bg-red-600 hover:bg-red-700"
+                    : ""
+                }
+              >
+                {isConfirmSubmitting
+                  ? "Memproses..."
+                  : confirmState.confirmLabel || "Konfirmasi"}
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+      </Dialog>
+
+      {/* Toast notifikasi (pengganti window.alert) */}
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 max-w-sm rounded-xl shadow-lg border px-4 py-3 flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200 ${
+            toast.type === "error"
+              ? "bg-red-50 border-red-200 text-red-700"
+              : "bg-teal-50 border-teal-200 text-teal-800"
+          }`}
+        >
+          <span className="material-symbols-outlined text-lg">
+            {toast.type === "error" ? "error" : "check_circle"}
+          </span>
+          <p className="text-sm font-semibold flex-1">{toast.message}</p>
+          <button
+            onClick={() => setToast(null)}
+            className="text-current opacity-60 hover:opacity-100 cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-base">close</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
