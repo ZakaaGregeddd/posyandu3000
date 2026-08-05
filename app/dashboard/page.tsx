@@ -35,8 +35,13 @@ export default function DashboardOverviewPage() {
         if (!active) return;
 
         const balitasHidup = balitas.filter((b) => b.statusHidup === "Hidup");
-        const ibuHamilsHidup = ibuHamils.filter(
-          (i) => i.statusHidup === "Hidup",
+        // "Sedang hamil" = statusnya Hidup DAN belum ada catatan kelahiran
+        // (postBirthRecord). Episode yang sudah melahirkan tetap tersimpan
+        // di data ibu_hamil (riwayatnya), jadi tanpa filter !postBirthRecord
+        // ini, ibu yang SUDAH melahirkan tetap ikut terhitung sebagai
+        // "Total Ibu Hamil" - itu bug yang dilaporkan.
+        const ibuHamilsSedangHamil = ibuHamils.filter(
+          (i) => i.statusHidup === "Hidup" && !i.postBirthRecord,
         );
         const lansiasHidup = lansias.filter((l) => l.statusHidup === "Hidup");
 
@@ -70,7 +75,7 @@ export default function DashboardOverviewPage() {
         setStats({
           bayi: bayiCount,
           balita: balitaCount,
-          ibuHamil: ibuHamilsHidup.length,
+          ibuHamil: ibuHamilsSedangHamil.length,
           pralansia: pralansiaCount,
           lansia: lansiaCount,
           resikoTinggi: resikoTinggiCount,
@@ -152,7 +157,7 @@ export default function DashboardOverviewPage() {
               </Card>
             </Link>
 
-            {/* Card 3: Total Ibu Hamil */}
+            {/* Card 3: Total Ibu Hamil (sedang hamil, belum melahirkan) */}
             <Link href="/dashboard/ibu-hamil" className="block">
               <Card className="p-6 flex flex-col justify-between h-36 cursor-pointer">
                 <div className="flex justify-between items-start mb-4">
