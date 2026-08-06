@@ -36,12 +36,8 @@ import {
 import {
   getLansiaById,
   updateLansia,
-  updateLansiaData,
   getLansiaRecords,
   addLansiaRecord,
-  updateLansiaRecord,
-  deleteLansiaRecord,
-  deleteLansia,
   Lansia,
   LansiaRecord,
   StatusHidup,
@@ -61,9 +57,7 @@ export default function LansiaDetailPage({
   const [records, setRecords] = useState<LansiaRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSubmittingExam, setIsSubmittingExam] = useState(false);
-  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
   // Sedang mengedit pemeriksaan yang mana (null = mode tambah baru)
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
@@ -80,16 +74,6 @@ export default function LansiaDetailPage({
   const [obat, setObat] = useState("-");
   const [penyakitBaru, setPenyakitBaru] = useState("-");
   const [examError, setExamError] = useState("");
-
-  // Edit Identitas Form States
-  const [editNama, setEditNama] = useState("");
-  const [editTempatLahir, setEditTempatLahir] = useState("");
-  const [editTanggalLahir, setEditTanggalLahir] = useState("");
-  const [editJenisKelamin, setEditJenisKelamin] = useState<"L" | "P">("L");
-  const [editNamaWali, setEditNamaWali] = useState("");
-  const [editNoTelpWali, setEditNoTelpWali] = useState("");
-  const [editGolonganDarah, setEditGolonganDarah] = useState("");
-  const [editError, setEditError] = useState("");
 
   // Resolve params (Next.js 15 async params)
   useEffect(() => {
@@ -301,66 +285,6 @@ export default function LansiaDetailPage({
     }
   };
 
-  const openEditModal = () => {
-    setEditNama(lansia.nama);
-    setEditTempatLahir(lansia.tempatLahir);
-    setEditTanggalLahir(
-      lansia.tanggalLahir ? lansia.tanggalLahir.split("T")[0] : "",
-    );
-    setEditJenisKelamin(lansia.jenisKelamin);
-    setEditNamaWali(lansia.namaAyah || "");
-    setEditNoTelpWali(lansia.namaIbu || "");
-    setEditGolonganDarah(lansia.golonganDarah || "");
-    setEditError("");
-    setIsEditModalOpen(true);
-  };
-
-  const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setEditError("");
-
-    if (!editNama || !editTempatLahir || !editTanggalLahir || !editNamaWali) {
-      setEditError("Semua field wajib diisi (Wali wajib diisi)");
-      return;
-    }
-
-    setIsSubmittingEdit(true);
-
-    try {
-      const updated = await updateLansiaData({
-        id: lansia.id,
-        nama: editNama,
-        tempatLahir: editTempatLahir,
-        tanggalLahir: editTanggalLahir,
-        jenisKelamin: editJenisKelamin,
-        namaAyah: editNamaWali,
-        namaIbu: editNoTelpWali || "Tidak ada nomor",
-        golonganDarah: editGolonganDarah || undefined,
-      });
-      setLansia(updated);
-      setIsEditModalOpen(false);
-    } catch (err: any) {
-      setEditError(err.message || "Gagal menyimpan perubahan");
-    } finally {
-      setIsSubmittingEdit(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    const confirmDel = window.confirm(
-      "Warga ini akan dikeluarkan dari daftar Lansia beserta seluruh riwayat pemeriksaannya. " +
-        "Biodata dan keanggotaan KK warga ini TIDAK akan dihapus. Lanjutkan?",
-    );
-    if (!confirmDel) return;
-
-    try {
-      await deleteLansia(lansia.id);
-      router.push("/dashboard/lansia");
-    } catch (err: any) {
-      alert(err.message || "Gagal menghapus data");
-    }
-  };
-
   const latestRecord = records[records.length - 1];
 
   // Chart data
@@ -459,30 +383,12 @@ export default function LansiaDetailPage({
             )}
 
             <Button
-              onClick={openEditModal}
-              variant="outline"
-              className="flex items-center justify-center gap-2 shadow-sm cursor-pointer w-full md:w-auto"
-            >
-              <span className="material-symbols-outlined">edit</span>
-              <span>Edit Data</span>
-            </Button>
-
-            <Button
               onClick={openAddExamModal}
               disabled={!canAddRecord}
               className="flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed w-full md:w-auto"
             >
               <span className="material-symbols-outlined">add_circle</span>
               <span>Update Pemeriksaan</span>
-            </Button>
-
-            <Button
-              onClick={handleDelete}
-              variant="destructive"
-              className="flex items-center justify-center gap-2 shadow-sm cursor-pointer w-full md:w-auto animate-all"
-            >
-              <span className="material-symbols-outlined text-sm">delete</span>
-              <span>Hapus dari Data Lansia</span>
             </Button>
           </div>
         </div>
@@ -866,142 +772,6 @@ export default function LansiaDetailPage({
                 : editingRecordId
                   ? "Simpan Perubahan"
                   : "Simpan Pemeriksaan"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </Dialog>
-
-      {/* Edit Identitas Modal */}
-      <Dialog
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-      >
-        <form
-          onSubmit={handleEditSubmit}
-          className="flex flex-col max-h-[85vh] overflow-hidden"
-        >
-          <DialogHeader>
-            <DialogTitle>Edit Identitas Lansia</DialogTitle>
-            <DialogDescription>
-              Perbarui biodata warga lansia beserta data wali dan golongan
-              darah.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogContent className="space-y-4">
-            {editError && (
-              <div className="text-xs font-semibold text-red-700 bg-red-50 p-2.5 rounded-lg border border-red-200">
-                {editError}
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2 space-y-1.5">
-                <Label htmlFor="edit_nama">Nama Lengkap</Label>
-                <Input
-                  id="edit_nama"
-                  placeholder="Nama Lengkap Lansia"
-                  value={editNama}
-                  onChange={(e) => setEditNama(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="edit_jk">Jenis Kelamin</Label>
-                <select
-                  id="edit_jk"
-                  value={editJenisKelamin}
-                  onChange={(e) =>
-                    setEditJenisKelamin(e.target.value as "L" | "P")
-                  }
-                  className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
-                >
-                  <option value="L">Laki-laki</option>
-                  <option value="P">Perempuan</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="edit_golongan_darah">
-                  Golongan Darah (Opsional)
-                </Label>
-                <select
-                  id="edit_golongan_darah"
-                  value={editGolonganDarah}
-                  onChange={(e) => setEditGolonganDarah(e.target.value)}
-                  className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
-                >
-                  <option value="">-- Belum diketahui --</option>
-                  {["A", "B", "AB", "O"].map((gd) => (
-                    <option key={gd} value={gd}>
-                      {gd}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="edit_tempat">Tempat Lahir</Label>
-                <Input
-                  id="edit_tempat"
-                  placeholder="Kota / Kabupaten"
-                  value={editTempatLahir}
-                  onChange={(e) => setEditTempatLahir(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="edit_tgl_lahir">Tanggal Lahir</Label>
-                <Input
-                  id="edit_tgl_lahir"
-                  type="date"
-                  value={editTanggalLahir}
-                  max={new Date().toISOString().split("T")[0]}
-                  onChange={(e) => setEditTanggalLahir(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="edit_wali">Nama Wali</Label>
-                <Input
-                  id="edit_wali"
-                  placeholder="Nama Lengkap Wali"
-                  value={editNamaWali}
-                  onChange={(e) => setEditNamaWali(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="edit_telp_wali">Nomor HP / WA Wali</Label>
-                <Input
-                  id="edit_telp_wali"
-                  placeholder="Nomor Telepon Wali"
-                  value={editNoTelpWali}
-                  onChange={(e) => {
-                    const clean = e.target.value
-                      .replace(/[^0-9]/g, "")
-                      .substring(0, 13);
-                    setEditNoTelpWali(clean);
-                  }}
-                />
-              </div>
-            </div>
-          </DialogContent>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsEditModalOpen(false)}
-            >
-              Batal
-            </Button>
-            <Button type="submit" disabled={isSubmittingEdit}>
-              {isSubmittingEdit ? "Menyimpan..." : "Simpan Perubahan"}
             </Button>
           </DialogFooter>
         </form>

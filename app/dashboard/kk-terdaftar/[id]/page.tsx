@@ -18,7 +18,10 @@ import {
   KK,
   KKMember,
 } from "@/lib/fetch/keluarga";
+import { deleteIndividu } from "@/lib/fetch/individu";
 import EditKKModal from "@/components/keluarga/EditKKModal";
+import EditIndividuModal from "@/components/keluarga/EditIndividuModal";
+import MemberActionsMenu from "@/components/keluarga/MemberActionsMenu";
 import { calculateAge } from "@/lib/utils/health";
 
 export default function KKDetailPage({
@@ -34,10 +37,19 @@ export default function KKDetailPage({
   const [members, setMembers] = useState<KKMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Modal States
+  // Modal States - KK
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+
+  // Modal States - Anggota (individu)
+  const [editingMember, setEditingMember] = useState<KKMember | null>(null);
+  const [isEditMemberOpen, setIsEditMemberOpen] = useState(false);
+
+  const [deletingMember, setDeletingMember] = useState<KKMember | null>(null);
+  const [isDeleteMemberOpen, setIsDeleteMemberOpen] = useState(false);
+  const [isDeletingMember, setIsDeletingMember] = useState(false);
+  const [memberDeleteError, setMemberDeleteError] = useState("");
 
   // Resolve params
   useEffect(() => {
@@ -112,6 +124,28 @@ export default function KKDetailPage({
   const handleEditSuccess = async (updated: KK) => {
     setKk(updated);
     await loadMembers(updated.noKk);
+  };
+
+  const handleEditMemberSuccess = async () => {
+    setIsEditMemberOpen(false);
+    setEditingMember(null);
+    if (kk) await loadMembers(kk.noKk);
+  };
+
+  const handleDeleteMember = async () => {
+    if (!deletingMember) return;
+    setMemberDeleteError("");
+    setIsDeletingMember(true);
+    try {
+      await deleteIndividu(deletingMember.id); // KKMember.id = nik
+      setIsDeleteMemberOpen(false);
+      setDeletingMember(null);
+      if (kk) await loadMembers(kk.noKk);
+    } catch (err: any) {
+      setMemberDeleteError(err.message || "Gagal menghapus anggota");
+    } finally {
+      setIsDeletingMember(false);
+    }
   };
 
   return (
@@ -290,6 +324,11 @@ export default function KKDetailPage({
                         ? "Sedang Hamil"
                         : "Sehat";
 
+              // Kepala keluarga tidak bisa dihapus lewat sini karena akan
+              // mempengaruhi struktur KK (namaKepalaKeluarga, referensi
+              // ayah/ibu). Kalau memang perlu, arahkan ke flow edit KK.
+              const isKepalaKeluarga = m.hubunganKeluarga === "Kepala Keluarga";
+
               return (
                 <div
                   key={m.id}
@@ -298,6 +337,7 @@ export default function KKDetailPage({
                   }`}
                 >
                   <div>
+                    {/* Header: ikon role + badge role saja (tanpa menu) */}
                     <div className="flex justify-between items-start mb-6">
                       <div className={`p-3 ${bgCol} rounded-xl ${textCol}`}>
                         <span
@@ -307,12 +347,14 @@ export default function KKDetailPage({
                           {icon}
                         </span>
                       </div>
+
                       <span
                         className={`px-3 py-1 ${bgCol} ${textCol} text-[10px] font-bold rounded-full uppercase tracking-tight`}
                       >
                         {m.role}
                       </span>
                     </div>
+
                     <h5 className="font-headline font-bold text-md text-on-surface line-clamp-1">
                       {m.nama}
                     </h5>
@@ -328,18 +370,33 @@ export default function KKDetailPage({
                     </div>
                   </div>
 
-                  {m.routePath !== "#" ? (
-                    <Button
-                      onClick={() => router.push(m.routePath)}
-                      className="w-full py-2.5 bg-secondary-container text-tertiary hover:bg-tertiary hover:text-white transition-all font-bold"
-                    >
-                      Lihat Detail
-                    </Button>
-                  ) : (
-                    <div className="w-full py-2 text-center text-xs text-on-surface-variant font-medium bg-surface-container-low rounded-lg">
-                      Tidak ada riwayat kunjungan
-                    </div>
-                  )}
+                  {/* Baris bawah: tombol aksi utama + menu titik tiga di sampingnya */}
+                  <div className="flex items-center gap-2">
+                    {m.routePath !== "#" ? (
+                      <Button
+                        onClick={() => router.push(m.routePath)}
+                        className="flex-1 py-2.5 bg-secondary-container text-tertiary hover:bg-tertiary hover:text-white transition-all font-bold"
+                      >
+                        Lihat Detail
+                      </Button>
+                    ) : (
+                      <div className="flex-1 py-2 text-center text-xs text-on-surface-variant font-medium bg-surface-container-low rounded-lg">
+                        Tidak ada riwayat kunjungan
+                      </div>
+                    )}
+                    <MemberActionsMenu
+                      disableDelete={isKepalaKeluarga}
+                      onEdit={() => {
+                        setEditingMember(m);
+                        setIsEditMemberOpen(true);
+                      }}
+                      onDelete={() => {
+                        setMemberDeleteError("");
+                        setDeletingMember(m);
+                        setIsDeleteMemberOpen(true);
+                      }}
+                    />
+                  </div>
                 </div>
               );
             })}
@@ -357,7 +414,7 @@ export default function KKDetailPage({
         />
       )}
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete KK Confirmation Dialog */}
       <Dialog isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)}>
         <DialogHeader>
           <div className="w-12 h-12 bg-red-50 text-error rounded-full flex items-center justify-center mx-auto mb-4 border border-red-200">
@@ -382,6 +439,65 @@ export default function KKDetailPage({
             disabled={isDeleting}
           >
             {isDeleting ? "Menghapus..." : "Ya, Hapus Data"}
+          </Button>
+        </DialogFooter>
+      </Dialog>
+
+      {/* Edit Individu (Anggota) Modal */}
+      {editingMember && (
+        <EditIndividuModal
+          isOpen={isEditMemberOpen}
+          onClose={() => {
+            setIsEditMemberOpen(false);
+            setEditingMember(null);
+          }}
+          member={editingMember}
+          onSuccess={handleEditMemberSuccess}
+        />
+      )}
+
+      {/* Delete Individu (Anggota) Confirmation Dialog */}
+      <Dialog
+        isOpen={isDeleteMemberOpen}
+        onClose={() => {
+          setIsDeleteMemberOpen(false);
+          setDeletingMember(null);
+        }}
+      >
+        <DialogHeader>
+          <div className="w-12 h-12 bg-red-50 text-error rounded-full flex items-center justify-center mx-auto mb-4 border border-red-200">
+            <span className="material-symbols-outlined text-2xl">warning</span>
+          </div>
+          <DialogTitle className="text-center text-error">
+            Hapus Anggota Keluarga?
+          </DialogTitle>
+          <DialogDescription className="text-center mt-1">
+            Apakah Anda yakin ingin menghapus {deletingMember?.nama} dari data
+            keluarga ini? Seluruh riwayat pemeriksaan miliknya akan ikut
+            terhapus. Tindakan ini tidak dapat dibatalkan.
+          </DialogDescription>
+        </DialogHeader>
+        {memberDeleteError && (
+          <div className="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 p-3 rounded-lg mx-6">
+            {memberDeleteError}
+          </div>
+        )}
+        <DialogFooter className="sm:justify-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setIsDeleteMemberOpen(false);
+              setDeletingMember(null);
+            }}
+          >
+            Batalkan
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleDeleteMember}
+            disabled={isDeletingMember}
+          >
+            {isDeletingMember ? "Menghapus..." : "Ya, Hapus"}
           </Button>
         </DialogFooter>
       </Dialog>

@@ -36,13 +36,11 @@ import {
 import {
   getIbuHamilById,
   updateIbuHamil,
-  updateIbuHamilData,
   getIbuHamilRecords,
   addIbuHamilRecord,
   updateIbuHamilRecord,
   deleteIbuHamilRecord,
   addPostBirthRecord,
-  deleteIbuHamil,
   IbuHamil,
   IbuHamilRecord,
   StatusHidup,
@@ -63,11 +61,9 @@ export default function IbuHamilDetailPage({
   const [isLoading, setIsLoading] = useState(true);
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
   const [isBirthModalOpen, setIsBirthModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSubmittingExam, setIsSubmittingExam] = useState(false);
   const [isSubmittingBirth, setIsSubmittingBirth] = useState(false);
-  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
   // Exam Form States (dipakai untuk TAMBAH & EDIT - lihat editingRecordId)
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
@@ -92,14 +88,6 @@ export default function IbuHamilDetailPage({
   const [babyGestationWeeks, setBabyGestationWeeks] = useState("39");
   const [babyGolonganDarah, setBabyGolonganDarah] = useState("");
   const [birthError, setBirthError] = useState("");
-
-  // Edit Identitas & Kehamilan Form States
-  const [editNama, setEditNama] = useState("");
-  const [editTempatLahir, setEditTempatLahir] = useState("");
-  const [editTanggalLahir, setEditTanggalLahir] = useState("");
-  const [editHpht, setEditHpht] = useState("");
-  const [editGolonganDarah, setEditGolonganDarah] = useState("");
-  const [editError, setEditError] = useState("");
 
   // Resolve params (Next.js 15 async params)
   useEffect(() => {
@@ -376,64 +364,6 @@ export default function IbuHamilDetailPage({
     setIsExamModalOpen(true);
   };
 
-  const openEditModal = () => {
-    setIsMenuOpen(false);
-    setEditNama(bumil.nama);
-    setEditTempatLahir(bumil.tempatLahir);
-    setEditTanggalLahir(
-      bumil.tanggalLahir ? bumil.tanggalLahir.split("T")[0] : "",
-    );
-    setEditHpht(bumil.hpht ? bumil.hpht.split("T")[0] : "");
-    setEditGolonganDarah(bumil.golonganDarah || "");
-    setEditError("");
-    setIsEditModalOpen(true);
-  };
-
-  const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setEditError("");
-
-    if (!editNama || !editTempatLahir || !editTanggalLahir || !editHpht) {
-      setEditError("Semua field wajib diisi");
-      return;
-    }
-
-    setIsSubmittingEdit(true);
-
-    try {
-      const updated = await updateIbuHamilData({
-        id: bumil.id,
-        nik: bumil.nik,
-        nama: editNama,
-        tempatLahir: editTempatLahir,
-        tanggalLahir: editTanggalLahir,
-        hpht: editHpht,
-        golonganDarah: editGolonganDarah || undefined,
-      });
-      setBumil(updated);
-      setIsEditModalOpen(false);
-    } catch (err: any) {
-      setEditError(err.message || "Gagal menyimpan perubahan");
-    } finally {
-      setIsSubmittingEdit(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    setIsMenuOpen(false);
-    const confirmDel = window.confirm(
-      "Apakah Anda yakin ingin menghapus data ibu hamil ini?",
-    );
-    if (!confirmDel) return;
-
-    try {
-      await deleteIbuHamil(bumil.id);
-      router.push("/dashboard/ibu-hamil");
-    } catch (err: any) {
-      alert(err.message || "Gagal menghapus data");
-    }
-  };
-
   const latestRecord = records[records.length - 1];
 
   // Chart data
@@ -513,37 +443,17 @@ export default function IbuHamilDetailPage({
               {isMenuOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-outline-variant/20 z-20 overflow-hidden">
                   <button
-                    onClick={openEditModal}
-                    className="w-full px-4 py-3 text-left text-xs font-bold text-on-surface hover:bg-slate-100 transition-colors flex items-center gap-2 cursor-pointer border-b border-outline-variant/10"
-                  >
-                    <span className="material-symbols-outlined text-sm">
-                      edit
-                    </span>
-                    <span>Edit Data</span>
-                  </button>
-
-                  <button
                     onClick={() => {
                       setIsMenuOpen(false);
                       setIsBirthModalOpen(true);
                     }}
                     disabled={isDeceased || hasBorn}
-                    className="w-full px-4 py-3 text-left text-xs font-bold text-pink-700 hover:bg-pink-50 transition-colors flex items-center gap-2 cursor-pointer border-b border-outline-variant/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="w-full px-4 py-3 text-left text-xs font-bold text-pink-700 hover:bg-pink-50 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <span className="material-symbols-outlined text-sm">
                       child_care
                     </span>
                     <span>Sudah Melahirkan</span>
-                  </button>
-
-                  <button
-                    onClick={handleDelete}
-                    className="w-full px-4 py-3 text-left text-xs font-bold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-sm">
-                      delete
-                    </span>
-                    <span>Hapus</span>
                   </button>
                 </div>
               )}
@@ -956,113 +866,6 @@ export default function IbuHamilDetailPage({
                 : editingRecordId
                   ? "Simpan Perubahan"
                   : "Simpan Data"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </Dialog>
-
-      {/* Edit Identitas & Data Kehamilan Modal */}
-      <Dialog
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-      >
-        <form
-          onSubmit={handleEditSubmit}
-          className="flex flex-col max-h-[85vh] overflow-hidden"
-        >
-          <DialogHeader>
-            <DialogTitle>Edit Identitas & Data Kehamilan</DialogTitle>
-            <DialogDescription>
-              Perbarui biodata ibu hamil serta data kehamilan (HPHT dan golongan
-              darah).
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogContent className="space-y-4">
-            {editError && (
-              <div className="text-xs font-semibold text-red-700 bg-red-50 p-2.5 rounded-lg border border-red-200">
-                {editError}
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2 space-y-1.5">
-                <Label htmlFor="edit_nama">Nama Lengkap</Label>
-                <Input
-                  id="edit_nama"
-                  placeholder="Nama Lengkap Ibu Hamil"
-                  value={editNama}
-                  onChange={(e) => setEditNama(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="edit_tempat">Tempat Lahir</Label>
-                <Input
-                  id="edit_tempat"
-                  placeholder="Kota / Kabupaten"
-                  value={editTempatLahir}
-                  onChange={(e) => setEditTempatLahir(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="edit_tgl_lahir">Tanggal Lahir</Label>
-                <Input
-                  id="edit_tgl_lahir"
-                  type="date"
-                  value={editTanggalLahir}
-                  max={new Date().toISOString().split("T")[0]}
-                  onChange={(e) => setEditTanggalLahir(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="edit_golongan_darah">Golongan Darah</Label>
-                <select
-                  id="edit_golongan_darah"
-                  value={editGolonganDarah}
-                  onChange={(e) => setEditGolonganDarah(e.target.value)}
-                  className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
-                >
-                  <option value="">Tidak diketahui</option>
-                  {["A", "B", "AB", "O"].map((gd) => (
-                    <option key={gd} value={gd}>
-                      {gd}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="edit_hpht">
-                  Hari Pertama Haid Terakhir (HPHT)
-                </Label>
-                <Input
-                  id="edit_hpht"
-                  type="date"
-                  value={editHpht}
-                  max={new Date().toISOString().split("T")[0]}
-                  onChange={(e) => setEditHpht(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-          </DialogContent>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsEditModalOpen(false)}
-            >
-              Batal
-            </Button>
-            <Button type="submit" disabled={isSubmittingEdit}>
-              {isSubmittingEdit ? "Menyimpan..." : "Simpan Perubahan"}
             </Button>
           </DialogFooter>
         </form>

@@ -47,6 +47,7 @@ export default function StatusHidupControl({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEditingExisting = currentStatus === "Meninggal";
+  const isHidup = currentStatus === "Hidup";
 
   const openModal = () => {
     if (disabled) return;
@@ -103,32 +104,27 @@ export default function StatusHidupControl({
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-semibold text-on-surface-variant">
-          Status Hidup:
+    <div className="flex flex-col gap-2 items-stretch md:items-end">
+      <button
+        type="button"
+        onClick={openModal}
+        disabled={disabled}
+        title="Klik untuk mengubah status hidup"
+        className={`flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto ${
+          isHidup
+            ? "bg-teal-600 text-white hover:bg-teal-700"
+            : "bg-red-600 text-white hover:bg-red-700"
+        }`}
+      >
+        <span className="material-symbols-outlined text-sm">
+          {isHidup ? "favorite" : "heart_broken"}
         </span>
-        <button
-          type="button"
-          onClick={openModal}
-          disabled={disabled}
-          title="Klik untuk mengubah status hidup"
-          className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-            currentStatus === "Hidup"
-              ? "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100 hover:border-teal-300"
-              : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 hover:border-red-300"
-          }`}
-        >
-          <span
-            className={`w-2.5 h-2.5 rounded-full ${currentStatus === "Hidup" ? "bg-teal-500" : "bg-red-500"}`}
-          />
-          {currentStatus}
-        </button>
-      </div>
+        <span>Status: {currentStatus}</span>
+      </button>
 
       {currentStatus === "Meninggal" &&
         (tanggalMeninggal || penyebabMeninggal) && (
-          <div className="text-xs bg-red-50/70 border border-red-100 text-red-800 rounded-xl p-3 max-w-sm mt-1 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="text-xs bg-red-50/70 border border-red-100 text-red-800 rounded-xl p-3 max-w-sm animate-in fade-in slide-in-from-top-1 duration-200">
             <div className="flex items-start justify-between gap-2 mb-0.5">
               <p className="font-semibold">Detail Kematian:</p>
               <button

@@ -54,6 +54,67 @@ function latestPerKey<T>(
   return map;
 }
 
+// Kelompokkan SEMUA record per key (dipakai untuk bagian riwayat pemeriksaan).
+function groupByKey<T>(
+  records: T[],
+  keyOf: (r: T) => string,
+): Map<string, T[]> {
+  const map = new Map<string, T[]>();
+  records.forEach((r) => {
+    const key = keyOf(r);
+    const list = map.get(key) ?? [];
+    list.push(r);
+    map.set(key, list);
+  });
+  return map;
+}
+
+// Render bagian "Riwayat Pemeriksaan per Orang" secara generik, dipakai
+// bersama oleh laporan Balita, Lansia, dan Ibu Hamil supaya tidak duplikasi.
+function addRiwayatPemeriksaanSection<T>(
+  doc: jsPDF,
+  judul: string,
+  peopleWithRecords: { nama: string; nik: string; records: T[] }[],
+  head: string[],
+  rowMapper: (r: T) => (string | number)[],
+) {
+  if (peopleWithRecords.length === 0) return;
+
+  doc.addPage();
+  doc.setFontSize(13);
+  doc.setFont("helvetica", "bold");
+  doc.text(judul, 14, 15);
+  doc.setFont("helvetica", "normal");
+
+  let cursorY = 24;
+  const pageHeight = doc.internal.pageSize.height;
+
+  peopleWithRecords.forEach((p) => {
+    if (cursorY > pageHeight - 40) {
+      doc.addPage();
+      cursorY = 15;
+    }
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${p.nama} (NIK: ${p.nik || "-"})`, 14, cursorY);
+    doc.setFont("helvetica", "normal");
+    cursorY += 4;
+
+    autoTable(doc, {
+      startY: cursorY,
+      margin: { left: 14, right: 14 },
+      head: [head],
+      body: p.records.map(rowMapper),
+      styles: { fontSize: 7, cellPadding: 1.5 },
+      headStyles: { fillColor: [107, 90, 96] },
+    });
+
+    // lastAutoTable disediakan runtime oleh plugin jspdf-autotable
+    cursorY = (doc as any).lastAutoTable.finalY + 10;
+  });
+}
+
 // ============================================================================
 // BALITA & BAYI
 // ============================================================================
@@ -106,6 +167,29 @@ export function generateBalitaReport(
     alternateRowStyles: { fillColor: [250, 245, 247] },
   });
 
+  // ---- Bagian Riwayat Pemeriksaan per Balita ----
+  const recordsByNik = groupByKey(allRecords, (r) => r.balitaId);
+  const balitaWithRecords = data
+    .filter((b) => (recordsByNik.get(b.nik)?.length ?? 0) > 0)
+    .map((b) => ({
+      nama: b.nama,
+      nik: b.nik,
+      records: recordsByNik.get(b.nik) ?? [],
+    }));
+
+  addRiwayatPemeriksaanSection(
+    doc,
+    "Riwayat Pemeriksaan per Balita",
+    balitaWithRecords,
+    ["Tanggal", "Berat Badan", "IMT", "Imunisasi"],
+    (r) => [
+      new Date(r.tanggalPemeriksaan).toLocaleDateString("id-ID"),
+      `${r.beratBadan} kg`,
+      r.imt,
+      r.imunisasi || "-",
+    ],
+  );
+
   addFooter(doc);
   return doc;
 }
@@ -154,72 +238,30 @@ export function generateLansiaReport(
   });
 
   // ---- Bagian Riwayat Pemeriksaan per Lansia ----
-  const recordsByNik = new Map<string, LansiaRecord[]>();
-  allRecords.forEach((r) => {
-    const list = recordsByNik.get(r.lansiaId) ?? [];
-    list.push(r);
-    recordsByNik.set(r.lansiaId, list);
-  });
+  const recordsByNik = groupByKey(allRecords, (r) => r.lansiaId);
+  const lansiaWithRecords = data
+    .filter((l) => (recordsByNik.get(l.nik)?.length ?? 0) > 0)
+    .map((l) => ({
+      nama: l.nama,
+      nik: l.nik,
+      records: recordsByNik.get(l.nik) ?? [],
+    }));
 
-  const lansiaWithRecords = data.filter(
-    (l) => (recordsByNik.get(l.nik)?.length ?? 0) > 0,
+  addRiwayatPemeriksaanSection(
+    doc,
+    "Riwayat Pemeriksaan per Lansia",
+    lansiaWithRecords,
+    ["Tanggal", "TB (cm)", "BB (kg)", "IMT", "Tensi", "Penyakit Baru", "Obat"],
+    (r) => [
+      new Date(r.tanggalPemeriksaan).toLocaleDateString("id-ID"),
+      r.tinggiBadan,
+      r.beratBadan,
+      r.imt,
+      `${r.tekananDarahSistolik}/${r.tekananDarahDiastolik}`,
+      r.penyakitBaru || "-",
+      r.obat || "-",
+    ],
   );
-
-  if (lansiaWithRecords.length > 0) {
-    doc.addPage();
-    doc.setFontSize(13);
-    doc.setFont("helvetica", "bold");
-    doc.text("Riwayat Pemeriksaan per Lansia", 14, 15);
-    doc.setFont("helvetica", "normal");
-
-    let cursorY = 24;
-    const pageHeight = doc.internal.pageSize.height;
-
-    lansiaWithRecords.forEach((l) => {
-      const records = recordsByNik.get(l.nik) ?? [];
-
-      if (cursorY > pageHeight - 40) {
-        doc.addPage();
-        cursorY = 15;
-      }
-
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold");
-      doc.text(`${l.nama} (NIK: ${l.nik})`, 14, cursorY);
-      doc.setFont("helvetica", "normal");
-      cursorY += 4;
-
-      autoTable(doc, {
-        startY: cursorY,
-        margin: { left: 14, right: 14 },
-        head: [
-          [
-            "Tanggal",
-            "TB (cm)",
-            "BB (kg)",
-            "IMT",
-            "Tensi",
-            "Penyakit Baru",
-            "Obat",
-          ],
-        ],
-        body: records.map((r) => [
-          new Date(r.tanggalPemeriksaan).toLocaleDateString("id-ID"),
-          r.tinggiBadan,
-          r.beratBadan,
-          r.imt,
-          `${r.tekananDarahSistolik}/${r.tekananDarahDiastolik}`,
-          r.penyakitBaru || "-",
-          r.obat || "-",
-        ]),
-        styles: { fontSize: 7, cellPadding: 1.5 },
-        headStyles: { fillColor: [107, 90, 96] },
-      });
-
-      // lastAutoTable disediakan runtime oleh plugin jspdf-autotable
-      cursorY = (doc as any).lastAutoTable.finalY + 10;
-    });
-  }
 
   addFooter(doc);
   return doc;
@@ -278,6 +320,29 @@ export function generateIbuHamilReport(
     headStyles: { fillColor: [171, 44, 93] },
     alternateRowStyles: { fillColor: [250, 245, 247] },
   });
+
+  // ---- Bagian Riwayat Pemeriksaan per Ibu Hamil ----
+  const recordsById = groupByKey(allRecords, (r) => r.ibuHamilId);
+  const ibuHamilWithRecords = data
+    .filter((b) => (recordsById.get(b.id)?.length ?? 0) > 0)
+    .map((b) => ({
+      nama: b.nama,
+      nik: b.nik,
+      records: recordsById.get(b.id) ?? [],
+    }));
+
+  addRiwayatPemeriksaanSection(
+    doc,
+    "Riwayat Pemeriksaan per Ibu Hamil",
+    ibuHamilWithRecords,
+    ["Tanggal", "Berat Badan", "Tinggi Badan", "Tensi"],
+    (r) => [
+      new Date(r.tanggalPemeriksaan).toLocaleDateString("id-ID"),
+      `${r.beratBadan} kg`,
+      r.tinggiBadan ? `${r.tinggiBadan} cm` : "-",
+      `${r.tekananDarahSistolik}/${r.tekananDarahDiastolik}`,
+    ],
+  );
 
   addFooter(doc);
   return doc;
