@@ -71,7 +71,11 @@ function mapRowToIbuHamil(row: any): IbuHamil {
   const detail = Array.isArray(row.pemeriksaan_ibu_hamil)
     ? row.pemeriksaan_ibu_hamil[0]
     : row.pemeriksaan_ibu_hamil;
-  const birth = detail?.kelahiran?.[0] || detail?.kelahiran;
+  const birthRaw = detail?.kelahiran;
+  const birth = Array.isArray(birthRaw)
+    ? (birthRaw.length > 0 ? birthRaw[0] : null)
+    : (birthRaw || null);
+  const hasBirth = !!(birth && birth.id);
   const child = birth?.child;
 
   return {
@@ -86,7 +90,7 @@ function mapRowToIbuHamil(row: any): IbuHamil {
     statusHidup: row.individu?.status_hidup || "Hidup",
     tanggalMeninggal: row.individu?.tanggal_meninggal || undefined,
     penyebabMeninggal: row.individu?.keterangan_meninggal || undefined,
-    postBirthRecord: birth
+    postBirthRecord: hasBirth
       ? {
           nama: child?.nama || "",
           tempat: birth.tempat_kelahiran || "",
@@ -296,6 +300,7 @@ export interface AddIbuHamilInput {
   hpht: string;
   statusHidup: StatusHidup;
   golonganDarah?: string;
+  tanggalPemeriksaan?: string;
 }
 
 function generateTempNik(): string {
@@ -344,7 +349,7 @@ export async function addIbuHamil(input: AddIbuHamilInput): Promise<IbuHamil> {
     .from("master_pemeriksaan")
     .insert({
       individu_id: motherId,
-      tanggal_pemeriksaan: new Date().toISOString().split("T")[0],
+      tanggal_pemeriksaan: input.tanggalPemeriksaan || new Date().toISOString().split("T")[0],
       kunjungan_ke: 1,
       jenis_pemeriksaan: "Ibu Hamil",
     })
@@ -561,7 +566,9 @@ export async function getIbuHamilRecords(
 
   if (error) throw new Error(error.message);
 
-  return (data ?? []).map((row: any) => mapRowToRecord(row, ibuHamilId));
+  return (data ?? [])
+    .filter((row: any) => row.id !== ibuHamilId)
+    .map((row: any) => mapRowToRecord(row, ibuHamilId));
 }
 
 export interface AddIbuHamilRecordInput {

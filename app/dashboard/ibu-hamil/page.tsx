@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import {
 import { calculateAge, calculateGestationWeeks } from "@/lib/utils/health";
 
 export default function IbuHamilPage() {
+  const router = useRouter();
   const [bumils, setBumils] = useState<IbuHamil[]>([]);
   const [kks, setKks] = useState<KKOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,7 +45,25 @@ export default function IbuHamilPage() {
   const [tempatLahir, setTempatLahir] = useState("");
   const [tanggalLahir, setTanggalLahir] = useState("");
   const [hpht, setHpht] = useState("");
+  const [tanggalPemeriksaan, setTanggalPemeriksaan] = useState(new Date().toISOString().split("T")[0]);
   const [formError, setFormError] = useState("");
+
+  const [stage, setStage] = useState<1 | 2>(1);
+  const [isOpenKkDropdown, setIsOpenKkDropdown] = useState(false);
+  const [kkSearchQuery, setKkSearchQuery] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpenKkDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -103,6 +123,7 @@ export default function IbuHamilPage() {
         nik,
         hpht,
         statusHidup: "Hidup",
+        tanggalPemeriksaan,
       });
 
       setBumils((prev) => [...prev, newBumil]);
@@ -115,6 +136,17 @@ export default function IbuHamilPage() {
     }
   };
 
+  const handleNoKk = () => {
+    setIsModalOpen(false);
+    resetForm();
+    router.push("/dashboard/tambah-kk");
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    resetForm();
+  };
+
   const resetForm = () => {
     setNoKk("");
     setNama("");
@@ -123,6 +155,10 @@ export default function IbuHamilPage() {
     setTanggalLahir("");
     setHpht("");
     setFormError("");
+    setStage(1);
+    setIsOpenKkDropdown(false);
+    setKkSearchQuery("");
+    setTanggalPemeriksaan(new Date().toISOString().split("T")[0]);
   };
 
   // Filters
@@ -345,183 +381,234 @@ export default function IbuHamilPage() {
       )}
 
       {/* Add Ibu Hamil Modal */}
-      <Dialog isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+      <Dialog isOpen={isModalOpen} onClose={handleCloseModal}>
         <form
           onSubmit={handleRegisterBumil}
           className="flex flex-col max-h-[85vh] overflow-hidden"
         >
           <DialogHeader>
-            <DialogTitle>Tambah Data Ibu Hamil</DialogTitle>
-            <DialogDescription>
-              Masukkan identitas ibu hamil baru beserta Hari Pertama Haid
-              Terakhir (HPHT).
+            <DialogTitle className="text-center font-headline text-lg font-bold">Daftarkan Ibu Hamil</DialogTitle>
+            <DialogDescription className="text-center mt-1">
+              {stage === 1
+                ? "Apakah Anda ingin menggunakan data Kartu Keluarga (KK) yang sudah terdaftar?"
+                : "Pilih nomor KK terdaftar untuk mengambil data Ibu."}
             </DialogDescription>
           </DialogHeader>
 
-          <DialogContent className="space-y-4">
+          <DialogContent className={`py-4 transition-all duration-300 ${stage === 2 ? "min-h-[420px]" : ""}`}>
             {formError && (
               <div className="text-xs font-semibold text-red-700 bg-red-50 p-2.5 rounded-lg border border-red-200">
                 {formError}
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="modal_no_kk">KK Terdaftar</Label>
-                <input
-                  id="modal_no_kk"
-                  type="text"
-                  pattern="[0-9]*"
-                  inputMode="numeric"
-                  placeholder="Ketik 16 digit nomor KK..."
-                  list="kk_options"
-                  value={noKk}
-                  onChange={(e) => {
-                    const cleanVal = e.target.value
-                      .replace(/[^0-9]/g, "")
-                      .substring(0, 16);
-                    setNoKk(cleanVal);
-                  }}
-                  className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
-                  required
-                />
-                <datalist id="kk_options">
-                  {kks.map((k) => (
-                    <option key={k.noKk} value={k.noKk} />
-                  ))}
-                </datalist>
-              </div>
+            {stage === 2 && (
+              <div className="space-y-4 relative" ref={dropdownRef}>
+                <div className="space-y-2">
+                  <Label>Pilih Nomor KK</Label>
+                  
+                  {/* Custom Select Button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsOpenKkDropdown(!isOpenKkDropdown)}
+                    className="w-full min-h-[58px] rounded-xl border border-outline-variant/40 px-4 py-2.5 text-left bg-white shadow-sm flex items-center justify-between cursor-pointer hover:border-primary/50 transition-all focus:outline-none"
+                  >
+                    {noKk ? (
+                      (() => {
+                        const selectedObj = kks.find((k) => k.noKk === noKk);
+                        return (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-headline font-bold text-sm text-on-surface">
+                              No. KK: {noKk}
+                            </span>
+                            <span className="text-xs text-on-surface-variant">
+                              Ayah: {selectedObj?.namaAyah || "-"} | Ibu: {selectedObj?.namaIbu || "-"}
+                            </span>
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <span className="text-sm text-on-surface-variant/70">
+                        -- Pilih Nomor KK --
+                      </span>
+                    )}
+                    <span className="material-symbols-outlined text-on-surface-variant">
+                      {isOpenKkDropdown ? "keyboard_arrow_up" : "keyboard_arrow_down"}
+                    </span>
+                  </button>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="modal_nik">NIK Ibu</Label>
-                <Input
-                  id="modal_nik"
-                  placeholder="16 digit NIK Ibu"
-                  list="ibu_nik_options"
-                  value={nik}
-                  onChange={(e) => {
-                    const clean = e.target.value
-                      .replace(/[^0-9]/g, "")
-                      .substring(0, 16);
-                    setNik(clean);
-                    const selectedKK = kks.find((k) => k.noKk === noKk);
-                    if (selectedKK && clean === selectedKK.nikIbu) {
-                      if (selectedKK.namaIbu) setNama(selectedKK.namaIbu);
-                      if (selectedKK.tempatLahirIbu)
-                        setTempatLahir(selectedKK.tempatLahirIbu);
-                      if (selectedKK.tanggalLahirIbu)
-                        setTanggalLahir(selectedKK.tanggalLahirIbu);
-                    }
-                  }}
-                  required
-                />
-                {kks.find((k) => k.noKk === noKk)?.nikIbu && (
-                  <datalist id="ibu_nik_options">
-                    <option value={kks.find((k) => k.noKk === noKk)?.nikIbu} />
-                  </datalist>
-                )}
-              </div>
+                  {/* Dropdown Menu Card */}
+                  {isOpenKkDropdown && (
+                    <div className="absolute left-0 right-0 z-50 mt-1 bg-white border border-outline-variant/30 rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[320px]">
+                      {/* Search Box */}
+                      <div className="p-2 border-b border-outline-variant/10 bg-slate-50/80">
+                        <input
+                          type="text"
+                          placeholder="Cari Nomor KK, nama Ayah atau Ibu..."
+                          value={kkSearchQuery}
+                          onChange={(e) => setKkSearchQuery(e.target.value)}
+                          className="w-full h-9 rounded-lg border border-outline-variant/40 px-3 text-xs bg-white focus:outline-none focus:border-primary"
+                        />
+                      </div>
 
-              <div className="md:col-span-2 space-y-1.5">
-                <Label htmlFor="modal_nama">Nama Lengkap</Label>
-                <Input
-                  id="modal_nama"
-                  placeholder="Nama Lengkap Ibu Hamil"
-                  list="ibu_nama_options"
-                  value={nama}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setNama(val);
-                    const selectedKK = kks.find((k) => k.noKk === noKk);
-                    if (
-                      selectedKK &&
-                      val.toLowerCase() === selectedKK.namaIbu?.toLowerCase()
-                    ) {
-                      if (selectedKK.nikIbu) setNik(selectedKK.nikIbu);
-                      if (selectedKK.tempatLahirIbu)
-                        setTempatLahir(selectedKK.tempatLahirIbu);
-                      if (selectedKK.tanggalLahirIbu)
-                        setTanggalLahir(selectedKK.tanggalLahirIbu);
-                    }
-                  }}
-                  required
-                />
-                {kks.find((k) => k.noKk === noKk)?.namaIbu && (
-                  <datalist id="ibu_nama_options">
-                    <option value={kks.find((k) => k.noKk === noKk)?.namaIbu} />
-                  </datalist>
-                )}
-              </div>
+                      {/* KK Items List */}
+                      <div className="overflow-y-auto flex-1 divide-y divide-outline-variant/10">
+                        {kks
+                          .filter((k) => {
+                            const query = kkSearchQuery.toLowerCase();
+                            return (
+                              k.noKk.toLowerCase().includes(query) ||
+                              (k.namaAyah || "").toLowerCase().includes(query) ||
+                              (k.namaIbu || "").toLowerCase().includes(query)
+                            );
+                          })
+                          .map((k) => (
+                            <button
+                              key={k.noKk}
+                              type="button"
+                              onClick={() => {
+                                setNoKk(k.noKk);
+                                setNik(k.nikIbu || "");
+                                setNama(k.namaIbu || "");
+                                setTempatLahir(k.tempatLahirIbu || "");
+                                setTanggalLahir(k.tanggalLahirIbu || "");
+                                setIsOpenKkDropdown(false);
+                                setKkSearchQuery("");
+                              }}
+                              className={`w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors flex flex-col gap-1 ${
+                                noKk === k.noKk ? "bg-primary/5 hover:bg-primary/10" : ""
+                              }`}
+                            >
+                              <div className="flex justify-between items-center">
+                                <span className="font-bold text-xs text-primary">
+                                  {k.noKk}
+                                </span>
+                                {k.rt && k.rw && (
+                                  <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-on-surface-variant font-semibold">
+                                    RT {k.rt} / RW {k.rw}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-on-surface-variant flex flex-wrap gap-x-2">
+                                <span>👨 Ayah: <strong className="text-on-surface">{k.namaAyah || "-"}</strong></span>
+                                <span className="text-slate-300">|</span>
+                                <span>👩 Ibu: <strong className="text-on-surface">{k.namaIbu || "-"}</strong></span>
+                              </div>
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="modal_tempat">Tempat Lahir</Label>
-                <Input
-                  id="modal_tempat"
-                  placeholder="Kota / Kabupaten"
-                  list="ibu_tempat_options"
-                  value={tempatLahir}
-                  onChange={(e) => setTempatLahir(e.target.value)}
-                  required
-                />
-                {kks.find((k) => k.noKk === noKk)?.tempatLahirIbu && (
-                  <datalist id="ibu_tempat_options">
-                    <option
-                      value={kks.find((k) => k.noKk === noKk)?.tempatLahirIbu}
-                    />
-                  </datalist>
-                )}
-              </div>
+                {noKk && (() => {
+                  const selectedObj = kks.find((k) => k.noKk === noKk);
+                  const hasMother = !!(selectedObj?.namaIbu && selectedObj?.nikIbu);
+                  
+                  if (!hasMother) {
+                    return (
+                      <div className="text-xs font-semibold text-amber-700 bg-amber-50 p-3.5 rounded-xl border border-amber-200">
+                        ⚠️ Peringatan: Kartu Keluarga ini tidak memiliki data Ibu/Istri. 
+                        Silakan tambahkan data Ibu di KK Terdaftar terlebih dahulu, atau gunakan KK Baru.
+                      </div>
+                    );
+                  }
 
-              <div className="space-y-1.5">
-                <Label htmlFor="modal_tanggal">Tanggal Lahir</Label>
-                <Input
-                  id="modal_tanggal"
-                  type="date"
-                  list="ibu_tgl_options"
-                  value={tanggalLahir}
-                  max={new Date().toISOString().split("T")[0]}
-                  onChange={(e) => setTanggalLahir(e.target.value)}
-                  required
-                />
-                {kks.find((k) => k.noKk === noKk)?.tanggalLahirIbu && (
-                  <datalist id="ibu_tgl_options">
-                    <option
-                      value={kks.find((k) => k.noKk === noKk)?.tanggalLahirIbu}
-                    />
-                  </datalist>
-                )}
-              </div>
+                  return (
+                    <div className="space-y-4 p-4 rounded-xl bg-slate-50/50 border border-outline-variant/30 animate-in fade-in duration-200">
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-on-surface-variant font-semibold">Nama Ibu:</span>
+                          <p className="font-bold text-on-surface mt-0.5">{selectedObj.namaIbu}</p>
+                        </div>
+                        <div>
+                          <span className="text-on-surface-variant font-semibold">NIK Ibu:</span>
+                          <p className="font-bold text-on-surface mt-0.5">{selectedObj.nikIbu}</p>
+                        </div>
+                      </div>
 
-              <div className="md:col-span-2 space-y-1.5">
-                <Label htmlFor="modal_hpht">
-                  Hari Pertama Haid Terakhir (HPHT)
-                </Label>
-                <Input
-                  id="modal_hpht"
-                  type="date"
-                  value={hpht}
-                  max={new Date().toISOString().split("T")[0]}
-                  onChange={(e) => setHpht(e.target.value)}
-                  required
-                />
+                      <div className="grid grid-cols-2 gap-3 border-t border-outline-variant/10 pt-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="modal_tanggal_pemeriksaan">
+                            Tanggal Pemeriksaan *
+                          </Label>
+                          <Input
+                            id="modal_tanggal_pemeriksaan"
+                            type="date"
+                            value={tanggalPemeriksaan}
+                            max={new Date().toISOString().split("T")[0]}
+                            onChange={(e) => setTanggalPemeriksaan(e.target.value)}
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="modal_hpht">
+                            Hari Pertama Haid Terakhir (HPHT) *
+                          </Label>
+                          <Input
+                            id="modal_hpht"
+                            type="date"
+                            value={hpht}
+                            max={new Date().toISOString().split("T")[0]}
+                            onChange={(e) => setHpht(e.target.value)}
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
-            </div>
+            )}
           </DialogContent>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setIsModalOpen(false);
-                resetForm();
-              }}
-            >
-              Batal
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Menyimpan..." : "Simpan Data"}
-            </Button>
+          <DialogFooter className="sm:justify-center gap-2 pt-2 border-t border-outline-variant/10">
+            {stage === 1 ? (
+              <>
+                <Button
+                  type="button"
+                  onClick={handleNoKk}
+                  variant="outline"
+                  className="w-full sm:w-auto font-semibold"
+                >
+                  Tidak, saya ingin KK baru
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setStage(2)}
+                  className="w-full sm:w-auto font-bold bg-primary hover:bg-primary/95 text-white"
+                >
+                  Ya, Gunakan data KK yang ada
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setStage(1);
+                    setNoKk("");
+                    setNik("");
+                    setNama("");
+                  }}
+                  variant="outline"
+                  className="w-full sm:w-auto font-semibold"
+                >
+                  Kembali
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || !noKk || !hpht || !(() => {
+                    const selectedObj = kks.find((k) => k.noKk === noKk);
+                    return !!(selectedObj?.namaIbu && selectedObj?.nikIbu);
+                  })()}
+                  className="w-full sm:w-auto font-bold bg-tertiary hover:bg-tertiary/95 text-white"
+                >
+                  {isSubmitting ? "Menyimpan..." : "Konfirmasi & Simpan"}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </form>
       </Dialog>
