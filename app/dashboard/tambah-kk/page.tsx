@@ -408,25 +408,25 @@ export default function TambahKKPage() {
 
           {/* Section: Anggota Keluarga */}
           <div className="space-y-4">
-            <div className="border-b border-outline-variant/30 pb-2 flex justify-between items-center">
+            <div className="border-b border-outline-variant/30 pb-2">
               <h3 className="font-headline text-md font-bold text-tertiary flex items-center gap-2">
                 <span className="material-symbols-outlined">group</span>
                 Anggota Keluarga Lainnya
               </h3>
-              <Button
-                type="button"
-                onClick={addAnggota}
-                variant="outline"
-                className="flex items-center gap-2 border-primary text-primary hover:bg-primary/5 font-semibold text-xs"
-              >
-                <span className="material-symbols-outlined text-sm">add</span>
-                <span>Tambah Anggota Keluarga</span>
-              </Button>
             </div>
 
             {anggotaList.length === 0 ? (
-              <div className="text-center py-6 border border-dashed border-outline-variant/60 rounded-xl bg-slate-50/30">
-                <p className="text-sm text-on-surface-variant">Belum ada anggota keluarga tambahan. Klik tombol di atas untuk menambahkan.</p>
+              <div className="text-center py-8 border border-dashed border-outline-variant/60 rounded-xl bg-slate-50/30 flex flex-col items-center gap-3">
+                <p className="text-sm text-on-surface-variant">Belum ada anggota keluarga tambahan.</p>
+                <Button
+                  type="button"
+                  onClick={addAnggota}
+                  variant="outline"
+                  className="flex items-center gap-2 border-primary text-primary hover:bg-primary/5 font-semibold text-xs cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-sm">add</span>
+                  <span>Tambah Anggota Keluarga</span>
+                </Button>
               </div>
             ) : (
               <div className="space-y-4">
@@ -472,7 +472,6 @@ export default function TambahKKPage() {
                         />
                       </div>
 
-
                       <div className="space-y-1.5">
                         <Label>Tempat Lahir</Label>
                         <Input
@@ -515,6 +514,18 @@ export default function TambahKKPage() {
                     </div>
                   </div>
                 ))}
+
+                <div className="flex justify-end pt-2">
+                  <Button
+                    type="button"
+                    onClick={addAnggota}
+                    variant="outline"
+                    className="flex items-center gap-2 border-primary text-primary hover:bg-primary/5 font-semibold text-xs cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-sm">add</span>
+                    <span>Tambah Anggota Keluarga</span>
+                  </Button>
+                </div>
               </div>
             )}
           </div>
