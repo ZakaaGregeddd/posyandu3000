@@ -38,6 +38,8 @@ import {
   updateLansia,
   getLansiaRecords,
   addLansiaRecord,
+  updateLansiaRecord,
+  deleteLansiaRecord,
   Lansia,
   LansiaRecord,
   StatusHidup,

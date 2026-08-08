@@ -3,15 +3,15 @@ import { createClient } from "@/lib/supabase/client";
 export type StatusHidup = "Hidup" | "Meninggal";
 
 export interface Balita {
-  id: string; // = NIK, dipakai juga sebagai param routing /dashboard/balita/[id]
+  id: string; // UUID
   nik: string;
   noKk: string;
   nama: string;
   tempatLahir: string;
   tanggalLahir: string;
   jenisKelamin: "L" | "P";
-  namaIbu: string; // read-only, diambil dari keluarga.nik_ibu -> individu.nama
-  namaAyah: string; // read-only, diambil dari keluarga.nik_ayah -> individu.nama
+  namaIbu: string;
+  namaAyah: string;
   golonganDarah?: string;
   statusHidup: StatusHidup;
   tanggalMeninggal?: string;
@@ -51,43 +51,42 @@ export interface KKOption {
   tanggalLahirIbu?: string;
 }
 
-// ---------------------------------------------------------------------------
-// Mapper: baris dari Supabase (snake_case) -> tipe yang dipakai komponen
-// ---------------------------------------------------------------------------
-function mapRowToBalita(row: any): Balita {
+function parseAlamat(alamatRaw: string | null) {
+  if (!alamatRaw) return { alamat: "", rt: "", rw: "" };
+  const rtMatch = alamatRaw.match(/\[RT:\s*([^\]]+)\]/);
+  const rwMatch = alamatRaw.match(/\[RW:\s*([^\]]+)\]/);
+  let cleanAlamat = alamatRaw.replace(/\[RT:\s*[^\]]+\]/g, "").replace(/\[RW:\s*[^\]]+\]/g, "").trim();
   return {
-    id: row.nik,
-    nik: row.nik,
-    noKk: row.no_kk,
+    alamat: cleanAlamat,
+    rt: rtMatch ? rtMatch[1] : "",
+    rw: rwMatch ? rwMatch[1] : ""
+  };
+}
+
+function mapRowToBalita(row: any): Balita {
+  const members = row.keluarga?.members || [];
+  const ayah = members.find((m: any) => m.status_keluarga === "Kepala Keluarga" || m.status_keluarga === "Ayah");
+  const ibu = members.find((m: any) => m.status_keluarga === "Istri" || m.status_keluarga === "Ibu");
+  const birthRecord = row.kelahiran?.[0] || row.kelahiran;
+
+  return {
+    id: row.id,
+    nik: row.nik || "",
+    noKk: row.keluarga?.no_kk || "",
     nama: row.nama,
     tempatLahir: row.tempat_lahir ?? "",
     tanggalLahir: row.tanggal_lahir,
     jenisKelamin: row.jenis_kelamin,
-    namaIbu: row.nama_ibu ?? "",
-    namaAyah: row.nama_ayah ?? "",
+    namaIbu: ibu?.nama || "",
+    namaAyah: ayah?.nama || "",
     golonganDarah: row.golongan_darah ?? undefined,
     statusHidup: row.status_hidup,
     tanggalMeninggal: row.tanggal_meninggal ?? undefined,
     penyebabMeninggal: row.keterangan_meninggal ?? undefined,
-    caraLahir: row.cara_lahir ?? undefined,
-    usiaKehamilanSaatLahirWeeks: row.usia_kehamilan_lahir_minggu ?? undefined,
-    ttlAyah: row.ttl_ayah ?? undefined,
-    ttlIbu: row.ttl_ibu ?? undefined,
-  };
-}
-
-function mapRowToRecord(row: any): BalitaRecord {
-  return {
-    id: row.id,
-    balitaId: row.nik,
-    tanggalPemeriksaan: row.tanggal_pemeriksaan,
-    tinggiBadan: Number(row.tinggi_badan),
-    beratBadan: Number(row.berat_badan),
-    lingkarKepala: Number(row.lingkar_kepala),
-    lingkarLengan: Number(row.lingkar_lengan),
-    imunisasi: row.imunisasi ?? "",
-    obatVitamin: row.obat_vitamin ?? "",
-    imt: Number(row.imt),
+    caraLahir: birthRecord?.cara_kelahiran ?? undefined,
+    usiaKehamilanSaatLahirWeeks: birthRecord?.usia_kehamilan_minggu ?? undefined,
+    ttlAyah: ayah ? `${ayah.tempat_lahir ?? ""}, ${ayah.tanggal_lahir ?? ""}` : undefined,
+    ttlIbu: ibu ? `${ibu.tempat_lahir ?? ""}, ${ibu.tanggal_lahir ?? ""}` : undefined,
   };
 }
 
@@ -97,71 +96,133 @@ function mapRowToRecord(row: any): BalitaRecord {
 export async function getBalitas(): Promise<Balita[]> {
   const supabase = createClient();
   const { data, error } = await supabase
-    .from("v_balita_lengkap")
-    .select("*")
-    .order("tanggal_lahir", { ascending: false });
+    .from("individu")
+    .select(`
+      *,
+      keluarga:keluarga(
+        id,
+        no_kk,
+        alamat,
+        no_telp,
+        members:individu(
+          id,
+          nik,
+          nama,
+          status_keluarga,
+          tanggal_lahir,
+          tempat_lahir
+        )
+      ),
+      kelahiran:kelahiran!kelahiran_individu_anak_id_fkey(
+        cara_kelahiran,
+        usia_kehamilan_minggu
+      )
+    `);
 
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapRowToBalita);
+
+  const balitas = (data ?? []).filter((r: any) => {
+    const birthDate = new Date(r.tanggal_lahir);
+    const today = new Date();
+    let ageYears = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      ageYears--;
+    }
+    return ageYears <= 5 || r.status_keluarga === "Anak";
+  });
+
+  return balitas.map(mapRowToBalita);
 }
 
-export async function getBalitaById(nik: string): Promise<Balita | null> {
+export async function getBalitaById(id: string): Promise<Balita | null> {
   const supabase = createClient();
-  const { data, error } = await supabase
-    .from("v_balita_lengkap")
-    .select("*")
-    .eq("nik", nik)
-    .maybeSingle();
+  let query = supabase
+    .from("individu")
+    .select(`
+      *,
+      keluarga:keluarga(
+        id,
+        no_kk,
+        alamat,
+        no_telp,
+        members:individu(
+          id,
+          nik,
+          nama,
+          status_keluarga,
+          tanggal_lahir,
+          tempat_lahir
+        )
+      ),
+      kelahiran:kelahiran!kelahiran_individu_anak_id_fkey(
+        cara_kelahiran,
+        usia_kehamilan_minggu
+      )
+    `);
 
+  if (id.length === 36) {
+    query = query.eq("id", id);
+  } else {
+    query = query.eq("nik", id);
+  }
+
+  const { data, error } = await query.maybeSingle();
   if (error) throw new Error(error.message);
   return data ? mapRowToBalita(data) : null;
 }
 
 // ---------------------------------------------------------------------------
-// DAFTAR KK (untuk dropdown "Nomor KK" di form tambah balita)
+// DAFTAR KK (untuk dropdown "Nomor KK")
 // ---------------------------------------------------------------------------
 export async function getKKs(): Promise<KKOption[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("keluarga")
-    .select(
-      `
-      no_kk, 
-      alamat, 
-      no_telp, 
-      rt, 
-      rw,
-      nik_ayah,
-      nik_ibu,
-      ayah:individu!fk_keluarga_nik_ayah(nama, tempat_lahir, tanggal_lahir),
-      ibu:individu!fk_keluarga_nik_ibu(nama, tempat_lahir, tanggal_lahir)
-    `,
-    )
+    .select(`
+      id,
+      no_kk,
+      alamat,
+      no_telp,
+      members:individu(
+        id,
+        nik,
+        nama,
+        tempat_lahir,
+        tanggal_lahir,
+        jenis_kelamin,
+        status_keluarga
+      )
+    `)
     .order("no_kk");
 
   if (error) throw new Error(error.message);
-  return (data ?? []).map((k: any) => ({
-    noKk: k.no_kk,
-    alamat: k.alamat ?? undefined,
-    noTelp: k.no_telp ?? undefined,
-    rt: k.rt ?? undefined,
-    rw: k.rw ?? undefined,
-    nikAyah: k.nik_ayah ?? undefined,
-    namaAyah: k.ayah?.nama ?? undefined,
-    tempatLahirAyah: k.ayah?.tempat_lahir ?? undefined,
-    tanggalLahirAyah: k.ayah?.tanggal_lahir ?? undefined,
-    nikIbu: k.nik_ibu ?? undefined,
-    namaIbu: k.ibu?.nama ?? undefined,
-    tempatLahirIbu: k.ibu?.tempat_lahir ?? undefined,
-    tanggalLahirIbu: k.ibu?.tanggal_lahir ?? undefined,
-  }));
+
+  return (data ?? []).map((k: any) => {
+    const { alamat, rt, rw } = parseAlamat(k.alamat);
+    const ayah = k.members?.find((m: any) => m.status_keluarga === "Kepala Keluarga" || m.status_keluarga === "Ayah");
+    const ibu = k.members?.find((m: any) => m.status_keluarga === "Istri" || m.status_keluarga === "Ibu");
+
+    return {
+      noKk: k.no_kk || "",
+      alamat: alamat,
+      noTelp: k.no_telp ?? undefined,
+      rt,
+      rw,
+      nikAyah: ayah?.nik || ayah?.id || undefined,
+      namaAyah: ayah?.nama ?? undefined,
+      tempatLahirAyah: ayah?.tempat_lahir ?? undefined,
+      tanggalLahirAyah: ayah?.tanggal_lahir ?? undefined,
+      nikIbu: ibu?.nik || ibu?.id || undefined,
+      namaIbu: ibu?.nama ?? undefined,
+      tempatLahirIbu: ibu?.tempat_lahir ?? undefined,
+      tanggalLahirIbu: ibu?.tanggal_lahir ?? undefined,
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------
 // TAMBAH BALITA
-// Catatan: namaAyah/namaIbu TIDAK dikirim di sini lagi — itu sekarang murni
-// hasil JOIN dari keluarga.nik_ayah/nik_ibu. Pastikan KK yang dipilih sudah
-// punya nik_ayah/nik_ibu terisi, kalau tidak nama ortu akan tampil kosong.
 // ---------------------------------------------------------------------------
 export interface AddBalitaInput {
   nama: string;
@@ -176,69 +237,69 @@ export interface AddBalitaInput {
   golonganDarah?: string;
 }
 
-// NIK asli seharusnya selalu diisi manual (16 digit). Ini hanya fallback
-// supaya insert tidak gagal kalau kader belum sempat input NIK resmi.
 function generateTempNik(): string {
   return `TMP${Date.now()}`.padEnd(16, "0").slice(0, 16);
 }
 
 export async function addBalita(input: AddBalitaInput): Promise<Balita> {
   const supabase = createClient();
-  const nik =
-    input.nik && input.nik.length === 16 ? input.nik : generateTempNik();
 
-  const { error: individuError } = await supabase.from("individu").insert({
-    nik,
-    no_kk: input.noKk,
-    nama: input.nama,
-    tempat_lahir: input.tempatLahir,
-    tanggal_lahir: input.tanggalLahir,
-    jenis_kelamin: input.jenisKelamin,
-    hubungan_keluarga: "Anak",
-  });
+  // Find keluarga_id by noKk
+  const { data: kk } = await supabase
+    .from("keluarga")
+    .select("id")
+    .eq("no_kk", input.noKk)
+    .single();
+
+  if (!kk) throw new Error(`Keluarga dengan nomor KK ${input.noKk} tidak ditemukan.`);
+
+  const nik = input.nik && input.nik.length === 16 ? input.nik : generateTempNik();
+
+  const { data: individu, error: individuError } = await supabase
+    .from("individu")
+    .insert({
+      keluarga_id: kk.id,
+      nik,
+      nama: input.nama,
+      tempat_lahir: input.tempatLahir,
+      tanggal_lahir: input.tanggalLahir,
+      jenis_kelamin: input.jenisKelamin,
+      status_keluarga: "Anak",
+      status_hidup: input.statusHidup,
+      golongan_darah: input.golonganDarah ?? null,
+    })
+    .select("id")
+    .single();
 
   if (individuError) throw new Error(individuError.message);
 
-  // Tabel `bayi` cuma diisi kalau ada salah satu datanya (opsional semua)
-  if (
-    input.caraLahir ||
-    input.usiaKehamilanSaatLahirWeeks ||
-    input.golonganDarah
-  ) {
-    const { error: bayiError } = await supabase.from("bayi").insert({
-      nik,
-      cara_lahir: input.caraLahir ?? null,
-      usia_kehamilan_lahir_minggu: input.usiaKehamilanSaatLahirWeeks ?? null,
-      golongan_darah: input.golonganDarah ?? null,
+  if (input.caraLahir || input.usiaKehamilanSaatLahirWeeks) {
+    const { error: birthError } = await supabase.from("kelahiran").insert({
+      pemeriksaan_ibu_hamil_id: "00000000-0000-0000-0000-000000000000", // Dummy/fallback if independent birth
+      individu_anak_id: individu.id,
+      cara_kelahiran: input.caraLahir ?? null,
+      usia_kehamilan_minggu: input.usiaKehamilanSaatLahirWeeks ?? null,
+      tanggal_kelahiran: input.tanggalLahir,
+      tempat_kelahiran: input.tempatLahir,
     });
 
-    if (bayiError) {
-      // Kompensasi: baris `individu` sudah terlanjur tersimpan di atas, tapi
-      // baris pelengkapnya di `bayi` gagal (mis. RLS policy tabel bayi
-      // belum diset - lihat fix-rls-bayi.sql). Daripada meninggalkan data
-      // "yatim" (individu ada tapi tanpa data bayi, sementara user melihat
-      // pesan error seolah-olah tidak ada apapun yang tersimpan), kita
-      // hapus lagi baris individu tsb supaya operasi ini bersih: sukses
-      // penuh, atau gagal penuh (tidak meninggalkan sisa data).
-      await supabase.from("individu").delete().eq("nik", nik);
-      throw new Error(
-        `Gagal menyimpan data bayi (${bayiError.message}). Data batal disimpan - ` +
-          `kemungkinan besar ini masalah RLS policy pada tabel "bayi" di Supabase, ` +
-          `bukan kesalahan input Anda. Lihat fix-rls-bayi.sql.`,
-      );
+    if (birthError) {
+      // rollback
+      await supabase.from("individu").delete().eq("id", individu.id);
+      throw new Error(birthError.message);
     }
   }
 
-  const balita = await getBalitaById(nik);
+  const balita = await getBalitaById(individu.id);
   if (!balita) throw new Error("Data tersimpan tapi gagal dimuat ulang");
   return balita;
 }
 
 // ---------------------------------------------------------------------------
-// UPDATE STATUS HIDUP / MENINGGAL
+// UPDATE STATUS HIDUP
 // ---------------------------------------------------------------------------
 export interface UpdateBalitaInput {
-  id: string; // nik
+  id: string; // UUID or NIK
   statusHidup: StatusHidup;
   tanggalMeninggal?: string;
   penyebabMeninggal?: string;
@@ -246,15 +307,19 @@ export interface UpdateBalitaInput {
 
 export async function updateBalita(input: UpdateBalitaInput): Promise<Balita> {
   const supabase = createClient();
-  const { error } = await supabase
-    .from("individu")
-    .update({
-      status_hidup: input.statusHidup,
-      tanggal_meninggal: input.tanggalMeninggal || null,
-      keterangan_meninggal: input.penyebabMeninggal || null,
-    })
-    .eq("nik", input.id);
+  let query = supabase.from("individu").update({
+    status_hidup: input.statusHidup,
+    tanggal_meninggal: input.tanggalMeninggal || null,
+    keterangan_meninggal: input.penyebabMeninggal || null,
+  });
 
+  if (input.id.length === 36) {
+    query = query.eq("id", input.id);
+  } else {
+    query = query.eq("nik", input.id);
+  }
+
+  const { error } = await query;
   if (error) throw new Error(error.message);
 
   const balita = await getBalitaById(input.id);
@@ -263,11 +328,10 @@ export async function updateBalita(input: UpdateBalitaInput): Promise<Balita> {
 }
 
 // ---------------------------------------------------------------------------
-// EDIT IDENTITAS & DATA KELAHIRAN (nama, TTL, jenis kelamin, cara lahir,
-// usia kehamilan saat lahir, golongan darah)
+// EDIT IDENTITAS & DATA KELAHIRAN
 // ---------------------------------------------------------------------------
 export interface UpdateBalitaDataInput {
-  id: string; // nik
+  id: string; // UUID or NIK
   nama: string;
   tempatLahir: string;
   tanggalLahir: string;
@@ -281,6 +345,11 @@ export async function updateBalitaData(
   input: UpdateBalitaDataInput,
 ): Promise<Balita> {
   const supabase = createClient();
+  let id = input.id;
+  if (id.length !== 36) {
+    const { data } = await supabase.from("individu").select("id").eq("nik", id).maybeSingle();
+    if (data) id = data.id;
+  }
 
   const { error: individuError } = await supabase
     .from("individu")
@@ -289,28 +358,26 @@ export async function updateBalitaData(
       tempat_lahir: input.tempatLahir,
       tanggal_lahir: input.tanggalLahir,
       jenis_kelamin: input.jenisKelamin,
+      golongan_darah: input.golonganDarah || null,
     })
-    .eq("nik", input.id);
+    .eq("id", id);
 
   if (individuError) throw new Error(individuError.message);
 
-  // Baris `bayi` sifatnya opsional - mungkin belum pernah dibuat kalau saat
-  // pendaftaran awal semua field opsionalnya dikosongkan. Pakai upsert
-  // supaya jalan baik saat baris itu sudah ada (update) maupun belum ada
-  // (insert), asalkan `nik` adalah primary/unique key di tabel bayi.
-  const { error: bayiError } = await supabase.from("bayi").upsert(
-    {
-      nik: input.id,
-      cara_lahir: input.caraLahir ?? null,
-      usia_kehamilan_lahir_minggu: input.usiaKehamilanSaatLahirWeeks ?? null,
-      golongan_darah: input.golonganDarah || null,
-    },
-    { onConflict: "nik" },
-  );
+  if (input.caraLahir || input.usiaKehamilanSaatLahirWeeks) {
+    const { error: birthError } = await supabase.from("kelahiran").upsert(
+      {
+        individu_anak_id: id,
+        cara_kelahiran: input.caraLahir ?? null,
+        usia_kehamilan_minggu: input.usiaKehamilanSaatLahirWeeks ?? null,
+        pemeriksaan_ibu_hamil_id: "00000000-0000-0000-0000-000000000000" // dummy if not exists
+      },
+      { onConflict: "individu_anak_id" }
+    );
+    if (birthError) throw new Error(birthError.message);
+  }
 
-  if (bayiError) throw new Error(bayiError.message);
-
-  const updated = await getBalitaById(input.id);
+  const updated = await getBalitaById(id);
   if (!updated) throw new Error("Data tidak ditemukan setelah update");
   return updated;
 }
@@ -320,7 +387,13 @@ export async function updateBalitaData(
 // ---------------------------------------------------------------------------
 export async function deleteBalita(id: string): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase.from("individu").delete().eq("nik", id);
+  let query = supabase.from("individu").delete();
+  if (id.length === 36) {
+    query = query.eq("id", id);
+  } else {
+    query = query.eq("nik", id);
+  }
+  const { error } = await query;
   if (error) throw new Error(error.message);
 }
 
@@ -331,38 +404,115 @@ export async function getBalitaRecords(
   balitaId: string,
 ): Promise<BalitaRecord[]> {
   const supabase = createClient();
+  let indId = balitaId;
+  if (balitaId.length !== 36) {
+    const { data: indData } = await supabase.from("individu").select("id").eq("nik", balitaId).maybeSingle();
+    if (indData) indId = indData.id;
+  }
+
   const { data, error } = await supabase
-    .from("balita_pemeriksaan")
-    .select("*")
-    .eq("nik", balitaId)
+    .from("master_pemeriksaan")
+    .select(`
+      id,
+      individu_id,
+      tanggal_pemeriksaan,
+      kunjungan_ke,
+      jenis_pemeriksaan,
+      pemeriksaan_balita(
+        berat_badan,
+        tinggi_badan,
+        lingkar_kepala,
+        lingkar_lengan,
+        imunisasi,
+        obat_vitamin,
+        imt,
+        catatan
+      )
+    `)
+    .eq("individu_id", indId)
+    .eq("jenis_pemeriksaan", "Balita")
     .order("tanggal_pemeriksaan", { ascending: true });
 
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapRowToRecord);
+
+  return (data ?? []).map((row: any) => {
+    const pb = row.pemeriksaan_balita || {};
+    return {
+      id: row.id,
+      balitaId: row.individu_id,
+      tanggalPemeriksaan: row.tanggal_pemeriksaan,
+      tinggiBadan: pb.tinggi_badan ? Number(pb.tinggi_badan) : 0,
+      beratBadan: pb.berat_badan ? Number(pb.berat_badan) : 0,
+      lingkarKepala: pb.lingkar_kepala ? Number(pb.lingkar_kepala) : 0,
+      lingkarLengan: pb.lingkar_lengan ? Number(pb.lingkar_lengan) : 0,
+      imunisasi: pb.imunisasi ?? "",
+      obatVitamin: pb.obat_vitamin ?? "",
+      imt: pb.imt ? Number(pb.imt) : 0,
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------
-// BULK FETCH riwayat pemeriksaan untuk beberapa anak sekaligus (dipakai
-// oleh laporan PDF, supaya tidak query satu-satu per anak)
+// BULK FETCH
 // ---------------------------------------------------------------------------
 export async function getBalitaRecordsForNiks(
-  niks: string[],
+  niksOrIds: string[],
 ): Promise<BalitaRecord[]> {
-  if (niks.length === 0) return [];
+  if (niksOrIds.length === 0) return [];
 
   const supabase = createClient();
-  const { data, error } = await supabase
-    .from("balita_pemeriksaan")
-    .select("*")
-    .in("nik", niks)
-    .order("nik", { ascending: true })
+  let query = supabase
+    .from("master_pemeriksaan")
+    .select(`
+      id,
+      individu_id,
+      tanggal_pemeriksaan,
+      kunjungan_ke,
+      jenis_pemeriksaan,
+      pemeriksaan_balita(
+        berat_badan,
+        tinggi_badan,
+        lingkar_kepala,
+        lingkar_lengan,
+        imunisasi,
+        obat_vitamin,
+        imt,
+        catatan
+      ),
+      individu!inner(id, nik)
+    `)
+    .eq("jenis_pemeriksaan", "Balita");
+
+  if (niksOrIds[0].length === 36) {
+    query = query.in("individu_id", niksOrIds);
+  } else {
+    query = query.in("individu.nik", niksOrIds);
+  }
+
+  const { data, error } = await query
     .order("tanggal_pemeriksaan", { ascending: true });
 
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapRowToRecord);
+
+  return (data ?? []).map((row: any) => {
+    const pb = row.pemeriksaan_balita || {};
+    return {
+      id: row.id,
+      balitaId: row.individu_id,
+      tanggalPemeriksaan: row.tanggal_pemeriksaan,
+      tinggiBadan: pb.tinggi_badan ? Number(pb.tinggi_badan) : 0,
+      beratBadan: pb.berat_badan ? Number(pb.berat_badan) : 0,
+      lingkarKepala: pb.lingkar_kepala ? Number(pb.lingkar_kepala) : 0,
+      lingkarLengan: pb.lingkar_lengan ? Number(pb.lingkar_lengan) : 0,
+      imunisasi: pb.imunisasi ?? "",
+      obatVitamin: pb.obat_vitamin ?? "",
+      imt: pb.imt ? Number(pb.imt) : 0,
+    };
+  });
 }
+
 export interface AddBalitaRecordInput {
-  balitaId: string;
+  balitaId: string; // UUID or NIK
   tanggalPemeriksaan: string;
   tinggiBadan: number;
   beratBadan: number;
@@ -372,37 +522,80 @@ export interface AddBalitaRecordInput {
   obatVitamin: string;
 }
 
-// Catatan: IMT TIDAK dikirim dari sini — dihitung otomatis oleh database
-// (generated column), jadi hasilnya lebih bisa diandalkan (satu sumber
-// kebenaran) daripada dihitung ulang di frontend.
 export async function addBalitaRecord(
   input: AddBalitaRecordInput,
 ): Promise<BalitaRecord> {
   const supabase = createClient();
-  const { data, error } = await supabase
-    .from("balita_pemeriksaan")
+  
+  let individuId = input.balitaId;
+  if (input.balitaId.length !== 36) {
+    const { data: ind } = await supabase.from("individu").select("id").eq("nik", input.balitaId).single();
+    if (ind) individuId = ind.id;
+  }
+
+  const { count } = await supabase
+    .from("master_pemeriksaan")
+    .select("*", { count: "exact", head: true })
+    .eq("individu_id", individuId)
+    .eq("jenis_pemeriksaan", "Balita");
+
+  const kunjunganKe = (count || 0) + 1;
+
+  const { data: master, error: masterError } = await supabase
+    .from("master_pemeriksaan")
     .insert({
-      nik: input.balitaId,
+      individu_id: individuId,
       tanggal_pemeriksaan: input.tanggalPemeriksaan,
-      tinggi_badan: input.tinggiBadan,
+      kunjungan_ke: kunjunganKe,
+      jenis_pemeriksaan: "Balita",
+    })
+    .select("id")
+    .single();
+
+  if (masterError) throw new Error(masterError.message);
+
+  const imt = input.tinggiBadan > 0 ? Number((input.beratBadan / Math.pow(input.tinggiBadan / 100, 2)).toFixed(2)) : 0;
+
+  const { data: detail, error: detailError } = await supabase
+    .from("pemeriksaan_balita")
+    .insert({
+      pemeriksaan_id: master.id,
       berat_badan: input.beratBadan,
+      tinggi_badan: input.tinggiBadan,
       lingkar_kepala: input.lingkarKepala,
       lingkar_lengan: input.lingkarLengan,
       imunisasi: input.imunisasi,
       obat_vitamin: input.obatVitamin,
+      imt: imt,
+      catatan: "",
     })
     .select()
     .single();
 
-  if (error) throw new Error(error.message);
-  return mapRowToRecord(data);
+  if (detailError) {
+    await supabase.from("master_pemeriksaan").delete().eq("id", master.id);
+    throw new Error(detailError.message);
+  }
+
+  return {
+    id: master.id,
+    balitaId: individuId,
+    tanggalPemeriksaan: input.tanggalPemeriksaan,
+    tinggiBadan: Number(detail.tinggi_badan),
+    beratBadan: Number(detail.berat_badan),
+    lingkarKepala: Number(detail.lingkar_kepala),
+    lingkarLengan: Number(detail.lingkar_lengan),
+    imunisasi: detail.imunisasi ?? "",
+    obatVitamin: detail.obat_vitamin ?? "",
+    imt: Number(detail.imt),
+  };
 }
 
 // ---------------------------------------------------------------------------
 // EDIT SATU DATA PEMERIKSAAN
 // ---------------------------------------------------------------------------
 export interface UpdateBalitaRecordInput {
-  id: string; // record id
+  id: string; // record id (master_pemeriksaan id)
   tanggalPemeriksaan: string;
   tinggiBadan: number;
   beratBadan: number;
@@ -416,23 +609,54 @@ export async function updateBalitaRecord(
   input: UpdateBalitaRecordInput,
 ): Promise<BalitaRecord> {
   const supabase = createClient();
-  const { data, error } = await supabase
-    .from("balita_pemeriksaan")
+  
+  const { error: masterError } = await supabase
+    .from("master_pemeriksaan")
     .update({
       tanggal_pemeriksaan: input.tanggalPemeriksaan,
-      tinggi_badan: input.tinggiBadan,
+    })
+    .eq("id", input.id);
+
+  if (masterError) throw new Error(masterError.message);
+
+  const imt = input.tinggiBadan > 0 ? Number((input.beratBadan / Math.pow(input.tinggiBadan / 100, 2)).toFixed(2)) : 0;
+
+  const { data: detail, error: detailError } = await supabase
+    .from("pemeriksaan_balita")
+    .update({
       berat_badan: input.beratBadan,
+      tinggi_badan: input.tinggiBadan,
       lingkar_kepala: input.lingkarKepala,
       lingkar_lengan: input.lingkarLengan,
       imunisasi: input.imunisasi,
       obat_vitamin: input.obatVitamin,
+      imt: imt,
     })
-    .eq("id", input.id)
+    .eq("pemeriksaan_id", input.id)
     .select()
     .single();
 
-  if (error) throw new Error(error.message);
-  return mapRowToRecord(data);
+  if (detailError) throw new Error(detailError.message);
+
+  // Get master pemeriksaan to return balitaId
+  const { data: master } = await supabase
+    .from("master_pemeriksaan")
+    .select("individu_id")
+    .eq("id", input.id)
+    .single();
+
+  return {
+    id: input.id,
+    balitaId: master?.individu_id || "",
+    tanggalPemeriksaan: input.tanggalPemeriksaan,
+    tinggiBadan: Number(detail.tinggi_badan),
+    beratBadan: Number(detail.berat_badan),
+    lingkarKepala: Number(detail.lingkar_kepala),
+    lingkarLengan: Number(detail.lingkar_lengan),
+    imunisasi: detail.imunisasi ?? "",
+    obatVitamin: detail.obat_vitamin ?? "",
+    imt: Number(detail.imt),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -441,9 +665,10 @@ export async function updateBalitaRecord(
 export async function deleteBalitaRecord(recordId: string): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase
-    .from("balita_pemeriksaan")
+    .from("master_pemeriksaan")
     .delete()
     .eq("id", recordId);
 
   if (error) throw new Error(error.message);
 }
+

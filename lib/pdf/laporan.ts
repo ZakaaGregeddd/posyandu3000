@@ -208,7 +208,7 @@ export function generateLansiaReport(
     i + 1,
     l.nama,
     l.nik,
-    l.noKk,
+    l.noKk || "-",
     l.jenisKelamin === "L" ? "Laki-laki" : "Perempuan",
     `${calculateAge(l.tanggalLahir).years} tahun`,
     classifyCategory(l.tanggalLahir, "lansia"),

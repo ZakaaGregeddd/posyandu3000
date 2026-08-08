@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
 
 export interface KK {
+  id?: string; // UUID of keluarga
   noKk: string;
   namaKepalaKeluarga: string;
   alamat: string;
@@ -18,7 +19,8 @@ export interface KK {
 }
 
 export interface KKMember {
-  id: string; // = nik
+  id: string; // UUID of individual
+  nik: string | null;
   nama: string;
   role: string; // 'Ayah' | 'Ibu' | 'Balita' | 'Lansia' | 'Ibu Hamil' | 'Dewasa'
   hubunganKeluarga?: string;
@@ -26,28 +28,49 @@ export interface KKMember {
   tempatLahir: string;
   jenisKelamin: "L" | "P";
   statusHidup: "Hidup" | "Meninggal";
-  routePath: string; // link ke halaman detail program terkait, '#' kalau tidak ada
+  routePath: string; // link to detail page
 }
 
-// ---------------------------------------------------------------------------
-// Mapper
-// ---------------------------------------------------------------------------
-function mapRowToKK(row: any): KK {
+// Helper to parse RT/RW from combined alamat field
+function parseAlamat(alamatRaw: string | null) {
+  if (!alamatRaw) return { alamat: "", rt: "", rw: "" };
+  const rtMatch = alamatRaw.match(/\[RT:\s*([^\]]+)\]/);
+  const rwMatch = alamatRaw.match(/\[RW:\s*([^\]]+)\]/);
+  
+  let cleanAlamat = alamatRaw.replace(/\[RT:\s*[^\]]+\]/g, "").replace(/\[RW:\s*[^\]]+\]/g, "").trim();
   return {
-    noKk: row.no_kk,
-    namaKepalaKeluarga: row.nama_ayah || row.nama_ibu || "-",
-    alamat: row.alamat ?? "",
-    rt: row.rt ?? "",
-    rw: row.rw ?? "",
+    alamat: cleanAlamat,
+    rt: rtMatch ? rtMatch[1] : "",
+    rw: rwMatch ? rwMatch[1] : ""
+  };
+}
+
+function formatAlamat(alamat: string, rt: string, rw: string) {
+  return `${alamat} [RT: ${rt || ""}] [RW: ${rw || ""}]`;
+}
+
+function mapRowToKK(row: any): KK {
+  const { alamat, rt, rw } = parseAlamat(row.alamat);
+  const members = row.members || [];
+  const ayah = members.find((m: any) => m.status_keluarga === "Kepala Keluarga" || m.status_keluarga === "Ayah");
+  const ibu = members.find((m: any) => m.status_keluarga === "Istri" || m.status_keluarga === "Ibu");
+
+  return {
+    id: row.id,
+    noKk: row.no_kk || "",
+    namaKepalaKeluarga: ayah?.nama || ibu?.nama || "-",
+    alamat: alamat,
+    rt: rt,
+    rw: rw,
     noTelp: row.no_telp ?? undefined,
-    nikAyah: row.nik_ayah ?? undefined,
-    namaAyah: row.nama_ayah ?? undefined,
-    tanggalLahirAyah: row.tanggal_lahir_ayah ?? undefined,
-    tempatLahirAyah: row.tempat_lahir_ayah ?? undefined,
-    nikIbu: row.nik_ibu ?? undefined,
-    namaIbu: row.nama_ibu ?? undefined,
-    tanggalLahirIbu: row.tanggal_lahir_ibu ?? undefined,
-    tempatLahirIbu: row.tempat_lahir_ibu ?? undefined,
+    nikAyah: ayah?.nik || ayah?.id || undefined,
+    namaAyah: ayah?.nama ?? undefined,
+    tanggalLahirAyah: ayah?.tanggal_lahir ?? undefined,
+    tempatLahirAyah: ayah?.tempat_lahir ?? undefined,
+    nikIbu: ibu?.nik || ibu?.id || undefined,
+    namaIbu: ibu?.nama ?? undefined,
+    tanggalLahirIbu: ibu?.tanggal_lahir ?? undefined,
+    tempatLahirIbu: ibu?.tempat_lahir ?? undefined,
   };
 }
 
@@ -57,137 +80,171 @@ function mapRowToKK(row: any): KK {
 export async function getKKs(): Promise<KK[]> {
   const supabase = createClient();
   const { data, error } = await supabase
-    .from("v_keluarga_lengkap")
-    .select("*")
+    .from("keluarga")
+    .select(`
+      id,
+      no_kk,
+      alamat,
+      no_telp,
+      members:individu(
+        id,
+        nik,
+        nama,
+        tempat_lahir,
+        tanggal_lahir,
+        jenis_kelamin,
+        status_keluarga
+      )
+    `)
     .order("no_kk");
 
   if (error) throw new Error(error.message);
   return (data ?? []).map(mapRowToKK);
 }
 
-export async function getKKByNoKk(noKk: string): Promise<KK | null> {
+export async function getKKByNoKk(noKkOrId: string): Promise<KK | null> {
   const supabase = createClient();
-  const { data, error } = await supabase
-    .from("v_keluarga_lengkap")
-    .select("*")
-    .eq("no_kk", noKk)
-    .maybeSingle();
+  let query = supabase
+    .from("keluarga")
+    .select(`
+      id,
+      no_kk,
+      alamat,
+      no_telp,
+      members:individu(
+        id,
+        nik,
+        nama,
+        tempat_lahir,
+        tanggal_lahir,
+        jenis_kelamin,
+        status_keluarga
+      )
+    `);
 
+  if (noKkOrId.length === 36) {
+    query = query.eq("id", noKkOrId);
+  } else {
+    query = query.eq("no_kk", noKkOrId);
+  }
+
+  const { data, error } = await query.maybeSingle();
   if (error) throw new Error(error.message);
   return data ? mapRowToKK(data) : null;
 }
 
 // ---------------------------------------------------------------------------
-// JUMLAH ANGGOTA per KK (untuk badge "X Anggota" di halaman daftar) -
-// 1 query untuk semua KK sekaligus, jauh lebih efisien dibanding
-// query per-KK satu-satu.
+// JUMLAH ANGGOTA per KK
 // ---------------------------------------------------------------------------
 export async function getAnggotaCountMap(): Promise<Map<string, number>> {
   const supabase = createClient();
-  const { data, error } = await supabase.from("individu").select("no_kk");
+  // Join with keluarga to map count by no_kk
+  const { data, error } = await supabase
+    .from("individu")
+    .select(`
+      id,
+      keluarga:keluarga(no_kk)
+    `);
   if (error) throw new Error(error.message);
 
   const map = new Map<string, number>();
   (data ?? []).forEach((row: any) => {
-    map.set(row.no_kk, (map.get(row.no_kk) ?? 0) + 1);
+    const noKk = row.keluarga?.no_kk;
+    if (noKk) {
+      map.set(noKk, (map.get(noKk) ?? 0) + 1);
+    }
   });
   return map;
 }
 
+// Helper to calculate category/role based on age and gender
+function getKategoriAndRole(tanggalLahirStr: string, jenisKelamin: string, statusKeluarga: string, isHamil: boolean) {
+  const birthDate = new Date(tanggalLahirStr);
+  const today = new Date();
+  let ageYears = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    ageYears--;
+  }
+
+  let role = "Dewasa";
+  if (ageYears <= 5) {
+    role = "Balita";
+  } else if (ageYears >= 60) {
+    role = "Lansia";
+  } else if (isHamil) {
+    role = "Ibu Hamil";
+  } else if (statusKeluarga === "Kepala Keluarga" || statusKeluarga === "Ayah") {
+    role = "Ayah";
+  } else if (statusKeluarga === "Istri" || statusKeluarga === "Ibu") {
+    role = "Ibu";
+  }
+
+  return role;
+}
+
 // ---------------------------------------------------------------------------
-// ANGGOTA KELUARGA (dipakai di halaman detail KK)
-// Menggantikan logic cross-check manual ke balita/ibuHamil/lansia di kode
-// lama - sekarang cukup query v_individu (yang sudah tahu kategori umur
-// masing-masing orang), lalu cek tambahan status hamil aktif.
+// ANGGOTA KELUARGA
 // ---------------------------------------------------------------------------
-export async function getKKMembers(noKk: string): Promise<KKMember[]> {
+export async function getKKMembers(noKkOrId: string): Promise<KKMember[]> {
   const supabase = createClient();
 
+  // Dapatkan keluarga_id (UUID)
+  let kkQuery = supabase.from("keluarga").select("id");
+  if (noKkOrId.length === 36) {
+    kkQuery = kkQuery.eq("id", noKkOrId);
+  } else {
+    kkQuery = kkQuery.eq("no_kk", noKkOrId);
+  }
+  const { data: kkData, error: kkError } = await kkQuery.maybeSingle();
+  if (kkError) throw new Error(kkError.message);
+  if (!kkData) return [];
+
+  const keluargaId = kkData.id;
+
   const { data, error } = await supabase
-    .from("v_individu")
-    .select("*")
-    .eq("no_kk", noKk)
+    .from("individu")
+    .select(`
+      *,
+      master_pemeriksaan(
+        id,
+        jenis_pemeriksaan,
+        pemeriksaan_ibu_hamil(status_kelahiran)
+      )
+    `)
+    .eq("keluarga_id", keluargaId)
     .order("tanggal_lahir");
 
   if (error) throw new Error(error.message);
   const rows = data ?? [];
-  const niks = rows.map((r: any) => r.nik);
-
-  // Episode kehamilan terbaru per NIK (untuk link "Lihat Detail"),
-  // dan set NIK yang SEDANG hamil aktif (belum ada riwayat_kelahiran)
-  // untuk keperluan label role "Ibu Hamil".
-  const latestEpisodeMap = new Map<string, string>();
-  const activeNiks = new Set<string>();
-
-  if (niks.length > 0) {
-    const { data: episodes, error: epError } = await supabase
-      .from("ibu_hamil")
-      .select("id, nik, created_at")
-      .in("nik", niks)
-      .order("created_at", { ascending: false });
-    if (epError) throw new Error(epError.message);
-
-    (episodes ?? []).forEach((ep: any) => {
-      if (!latestEpisodeMap.has(ep.nik)) latestEpisodeMap.set(ep.nik, ep.id);
-    });
-
-    const episodeIds = (episodes ?? []).map((e: any) => e.id);
-    if (episodeIds.length > 0) {
-      const { data: births, error: birthError } = await supabase
-        .from("riwayat_kelahiran")
-        .select("ibu_hamil_id")
-        .in("ibu_hamil_id", episodeIds);
-      if (birthError) throw new Error(birthError.message);
-
-      const birthedIds = new Set(
-        (births ?? []).map((b: any) => b.ibu_hamil_id),
-      );
-      (episodes ?? []).forEach((ep: any) => {
-        if (!birthedIds.has(ep.id)) activeNiks.add(ep.nik);
-      });
-    }
-  }
 
   return rows.map((r: any) => {
-    let role: string;
-    let routePath = "#";
-    const hasEpisode = latestEpisodeMap.has(r.nik);
+    // Check if there is an active pregnancy (has examination of type 'Ibu Hamil' and no status_kelahiran/not birthed yet)
+    const pregExams = r.master_pemeriksaan?.filter((mp: any) => mp.jenis_pemeriksaan === "Ibu Hamil") || [];
+    const isHamil = pregExams.some((mp: any) => {
+      const detail = mp.pemeriksaan_ibu_hamil;
+      return !detail || !detail.status_kelahiran;
+    });
 
-    if (
-      r.kategori === "Bayi (0-12 bulan)" ||
-      r.kategori === "Balita (1-5 tahun)"
-    ) {
-      role = "Balita";
-      routePath = `/dashboard/balita/${r.nik}`;
-    } else if (
-      r.kategori === "Pralansia" ||
-      r.kategori === "Lansia" ||
-      r.kategori === "Lansia Risiko Tinggi"
-    ) {
-      role = "Lansia";
-      routePath = `/dashboard/lansia/${r.nik}`;
-    } else if (activeNiks.has(r.nik)) {
-      role = "Ibu Hamil";
-      routePath = `/dashboard/ibu-hamil/${latestEpisodeMap.get(r.nik)}`;
-    } else if (r.hubungan_keluarga === "Kepala Keluarga") {
-      role = "Ayah";
-      if (hasEpisode)
-        routePath = `/dashboard/ibu-hamil/${latestEpisodeMap.get(r.nik)}`;
-    } else if (r.hubungan_keluarga === "Istri") {
-      role = "Ibu";
-      if (hasEpisode)
-        routePath = `/dashboard/ibu-hamil/${latestEpisodeMap.get(r.nik)}`;
-    } else {
-      role = "Dewasa";
-      if (hasEpisode)
-        routePath = `/dashboard/ibu-hamil/${latestEpisodeMap.get(r.nik)}`;
+    const role = getKategoriAndRole(r.tanggal_lahir, r.jenis_kelamin, r.status_keluarga, isHamil);
+    let routePath = "#";
+
+    if (role === "Balita") {
+      routePath = `/dashboard/balita/${r.id}`;
+    } else if (role === "Lansia") {
+      routePath = `/dashboard/lansia/${r.id}`;
+    } else if (role === "Ibu Hamil") {
+      // Find the examination ID for routing
+      const latestPregExam = pregExams[pregExams.length - 1];
+      routePath = `/dashboard/ibu-hamil/${latestPregExam?.id || r.id}`;
     }
 
     return {
-      id: r.nik,
+      id: r.id, // UUID
+      nik: r.nik,
       nama: r.nama,
       role,
-      hubunganKeluarga: r.hubungan_keluarga ?? undefined,
+      hubunganKeluarga: r.status_keluarga ?? undefined,
       tanggalLahir: r.tanggal_lahir,
       tempatLahir: r.tempat_lahir ?? "",
       jenisKelamin: r.jenis_kelamin,
@@ -198,7 +255,7 @@ export async function getKKMembers(noKk: string): Promise<KKMember[]> {
 }
 
 // ---------------------------------------------------------------------------
-// TAMBAH KK BARU (+ opsional biodata Ayah/Ibu langsung)
+// TAMBAH KK BARU
 // ---------------------------------------------------------------------------
 export interface AddKKInput {
   noKk: string;
@@ -226,9 +283,7 @@ export async function addKK(input: AddKKInput): Promise<KK> {
   const supabase = createClient();
 
   if (!input.namaAyah && !input.namaIbu) {
-    throw new Error(
-      "Harap masukkan setidaknya nama salah satu orang tua (Ayah atau Ibu)",
-    );
+    throw new Error("Harap masukkan setidaknya nama salah satu orang tua (Ayah atau Ibu)");
   }
   if (input.namaAyah && !input.tanggalLahirAyah) {
     throw new Error("Tanggal lahir Ayah wajib diisi kalau nama Ayah diisi");
@@ -237,77 +292,67 @@ export async function addKK(input: AddKKInput): Promise<KK> {
     throw new Error("Tanggal lahir Ibu wajib diisi kalau nama Ibu diisi");
   }
 
+  const combinedAlamat = formatAlamat(input.alamat || "", input.rt || "", input.rw || "");
   const noTelp = input.noTelp || input.telpAyah || input.telpIbu || null;
 
-  // 1. Buat baris keluarga dulu (nik_ayah/nik_ibu masih null)
-  const { error: kkError } = await supabase.from("keluarga").insert({
-    no_kk: input.noKk,
-    alamat: input.alamat || null,
-    rt: input.rt || null,
-    rw: input.rw || null,
-    no_telp: noTelp,
-  });
-  if (kkError) throw new Error(kkError.message);
+  // 1. Buat baris keluarga
+  const { data: kkData, error: kkError } = await supabase
+    .from("keluarga")
+    .insert({
+      no_kk: input.noKk || null,
+      alamat: combinedAlamat,
+      no_telp: noTelp,
+    })
+    .select("id")
+    .single();
 
-  let nikAyah: string | null = null;
-  let nikIbu: string | null = null;
+  if (kkError) throw new Error(kkError.message);
+  const keluargaId = kkData.id;
 
   try {
     if (input.namaAyah) {
-      nikAyah =
-        input.nikAyah && input.nikAyah.length === 16
-          ? input.nikAyah
-          : generateTempNik();
+      const nikAyah = input.nikAyah && input.nikAyah.length === 16 ? input.nikAyah : generateTempNik();
       const { error } = await supabase.from("individu").insert({
+        keluarga_id: keluargaId,
         nik: nikAyah,
-        no_kk: input.noKk,
         nama: input.namaAyah,
         tempat_lahir: input.tempatLahirAyah || null,
         tanggal_lahir: input.tanggalLahirAyah,
         jenis_kelamin: "L",
-        hubungan_keluarga: "Kepala Keluarga",
+        status_keluarga: "Kepala Keluarga",
       });
       if (error) throw new Error(error.message);
     }
 
     if (input.namaIbu) {
-      nikIbu =
-        input.nikIbu && input.nikIbu.length === 16
-          ? input.nikIbu
-          : generateTempNik();
+      const nikIbu = input.nikIbu && input.nikIbu.length === 16 ? input.nikIbu : generateTempNik();
       const { error } = await supabase.from("individu").insert({
+        keluarga_id: keluargaId,
         nik: nikIbu,
-        no_kk: input.noKk,
         nama: input.namaIbu,
         tempat_lahir: input.tempatLahirIbu || null,
         tanggal_lahir: input.tanggalLahirIbu,
         jenis_kelamin: "P",
-        hubungan_keluarga: "Istri",
+        status_keluarga: "Istri",
       });
       if (error) throw new Error(error.message);
     }
-
-    const { error: updateError } = await supabase
-      .from("keluarga")
-      .update({ nik_ayah: nikAyah, nik_ibu: nikIbu })
-      .eq("no_kk", input.noKk);
-    if (updateError) throw new Error(updateError.message);
   } catch (err) {
-    // Rollback manual: hapus keluarga yang terlanjur dibuat kalau langkah berikutnya gagal
-    await supabase.from("keluarga").delete().eq("no_kk", input.noKk);
+    // Rollback keluarga
+    await supabase.from("keluarga").delete().eq("id", keluargaId);
     throw err;
   }
 
-  const kk = await getKKByNoKk(input.noKk);
+  const kk = await getKKByNoKk(keluargaId);
   if (!kk) throw new Error("Data tersimpan tapi gagal dimuat ulang");
   return kk;
 }
 
 // ---------------------------------------------------------------------------
-// EDIT KK (alamat/kontak + biodata Ayah/Ibu - update kalau sudah ada,
-// buat baru & tautkan kalau belum ada sama sekali)
+// EDIT KK
 // ---------------------------------------------------------------------------
 export interface UpdateKKInput {
+  id?: string; // UUID (fallback from noKk)
   noKk: string;
   alamat?: string;
   rt?: string;
@@ -325,8 +370,9 @@ export interface UpdateKKInput {
 
 export async function updateKK(input: UpdateKKInput): Promise<KK> {
   const supabase = createClient();
+  const identifier = input.id || input.noKk;
 
-  const existingKK = await getKKByNoKk(input.noKk);
+  const existingKK = await getKKByNoKk(identifier);
   if (!existingKK) throw new Error("KK tidak ditemukan");
 
   if (input.namaAyah && !input.tanggalLahirAyah) {
@@ -336,21 +382,41 @@ export async function updateKK(input: UpdateKKInput): Promise<KK> {
     throw new Error("Tanggal lahir Ibu wajib diisi kalau nama Ibu diisi");
   }
 
-  // 1. Update data keluarga (alamat, rt, rw, no_telp)
-  const { error: kkError } = await supabase
-    .from("keluarga")
-    .update({
-      alamat: input.alamat || null,
-      rt: input.rt || null,
-      rw: input.rw || null,
-      no_telp: input.noTelp || null,
-    })
-    .eq("no_kk", input.noKk);
+  const combinedAlamat = formatAlamat(input.alamat || "", input.rt || "", input.rw || "");
+
+  // Update data keluarga
+  let kkQuery = supabase.from("keluarga").update({
+    no_kk: input.noKk || null,
+    alamat: combinedAlamat,
+    no_telp: input.noTelp || null,
+  });
+
+  if (existingKK.id) {
+    kkQuery = kkQuery.eq("id", existingKK.id);
+  } else {
+    kkQuery = kkQuery.eq("no_kk", input.noKk);
+  }
+
+  const { error: kkError } = await kkQuery;
   if (kkError) throw new Error(kkError.message);
 
-  // 2. Ayah: update kalau sudah ada individu-nya, buat baru kalau belum
+  const keluargaId = existingKK.id;
+  if (!keluargaId) throw new Error("ID Keluarga tidak valid");
+
+  // Fetch current father/mother in this keluarga
+  const { data: members, error: memError } = await supabase
+    .from("individu")
+    .select("id, status_keluarga")
+    .eq("keluarga_id", keluargaId);
+
+  if (memError) throw new Error(memError.message);
+
+  const existingAyah = members?.find((m: any) => m.status_keluarga === "Kepala Keluarga" || m.status_keluarga === "Ayah");
+  const existingIbu = members?.find((m: any) => m.status_keluarga === "Istri" || m.status_keluarga === "Ibu");
+
+  // Update/insert Ayah
   if (input.namaAyah) {
-    if (existingKK.nikAyah) {
+    if (existingAyah) {
       const { error } = await supabase
         .from("individu")
         .update({
@@ -358,35 +424,26 @@ export async function updateKK(input: UpdateKKInput): Promise<KK> {
           tanggal_lahir: input.tanggalLahirAyah,
           tempat_lahir: input.tempatLahirAyah || null,
         })
-        .eq("nik", existingKK.nikAyah);
+        .eq("id", existingAyah.id);
       if (error) throw new Error(error.message);
     } else {
-      const nikAyah =
-        input.nikAyah && input.nikAyah.length === 16
-          ? input.nikAyah
-          : generateTempNik();
+      const nikAyah = input.nikAyah && input.nikAyah.length === 16 ? input.nikAyah : generateTempNik();
       const { error } = await supabase.from("individu").insert({
+        keluarga_id: keluargaId,
         nik: nikAyah,
-        no_kk: input.noKk,
         nama: input.namaAyah,
         tempat_lahir: input.tempatLahirAyah || null,
         tanggal_lahir: input.tanggalLahirAyah,
         jenis_kelamin: "L",
-        hubungan_keluarga: "Kepala Keluarga",
+        status_keluarga: "Kepala Keluarga",
       });
       if (error) throw new Error(error.message);
-
-      const { error: linkError } = await supabase
-        .from("keluarga")
-        .update({ nik_ayah: nikAyah })
-        .eq("no_kk", input.noKk);
-      if (linkError) throw new Error(linkError.message);
     }
   }
 
-  // 3. Ibu: update kalau sudah ada individu-nya, buat baru kalau belum
+  // Update/insert Ibu
   if (input.namaIbu) {
-    if (existingKK.nikIbu) {
+    if (existingIbu) {
       const { error } = await supabase
         .from("individu")
         .update({
@@ -394,43 +451,40 @@ export async function updateKK(input: UpdateKKInput): Promise<KK> {
           tanggal_lahir: input.tanggalLahirIbu,
           tempat_lahir: input.tempatLahirIbu || null,
         })
-        .eq("nik", existingKK.nikIbu);
+        .eq("id", existingIbu.id);
       if (error) throw new Error(error.message);
     } else {
-      const nikIbu =
-        input.nikIbu && input.nikIbu.length === 16
-          ? input.nikIbu
-          : generateTempNik();
+      const nikIbu = input.nikIbu && input.nikIbu.length === 16 ? input.nikIbu : generateTempNik();
       const { error } = await supabase.from("individu").insert({
+        keluarga_id: keluargaId,
         nik: nikIbu,
-        no_kk: input.noKk,
         nama: input.namaIbu,
         tempat_lahir: input.tempatLahirIbu || null,
         tanggal_lahir: input.tanggalLahirIbu,
         jenis_kelamin: "P",
-        hubungan_keluarga: "Istri",
+        status_keluarga: "Istri",
       });
       if (error) throw new Error(error.message);
-
-      const { error: linkError } = await supabase
-        .from("keluarga")
-        .update({ nik_ibu: nikIbu })
-        .eq("no_kk", input.noKk);
-      if (linkError) throw new Error(linkError.message);
     }
   }
 
-  const updated = await getKKByNoKk(input.noKk);
+  const updated = await getKKByNoKk(keluargaId);
   if (!updated) throw new Error("Gagal memuat ulang data setelah update");
   return updated;
 }
 
 // ---------------------------------------------------------------------------
-// HAPUS KK (cascade menghapus semua individu & seluruh riwayat mereka -
-// balita, ibu hamil, lansia - karena FK on delete cascade dari individu.no_kk)
+// HAPUS KK
 // ---------------------------------------------------------------------------
-export async function deleteKK(noKk: string): Promise<void> {
+export async function deleteKK(noKkOrId: string): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase.from("keluarga").delete().eq("no_kk", noKk);
+  let query = supabase.from("keluarga").delete();
+  if (noKkOrId.length === 36) {
+    query = query.eq("id", noKkOrId);
+  } else {
+    query = query.eq("no_kk", noKkOrId);
+  }
+  const { error } = await query;
   if (error) throw new Error(error.message);
 }
+

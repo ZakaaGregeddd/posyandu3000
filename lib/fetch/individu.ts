@@ -1,7 +1,8 @@
-import { createClient } from "@/lib/supabase/client"; // ASUMSI: sesuaikan path client Supabase kamu
+import { createClient } from "@/lib/supabase/client";
 
 export interface Individu {
-  nik: string;
+  id: string; // UUID
+  nik: string | null;
   noKk: string | null;
   nama: string;
   tempatLahir: string;
@@ -13,7 +14,8 @@ export interface Individu {
 }
 
 export interface UpdateIndividuInput {
-  nik: string;
+  id?: string; // UUID
+  nik?: string; // NIK or UUID (fallback)
   nama: string;
   tempatLahir: string;
   tanggalLahir: string;
@@ -25,6 +27,7 @@ export interface UpdateIndividuInput {
 
 function mapRowToIndividu(row: any): Individu {
   return {
+    id: row.id,
     nik: row.nik,
     noKk: row.no_kk,
     nama: row.nama,
@@ -53,7 +56,10 @@ export async function updateIndividu(
   input: UpdateIndividuInput,
 ): Promise<Individu> {
   const supabase = createClient();
-  const { data, error } = await supabase
+  const identifier = input.id || input.nik;
+  if (!identifier) throw new Error("Identifier (id or NIK) is required for update");
+
+  let query = supabase
     .from("individu")
     .update({
       nama: input.nama,
@@ -65,21 +71,29 @@ export async function updateIndividu(
         input.statusHidup === "Meninggal" ? input.tanggalMeninggal : null,
       keterangan_meninggal:
         input.statusHidup === "Meninggal" ? input.keteranganMeninggal : null,
-    })
-    .eq("nik", input.nik)
-    .select("*")
-    .single();
+    });
+
+  if (identifier.length === 36) {
+    query = query.eq("id", identifier);
+  } else {
+    query = query.eq("nik", identifier);
+  }
+
+  const { data, error } = await query.select("*").single();
 
   if (error) throw new Error(error.message);
   return mapRowToIndividu(data);
 }
 
-// PERHATIAN: pastikan foreign key ke tabel individu (mis. dari tabel bayi,
-// balita, lansia, ibu_hamil, keluarga.nik_ayah/nik_ibu) sudah diset
-// ON DELETE CASCADE atau ditangani manual, kalau tidak query ini akan
-// gagal karena constraint.
 export async function deleteIndividu(nik: string): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase.from("individu").delete().eq("nik", nik);
+  let query = supabase.from("individu").delete();
+  if (nik.length === 36) {
+    query = query.eq("id", nik);
+  } else {
+    query = query.eq("nik", nik);
+  }
+  const { error } = await query;
   if (error) throw new Error(error.message);
 }
+
