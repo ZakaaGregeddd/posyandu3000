@@ -385,7 +385,7 @@ export default function KKDetailPage({
                       </div>
                     )}
                     <MemberActionsMenu
-                      disableDelete={isKepalaKeluarga}
+                      disableDelete={false}
                       onEdit={() => {
                         setEditingMember(m);
                         setIsEditMemberOpen(true);

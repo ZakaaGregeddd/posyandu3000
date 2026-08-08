@@ -65,6 +65,7 @@ export async function updateIndividu(
   let query = supabase
     .from("individu")
     .update({
+      nik: input.nik,
       nama: input.nama,
       tempat_lahir: input.tempatLahir,
       tanggal_lahir: input.tanggalLahir,
