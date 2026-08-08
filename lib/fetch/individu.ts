@@ -11,6 +11,7 @@ export interface Individu {
   statusHidup: "Hidup" | "Meninggal";
   tanggalMeninggal?: string | null;
   keteranganMeninggal?: string | null;
+  noTelp?: string | null;
 }
 
 export interface UpdateIndividuInput {
@@ -23,6 +24,7 @@ export interface UpdateIndividuInput {
   statusHidup: "Hidup" | "Meninggal";
   tanggalMeninggal?: string | null;
   keteranganMeninggal?: string | null;
+  noTelp?: string | null;
 }
 
 function mapRowToIndividu(row: any): Individu {
@@ -37,6 +39,7 @@ function mapRowToIndividu(row: any): Individu {
     statusHidup: row.status_hidup,
     tanggalMeninggal: row.tanggal_meninggal,
     keteranganMeninggal: row.keterangan_meninggal,
+    noTelp: row.no_telp,
   };
 }
 
@@ -71,6 +74,7 @@ export async function updateIndividu(
         input.statusHidup === "Meninggal" ? input.tanggalMeninggal : null,
       keterangan_meninggal:
         input.statusHidup === "Meninggal" ? input.keteranganMeninggal : null,
+      no_telp: input.noTelp,
     });
 
   if (identifier.length === 36) {

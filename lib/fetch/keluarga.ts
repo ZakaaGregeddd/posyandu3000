@@ -257,6 +257,16 @@ export async function getKKMembers(noKkOrId: string): Promise<KKMember[]> {
 // ---------------------------------------------------------------------------
 // TAMBAH KK BARU
 // ---------------------------------------------------------------------------
+export interface AnggotaKeluargaInput {
+  nik?: string;
+  nama: string;
+  tempatLahir?: string;
+  tanggalLahir: string;
+  jenisKelamin: "L" | "P";
+  statusKeluarga: string;
+  noTelp?: string;
+}
+
 export interface AddKKInput {
   noKk: string;
   alamat?: string;
@@ -273,6 +283,7 @@ export interface AddKKInput {
   tanggalLahirIbu?: string;
   tempatLahirIbu?: string;
   telpIbu?: string;
+  anggotaKeluarga?: AnggotaKeluargaInput[];
 }
 
 function generateTempNik(): string {
@@ -336,6 +347,23 @@ export async function addKK(input: AddKKInput): Promise<KK> {
         status_keluarga: "Istri",
       });
       if (error) throw new Error(error.message);
+    }
+
+    if (input.anggotaKeluarga && input.anggotaKeluarga.length > 0) {
+      for (const member of input.anggotaKeluarga) {
+        const memberNik = member.nik && member.nik.length === 16 ? member.nik : generateTempNik();
+        const { error } = await supabase.from("individu").insert({
+          keluarga_id: keluargaId,
+          nik: memberNik,
+          nama: member.nama,
+          tempat_lahir: member.tempatLahir || null,
+          tanggal_lahir: member.tanggalLahir,
+          jenis_kelamin: member.jenisKelamin,
+          status_keluarga: member.statusKeluarga,
+          no_telp: member.noTelp || null,
+        });
+        if (error) throw new Error(error.message);
+      }
     }
   } catch (err) {
     // Rollback keluarga

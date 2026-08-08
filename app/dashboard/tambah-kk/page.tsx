@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { addKK } from "@/lib/fetch/keluarga";
+import { addKK, AnggotaKeluargaInput } from "@/lib/fetch/keluarga";
 import {
   Dialog,
   DialogHeader,
@@ -39,6 +39,24 @@ export default function TambahKKPage() {
   const [tanggalLahirIbu, setTanggalLahirIbu] = useState("");
   const [tempatLahirIbu, setTempatLahirIbu] = useState("");
   const [telpIbu, setTelpIbu] = useState("");
+  const [anggotaList, setAnggotaList] = useState<AnggotaKeluargaInput[]>([]);
+
+  const addAnggota = () => {
+    setAnggotaList((prev) => [
+      ...prev,
+      { nama: "", tanggalLahir: "", tempatLahir: "", jenisKelamin: "L", statusKeluarga: "Anak", nik: "", noTelp: "" },
+    ]);
+  };
+
+  const removeAnggota = (index: number) => {
+    setAnggotaList((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateAnggota = (index: number, field: keyof AnggotaKeluargaInput, value: string) => {
+    setAnggotaList((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+    );
+  };
 
   // UI States
   const [loading, setLoading] = useState(false);
@@ -86,6 +104,23 @@ export default function TambahKKPage() {
       return;
     }
 
+    // Validate members
+    for (let i = 0; i < anggotaList.length; i++) {
+      const m = anggotaList[i];
+      if (!m.nama) {
+        setError(`Nama Lengkap anggota ke-${i + 1} wajib diisi`);
+        return;
+      }
+      if (!m.tanggalLahir) {
+        setError(`Tanggal Lahir anggota ke-${i + 1} wajib diisi`);
+        return;
+      }
+      if (m.nik && m.nik.length !== 16) {
+        setError(`NIK anggota ke-${i + 1} harus tepat 16 digit`);
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -105,6 +140,7 @@ export default function TambahKKPage() {
         tempatLahirIbu: tempatLahirIbu || undefined,
         telpIbu: telpIbu || undefined,
         noTelp: phone || telpAyah || telpIbu || undefined,
+        anggotaKeluarga: anggotaList.length > 0 ? anggotaList : undefined,
       });
 
       setLoading(false);
@@ -368,6 +404,119 @@ export default function TambahKKPage() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Section: Anggota Keluarga */}
+          <div className="space-y-4">
+            <div className="border-b border-outline-variant/30 pb-2 flex justify-between items-center">
+              <h3 className="font-headline text-md font-bold text-tertiary flex items-center gap-2">
+                <span className="material-symbols-outlined">group</span>
+                Anggota Keluarga Lainnya
+              </h3>
+              <Button
+                type="button"
+                onClick={addAnggota}
+                variant="outline"
+                className="flex items-center gap-2 border-primary text-primary hover:bg-primary/5 font-semibold text-xs"
+              >
+                <span className="material-symbols-outlined text-sm">add</span>
+                <span>Tambah Anggota Keluarga</span>
+              </Button>
+            </div>
+
+            {anggotaList.length === 0 ? (
+              <div className="text-center py-6 border border-dashed border-outline-variant/60 rounded-xl bg-slate-50/30">
+                <p className="text-sm text-on-surface-variant">Belum ada anggota keluarga tambahan. Klik tombol di atas untuk menambahkan.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {anggotaList.map((m, idx) => (
+                  <div key={idx} className="space-y-4 p-4 rounded-xl bg-slate-50/50 border border-outline-variant/30 relative">
+                    <div className="flex justify-between items-center border-b border-outline-variant/10 pb-2">
+                      <h4 className="text-sm font-bold text-primary flex items-center gap-2">
+                        <span className="material-symbols-outlined text-sky-500">person</span>
+                        Anggota Keluarga #{idx + 1}
+                      </h4>
+                      <Button
+                        type="button"
+                        onClick={() => removeAnggota(idx)}
+                        variant="ghost"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 h-8 w-8 rounded-full"
+                      >
+                        <span className="material-symbols-outlined text-sm">delete</span>
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <Label>NIK Anggota</Label>
+                          <span className={`text-[10px] font-semibold ${m.nik?.length === 16 ? "text-teal-600 font-bold" : "text-on-surface-variant/80"}`}>
+                            {m.nik?.length || 0} / 16 digit
+                          </span>
+                        </div>
+                        <Input
+                          placeholder="16 digit NIK"
+                          value={m.nik || ""}
+                          onChange={(e) => updateAnggota(idx, "nik", e.target.value.replace(/[^0-9]/g, "").substring(0, 16))}
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label>Nama Lengkap *</Label>
+                        <Input
+                          placeholder="Nama Lengkap"
+                          value={m.nama}
+                          onChange={(e) => updateAnggota(idx, "nama", e.target.value)}
+                          required
+                        />
+                      </div>
+
+
+                      <div className="space-y-1.5">
+                        <Label>Tempat Lahir</Label>
+                        <Input
+                          placeholder="Kota Lahir"
+                          value={m.tempatLahir || ""}
+                          onChange={(e) => updateAnggota(idx, "tempatLahir", e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label>Tanggal Lahir *</Label>
+                        <Input
+                          type="date"
+                          value={m.tanggalLahir}
+                          onChange={(e) => updateAnggota(idx, "tanggalLahir", e.target.value)}
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label>Jenis Kelamin *</Label>
+                        <select
+                          value={m.jenisKelamin}
+                          onChange={(e) => updateAnggota(idx, "jenisKelamin", e.target.value as "L" | "P")}
+                          className="w-full h-10 rounded-lg border border-outline-variant/40 px-3 text-sm bg-white"
+                        >
+                          <option value="L">Laki-laki</option>
+                          <option value="P">Perempuan</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label>No. Telp / WA Anggota</Label>
+                        <Input
+                          placeholder="No. Telp"
+                          value={m.noTelp || ""}
+                          onChange={(e) => updateAnggota(idx, "noTelp", e.target.value.replace(/[^0-9]/g, "").substring(0, 13))}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Section 3: Alamat detail */}
