@@ -269,14 +269,21 @@ export default function KKDetailPage({
         </div>
 
         {members.length === 0 ? (
-          <div className="bg-surface-container-lowest p-12 rounded-xl text-center border border-outline-variant/20 text-on-surface-variant">
-            <span className="material-symbols-outlined text-5xl text-on-surface-variant/40 mb-2">
+          <div className="bg-surface-container-lowest p-12 rounded-xl text-center border border-outline-variant/20 text-on-surface-variant flex flex-col items-center justify-center gap-4">
+            <span className="material-symbols-outlined text-5xl text-on-surface-variant/40">
               person_off
             </span>
-            <p>Belum ada anggota keluarga terdaftar.</p>
+            <p className="text-sm">Belum ada anggota keluarga terdaftar.</p>
+            <Button
+              onClick={() => router.push(`/dashboard/tambah-kk?prefillKk=${kk.noKk}`)}
+              className="flex items-center gap-2 font-semibold"
+            >
+              <span className="material-symbols-outlined text-sm">add</span>
+              <span>Tambah Anggota</span>
+            </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="flex gap-6 overflow-x-auto pb-4 pt-2 -mx-4 px-4 scrollbar-thin scrollbar-thumb-outline-variant/30 scrollbar-track-transparent">
             {members.map((m) => {
               const age = calculateAge(m.tanggalLahir);
 
@@ -324,15 +331,10 @@ export default function KKDetailPage({
                         ? "Sedang Hamil"
                         : "Sehat";
 
-              // Kepala keluarga tidak bisa dihapus lewat sini karena akan
-              // mempengaruhi struktur KK (namaKepalaKeluarga, referensi
-              // ayah/ibu). Kalau memang perlu, arahkan ke flow edit KK.
-              const isKepalaKeluarga = m.hubunganKeluarga === "Kepala Keluarga";
-
               return (
                 <div
                   key={m.id}
-                  className={`bg-surface-container-lowest p-6 rounded-xl shadow-[0px_4px_20px_rgba(0,0,0,0.04)] border-b-4 ${borderCol} flex flex-col justify-between hover:shadow-lg transition-all hover:-translate-y-1 group ${
+                  className={`flex-shrink-0 w-[290px] md:w-[325px] bg-surface-container-lowest p-6 rounded-xl shadow-[0px_4px_20px_rgba(0,0,0,0.04)] border-b-4 ${borderCol} flex flex-col justify-between hover:shadow-lg transition-all hover:-translate-y-1 group ${
                     m.statusHidup === "Meninggal" ? "opacity-70" : ""
                   }`}
                 >
@@ -400,6 +402,24 @@ export default function KKDetailPage({
                 </div>
               );
             })}
+
+            {/* Tambah Anggota Card */}
+            <button
+              onClick={() => router.push(`/dashboard/tambah-kk?prefillKk=${kk.noKk}`)}
+              className="flex-shrink-0 w-[290px] md:w-[325px] bg-surface-container-lowest border-2 border-dashed border-outline-variant/40 hover:border-primary/50 hover:bg-slate-50/50 rounded-xl p-6 flex flex-col items-center justify-center gap-3 transition-all hover:shadow-md cursor-pointer group"
+            >
+              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-on-surface-variant group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                <span className="material-symbols-outlined text-2xl font-bold">add</span>
+              </div>
+              <div className="text-center">
+                <h5 className="font-headline font-bold text-sm text-on-surface">
+                  Tambah Anggota Keluarga
+                </h5>
+                <p className="text-[11px] text-on-surface-variant mt-1">
+                  Tambahkan anggota baru ke KK {kk.noKk}
+                </p>
+              </div>
+            </button>
           </div>
         )}
       </div>

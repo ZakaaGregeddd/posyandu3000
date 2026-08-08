@@ -43,6 +43,7 @@ function TambahKKForm() {
             setTanggalLahirIbu(kk.tanggalLahirIbu || "");
             setTempatLahirIbu(kk.tempatLahirIbu || "");
             setTelpIbu(kk.telpIbu || "");
+            setAnggotaList(kk.anggotaKeluarga || []);
           }
         } catch (err) {
           console.error("Failed to prefill KK data", err);
@@ -470,14 +471,16 @@ function TambahKKForm() {
                         <span className="material-symbols-outlined text-sky-500">person</span>
                         Anggota Keluarga #{idx + 1}
                       </h4>
-                      <Button
-                        type="button"
-                        onClick={() => removeAnggota(idx)}
-                        variant="ghost"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 h-8 w-8 rounded-full"
-                      >
-                        <span className="material-symbols-outlined text-sm">delete</span>
-                      </Button>
+                      {!m.isExisting && (
+                        <Button
+                          type="button"
+                          onClick={() => removeAnggota(idx)}
+                          variant="ghost"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 h-8 w-8 rounded-full"
+                        >
+                          <span className="material-symbols-outlined text-sm">delete</span>
+                        </Button>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

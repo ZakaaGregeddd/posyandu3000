@@ -18,6 +18,7 @@ export interface KK {
   tanggalLahirIbu?: string;
   tempatLahirIbu?: string;
   telpIbu?: string;
+  anggotaKeluarga?: AnggotaKeluargaInput[];
 }
 
 export interface KKMember {
@@ -57,6 +58,22 @@ function mapRowToKK(row: any): KK {
   const ayah = members.find((m: any) => m.status_keluarga === "Kepala Keluarga" || m.status_keluarga === "Ayah");
   const ibu = members.find((m: any) => m.status_keluarga === "Istri" || m.status_keluarga === "Ibu");
 
+  const otherMembers = members.filter((m: any) => 
+    m.id !== ayah?.id && m.id !== ibu?.id
+  );
+
+  const anggotaKeluargaMapped: AnggotaKeluargaInput[] = otherMembers.map((m: any) => ({
+    id: m.id,
+    nik: m.nik || undefined,
+    nama: m.nama,
+    tempatLahir: m.tempat_lahir || undefined,
+    tanggalLahir: m.tanggal_lahir,
+    jenisKelamin: m.jenis_kelamin,
+    statusKeluarga: m.status_keluarga || "Anak",
+    noTelp: m.no_telp || undefined,
+    isExisting: true,
+  }));
+
   return {
     id: row.id,
     noKk: row.no_kk || "",
@@ -75,6 +92,7 @@ function mapRowToKK(row: any): KK {
     tanggalLahirIbu: ibu?.tanggal_lahir ?? undefined,
     tempatLahirIbu: ibu?.tempat_lahir ?? undefined,
     telpIbu: ibu?.no_telp ?? undefined,
+    anggotaKeluarga: anggotaKeluargaMapped,
   };
 }
 
@@ -264,6 +282,7 @@ export async function getKKMembers(noKkOrId: string): Promise<KKMember[]> {
 // TAMBAH KK BARU
 // ---------------------------------------------------------------------------
 export interface AnggotaKeluargaInput {
+  id?: string;
   nik?: string;
   nama: string;
   tempatLahir?: string;
@@ -271,6 +290,7 @@ export interface AnggotaKeluargaInput {
   jenisKelamin: "L" | "P";
   statusKeluarga: string;
   noTelp?: string;
+  isExisting?: boolean;
 }
 
 export interface AddKKInput {
@@ -430,6 +450,23 @@ export async function addKK(input: AddKKInput): Promise<KK> {
 
     if (input.anggotaKeluarga && input.anggotaKeluarga.length > 0) {
       for (const member of input.anggotaKeluarga) {
+        if (member.id || member.isExisting) {
+          // Update pre-existing member details
+          const { error } = await supabase
+            .from("individu")
+            .update({
+              nik: member.nik || null,
+              nama: member.nama,
+              tempat_lahir: member.tempatLahir || null,
+              tanggal_lahir: member.tanggalLahir,
+              jenis_kelamin: member.jenisKelamin,
+              status_keluarga: member.statusKeluarga,
+              no_telp: member.noTelp || null,
+            })
+            .eq("id", member.id);
+          if (error) throw new Error(error.message);
+          continue;
+        }
         const memberNik = member.nik && member.nik.length === 16 ? member.nik : generateTempNik();
         const { error } = await supabase.from("individu").insert({
           keluarga_id: keluargaId,
