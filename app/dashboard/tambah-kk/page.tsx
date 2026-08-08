@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -16,8 +16,41 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-export default function TambahKKPage() {
+function TambahKKForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const prefillKk = searchParams.get("prefillKk");
+
+  React.useEffect(() => {
+    if (prefillKk) {
+      const loadKkData = async () => {
+        try {
+          const { getKKByNoKk } = await import("@/lib/fetch/keluarga");
+          const kk = await getKKByNoKk(prefillKk);
+          if (kk) {
+            setNoKk(kk.noKk);
+            setPhone(kk.noTelp || "");
+            setAlamat(kk.alamat);
+            setRt(kk.rt);
+            setRw(kk.rw);
+            setNikAyah(kk.nikAyah || "");
+            setNamaAyah(kk.namaAyah || "");
+            setTanggalLahirAyah(kk.tanggalLahirAyah || "");
+            setTempatLahirAyah(kk.tempatLahirAyah || "");
+            setTelpAyah(kk.telpAyah || "");
+            setNikIbu(kk.nikIbu || "");
+            setNamaIbu(kk.namaIbu || "");
+            setTanggalLahirIbu(kk.tanggalLahirIbu || "");
+            setTempatLahirIbu(kk.tempatLahirIbu || "");
+            setTelpIbu(kk.telpIbu || "");
+          }
+        } catch (err) {
+          console.error("Failed to prefill KK data", err);
+        }
+      };
+      loadKkData();
+    }
+  }, [prefillKk]);
 
   // Form States
   const [noKk, setNoKk] = useState("");
@@ -623,5 +656,13 @@ export default function TambahKKPage() {
         </DialogFooter>
       </Dialog>
     </div>
+  );
+}
+
+export default function TambahKKPage() {
+  return (
+    <React.Suspense fallback={<div className="text-center py-12 text-sm text-on-surface-variant">Memuat form...</div>}>
+      <TambahKKForm />
+    </React.Suspense>
   );
 }

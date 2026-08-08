@@ -12,10 +12,12 @@ export interface KK {
   namaAyah?: string;
   tanggalLahirAyah?: string;
   tempatLahirAyah?: string;
+  telpAyah?: string;
   nikIbu?: string;
   namaIbu?: string;
   tanggalLahirIbu?: string;
   tempatLahirIbu?: string;
+  telpIbu?: string;
 }
 
 export interface KKMember {
@@ -67,10 +69,12 @@ function mapRowToKK(row: any): KK {
     namaAyah: ayah?.nama ?? undefined,
     tanggalLahirAyah: ayah?.tanggal_lahir ?? undefined,
     tempatLahirAyah: ayah?.tempat_lahir ?? undefined,
+    telpAyah: ayah?.no_telp ?? undefined,
     nikIbu: ibu?.nik || ibu?.id || undefined,
     namaIbu: ibu?.nama ?? undefined,
     tanggalLahirIbu: ibu?.tanggal_lahir ?? undefined,
     tempatLahirIbu: ibu?.tempat_lahir ?? undefined,
+    telpIbu: ibu?.no_telp ?? undefined,
   };
 }
 
@@ -93,7 +97,8 @@ export async function getKKs(): Promise<KK[]> {
         tempat_lahir,
         tanggal_lahir,
         jenis_kelamin,
-        status_keluarga
+        status_keluarga,
+        no_telp
       )
     `)
     .order("no_kk");
@@ -118,7 +123,8 @@ export async function getKKByNoKk(noKkOrId: string): Promise<KK | null> {
         tempat_lahir,
         tanggal_lahir,
         jenis_kelamin,
-        status_keluarga
+        status_keluarga,
+        no_telp
       )
     `);
 
@@ -306,47 +312,120 @@ export async function addKK(input: AddKKInput): Promise<KK> {
   const combinedAlamat = formatAlamat(input.alamat || "", input.rt || "", input.rw || "");
   const noTelp = input.noTelp || input.telpAyah || input.telpIbu || null;
 
-  // 1. Buat baris keluarga
-  const { data: kkData, error: kkError } = await supabase
-    .from("keluarga")
-    .insert({
-      no_kk: input.noKk || null,
-      alamat: combinedAlamat,
-      no_telp: noTelp,
-    })
-    .select("id")
-    .single();
+  // Check if KK already exists in the database
+  let keluargaId = null;
+  let isExisting = false;
+  if (input.noKk) {
+    const { data: existingKK } = await supabase
+      .from("keluarga")
+      .select("id")
+      .eq("no_kk", input.noKk)
+      .maybeSingle();
+    if (existingKK) {
+      keluargaId = existingKK.id;
+      isExisting = true;
+    }
+  }
 
-  if (kkError) throw new Error(kkError.message);
-  const keluargaId = kkData.id;
+  if (isExisting && keluargaId) {
+    // Update address and phone for existing KK if needed
+    const { error: kkUpdateError } = await supabase
+      .from("keluarga")
+      .update({
+        alamat: combinedAlamat,
+        no_telp: noTelp,
+      })
+      .eq("id", keluargaId);
+    if (kkUpdateError) throw new Error(kkUpdateError.message);
+  } else {
+    // Create new keluarga row
+    const { data: kkData, error: kkError } = await supabase
+      .from("keluarga")
+      .insert({
+        no_kk: input.noKk || null,
+        alamat: combinedAlamat,
+        no_telp: noTelp,
+      })
+      .select("id")
+      .single();
+
+    if (kkError) throw new Error(kkError.message);
+    keluargaId = kkData.id;
+  }
 
   try {
     if (input.namaAyah) {
+      // Check if Father exists
+      const { data: existingAyah } = await supabase
+        .from("individu")
+        .select("id")
+        .eq("keluarga_id", keluargaId)
+        .or("status_keluarga.eq.Kepala Keluarga,status_keluarga.eq.Ayah")
+        .maybeSingle();
+
       const nikAyah = input.nikAyah && input.nikAyah.length === 16 ? input.nikAyah : generateTempNik();
-      const { error } = await supabase.from("individu").insert({
-        keluarga_id: keluargaId,
-        nik: nikAyah,
-        nama: input.namaAyah,
-        tempat_lahir: input.tempatLahirAyah || null,
-        tanggal_lahir: input.tanggalLahirAyah,
-        jenis_kelamin: "L",
-        status_keluarga: "Kepala Keluarga",
-      });
-      if (error) throw new Error(error.message);
+      if (existingAyah) {
+        const { error } = await supabase
+          .from("individu")
+          .update({
+            nik: input.nikAyah || undefined,
+            nama: input.namaAyah,
+            tempat_lahir: input.tempatLahirAyah || null,
+            tanggal_lahir: input.tanggalLahirAyah,
+            no_telp: input.telpAyah || null,
+          })
+          .eq("id", existingAyah.id);
+        if (error) throw new Error(error.message);
+      } else {
+        const { error } = await supabase.from("individu").insert({
+          keluarga_id: keluargaId,
+          nik: nikAyah,
+          nama: input.namaAyah,
+          tempat_lahir: input.tempatLahirAyah || null,
+          tanggal_lahir: input.tanggalLahirAyah,
+          jenis_kelamin: "L",
+          status_keluarga: "Kepala Keluarga",
+          no_telp: input.telpAyah || null,
+        });
+        if (error) throw new Error(error.message);
+      }
     }
 
     if (input.namaIbu) {
+      // Check if Mother exists
+      const { data: existingIbu } = await supabase
+        .from("individu")
+        .select("id")
+        .eq("keluarga_id", keluargaId)
+        .or("status_keluarga.eq.Istri,status_keluarga.eq.Ibu")
+        .maybeSingle();
+
       const nikIbu = input.nikIbu && input.nikIbu.length === 16 ? input.nikIbu : generateTempNik();
-      const { error } = await supabase.from("individu").insert({
-        keluarga_id: keluargaId,
-        nik: nikIbu,
-        nama: input.namaIbu,
-        tempat_lahir: input.tempatLahirIbu || null,
-        tanggal_lahir: input.tanggalLahirIbu,
-        jenis_kelamin: "P",
-        status_keluarga: "Istri",
-      });
-      if (error) throw new Error(error.message);
+      if (existingIbu) {
+        const { error } = await supabase
+          .from("individu")
+          .update({
+            nik: input.nikIbu || undefined,
+            nama: input.namaIbu,
+            tempat_lahir: input.tempatLahirIbu || null,
+            tanggal_lahir: input.tanggalLahirIbu,
+            no_telp: input.telpIbu || null,
+          })
+          .eq("id", existingIbu.id);
+        if (error) throw new Error(error.message);
+      } else {
+        const { error } = await supabase.from("individu").insert({
+          keluarga_id: keluargaId,
+          nik: nikIbu,
+          nama: input.namaIbu,
+          tempat_lahir: input.tempatLahirIbu || null,
+          tanggal_lahir: input.tanggalLahirIbu,
+          jenis_kelamin: "P",
+          status_keluarga: "Istri",
+          no_telp: input.telpIbu || null,
+        });
+        if (error) throw new Error(error.message);
+      }
     }
 
     if (input.anggotaKeluarga && input.anggotaKeluarga.length > 0) {
@@ -366,8 +445,10 @@ export async function addKK(input: AddKKInput): Promise<KK> {
       }
     }
   } catch (err) {
-    // Rollback keluarga
-    await supabase.from("keluarga").delete().eq("id", keluargaId);
+    // Rollback keluarga ONLY if we created it new
+    if (!isExisting) {
+      await supabase.from("keluarga").delete().eq("id", keluargaId);
+    }
     throw err;
   }
 
@@ -390,10 +471,12 @@ export interface UpdateKKInput {
   namaAyah?: string;
   tanggalLahirAyah?: string;
   tempatLahirAyah?: string;
+  telpAyah?: string;
   nikIbu?: string;
   namaIbu?: string;
   tanggalLahirIbu?: string;
   tempatLahirIbu?: string;
+  telpIbu?: string;
 }
 
 export async function updateKK(input: UpdateKKInput): Promise<KK> {
@@ -451,6 +534,7 @@ export async function updateKK(input: UpdateKKInput): Promise<KK> {
           nama: input.namaAyah,
           tanggal_lahir: input.tanggalLahirAyah,
           tempat_lahir: input.tempatLahirAyah || null,
+          no_telp: input.telpAyah || null,
         })
         .eq("id", existingAyah.id);
       if (error) throw new Error(error.message);
@@ -464,6 +548,7 @@ export async function updateKK(input: UpdateKKInput): Promise<KK> {
         tanggal_lahir: input.tanggalLahirAyah,
         jenis_kelamin: "L",
         status_keluarga: "Kepala Keluarga",
+        no_telp: input.telpAyah || null,
       });
       if (error) throw new Error(error.message);
     }
@@ -478,6 +563,7 @@ export async function updateKK(input: UpdateKKInput): Promise<KK> {
           nama: input.namaIbu,
           tanggal_lahir: input.tanggalLahirIbu,
           tempat_lahir: input.tempatLahirIbu || null,
+          no_telp: input.telpIbu || null,
         })
         .eq("id", existingIbu.id);
       if (error) throw new Error(error.message);
@@ -491,6 +577,7 @@ export async function updateKK(input: UpdateKKInput): Promise<KK> {
         tanggal_lahir: input.tanggalLahirIbu,
         jenis_kelamin: "P",
         status_keluarga: "Istri",
+        no_telp: input.telpIbu || null,
       });
       if (error) throw new Error(error.message);
     }
