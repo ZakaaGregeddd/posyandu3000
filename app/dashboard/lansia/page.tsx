@@ -11,14 +11,12 @@ import {
   Lansia,
 } from "@/lib/fetch/lansia";
 import { calculateAge, classifyCategory } from "@/lib/utils/health";
-import TambahLansiaModal from "@/components/lansia/TambahLansiaModal";
 
 export default function LansiaPage() {
   const [lansias, setLansias] = useState<Lansia[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [diseaseStats, setDiseaseStats] = useState<
     { name: string; count: number }[]
   >([]);
@@ -103,13 +101,14 @@ export default function LansiaPage() {
             Lansia.
           </p>
         </div>
-        <Button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 cursor-pointer"
-        >
-          <span className="material-symbols-outlined">add_circle</span>
-          <span>Tambah Data Lansia</span>
-        </Button>
+        <Link href="/dashboard/tambah-kk" passHref>
+          <Button
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            <span className="material-symbols-outlined">add_circle</span>
+            <span>Tambah Data Lansia</span>
+          </Button>
+        </Link>
       </div>
 
       {loadError && (
@@ -325,8 +324,6 @@ export default function LansiaPage() {
         </Card>
       )}
 
-      {/* Add Lansia Modal */}
-      <TambahLansiaModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }

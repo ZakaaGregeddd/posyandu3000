@@ -125,10 +125,10 @@ export function generateBalitaReport(
   const doc = new jsPDF({ orientation: "landscape" });
   addHeader(doc, `Rekap Data Balita & Bayi (${data.length} anggota)`);
 
-  const latestByNik = latestPerKey(allRecords, (r) => r.balitaId);
+  const latestById = latestPerKey(allRecords, (r) => r.balitaId);
 
   const rows = data.map((b, i) => {
-    const latest = latestByNik.get(b.nik);
+    const latest = latestById.get(b.id);
     return [
       i + 1,
       b.nama,
@@ -168,13 +168,13 @@ export function generateBalitaReport(
   });
 
   // ---- Bagian Riwayat Pemeriksaan per Balita ----
-  const recordsByNik = groupByKey(allRecords, (r) => r.balitaId);
+  const recordsById = groupByKey(allRecords, (r) => r.balitaId);
   const balitaWithRecords = data
-    .filter((b) => (recordsByNik.get(b.nik)?.length ?? 0) > 0)
+    .filter((b) => (recordsById.get(b.id)?.length ?? 0) > 0)
     .map((b) => ({
       nama: b.nama,
       nik: b.nik,
-      records: recordsByNik.get(b.nik) ?? [],
+      records: recordsById.get(b.id) ?? [],
     }));
 
   addRiwayatPemeriksaanSection(
@@ -238,13 +238,13 @@ export function generateLansiaReport(
   });
 
   // ---- Bagian Riwayat Pemeriksaan per Lansia ----
-  const recordsByNik = groupByKey(allRecords, (r) => r.lansiaId);
+  const recordsById = groupByKey(allRecords, (r) => r.lansiaId);
   const lansiaWithRecords = data
-    .filter((l) => (recordsByNik.get(l.nik)?.length ?? 0) > 0)
+    .filter((l) => (recordsById.get(l.id)?.length ?? 0) > 0)
     .map((l) => ({
       nama: l.nama,
       nik: l.nik,
-      records: recordsByNik.get(l.nik) ?? [],
+      records: recordsById.get(l.id) ?? [],
     }));
 
   addRiwayatPemeriksaanSection(
