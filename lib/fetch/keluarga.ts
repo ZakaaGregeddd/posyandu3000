@@ -13,11 +13,13 @@ export interface KK {
   tanggalLahirAyah?: string;
   tempatLahirAyah?: string;
   telpAyah?: string;
+  golonganDarahAyah?: string;
   nikIbu?: string;
   namaIbu?: string;
   tanggalLahirIbu?: string;
   tempatLahirIbu?: string;
   telpIbu?: string;
+  golonganDarahIbu?: string;
   anggotaKeluarga?: AnggotaKeluargaInput[];
 }
 
@@ -71,6 +73,7 @@ function mapRowToKK(row: any): KK {
     jenisKelamin: m.jenis_kelamin,
     statusKeluarga: m.status_keluarga || "Anak",
     noTelp: m.no_telp || undefined,
+    golonganDarah: m.golongan_darah || undefined,
     isExisting: true,
   }));
 
@@ -87,11 +90,13 @@ function mapRowToKK(row: any): KK {
     tanggalLahirAyah: ayah?.tanggal_lahir ?? undefined,
     tempatLahirAyah: ayah?.tempat_lahir ?? undefined,
     telpAyah: ayah?.no_telp ?? undefined,
+    golonganDarahAyah: ayah?.golongan_darah ?? undefined,
     nikIbu: ibu?.nik || ibu?.id || undefined,
     namaIbu: ibu?.nama ?? undefined,
     tanggalLahirIbu: ibu?.tanggal_lahir ?? undefined,
     tempatLahirIbu: ibu?.tempat_lahir ?? undefined,
     telpIbu: ibu?.no_telp ?? undefined,
+    golonganDarahIbu: ibu?.golongan_darah ?? undefined,
     anggotaKeluarga: anggotaKeluargaMapped,
   };
 }
@@ -116,7 +121,8 @@ export async function getKKs(): Promise<KK[]> {
         tanggal_lahir,
         jenis_kelamin,
         status_keluarga,
-        no_telp
+        no_telp,
+        golongan_darah
       )
     `)
     .order("no_kk");
@@ -142,7 +148,8 @@ export async function getKKByNoKk(noKkOrId: string): Promise<KK | null> {
         tanggal_lahir,
         jenis_kelamin,
         status_keluarga,
-        no_telp
+        no_telp,
+        golongan_darah
       )
     `);
 
@@ -290,6 +297,7 @@ export interface AnggotaKeluargaInput {
   jenisKelamin: "L" | "P";
   statusKeluarga: string;
   noTelp?: string;
+  golonganDarah?: string;
   isExisting?: boolean;
 }
 
@@ -304,11 +312,13 @@ export interface AddKKInput {
   tanggalLahirAyah?: string;
   tempatLahirAyah?: string;
   telpAyah?: string;
+  golonganDarahAyah?: string;
   nikIbu?: string;
   namaIbu?: string;
   tanggalLahirIbu?: string;
   tempatLahirIbu?: string;
   telpIbu?: string;
+  golonganDarahIbu?: string;
   anggotaKeluarga?: AnggotaKeluargaInput[];
 }
 
@@ -393,6 +403,7 @@ export async function addKK(input: AddKKInput): Promise<KK> {
             tempat_lahir: input.tempatLahirAyah || null,
             tanggal_lahir: input.tanggalLahirAyah,
             no_telp: input.telpAyah || null,
+            golongan_darah: input.golonganDarahAyah || null,
           })
           .eq("id", existingAyah.id);
         if (error) throw new Error(error.message);
@@ -406,6 +417,7 @@ export async function addKK(input: AddKKInput): Promise<KK> {
           jenis_kelamin: "L",
           status_keluarga: "Kepala Keluarga",
           no_telp: input.telpAyah || null,
+          golongan_darah: input.golonganDarahAyah || null,
         });
         if (error) throw new Error(error.message);
       }
@@ -430,6 +442,7 @@ export async function addKK(input: AddKKInput): Promise<KK> {
             tempat_lahir: input.tempatLahirIbu || null,
             tanggal_lahir: input.tanggalLahirIbu,
             no_telp: input.telpIbu || null,
+            golongan_darah: input.golonganDarahIbu || null,
           })
           .eq("id", existingIbu.id);
         if (error) throw new Error(error.message);
@@ -443,6 +456,7 @@ export async function addKK(input: AddKKInput): Promise<KK> {
           jenis_kelamin: "P",
           status_keluarga: "Istri",
           no_telp: input.telpIbu || null,
+          golongan_darah: input.golonganDarahIbu || null,
         });
         if (error) throw new Error(error.message);
       }
@@ -462,6 +476,7 @@ export async function addKK(input: AddKKInput): Promise<KK> {
               jenis_kelamin: member.jenisKelamin,
               status_keluarga: member.statusKeluarga,
               no_telp: member.noTelp || null,
+              golongan_darah: member.golonganDarah || null,
             })
             .eq("id", member.id);
           if (error) throw new Error(error.message);
@@ -477,6 +492,7 @@ export async function addKK(input: AddKKInput): Promise<KK> {
           jenis_kelamin: member.jenisKelamin,
           status_keluarga: member.statusKeluarga,
           no_telp: member.noTelp || null,
+          golongan_darah: member.golonganDarah || null,
         });
         if (error) throw new Error(error.message);
       }
@@ -509,11 +525,13 @@ export interface UpdateKKInput {
   tanggalLahirAyah?: string;
   tempatLahirAyah?: string;
   telpAyah?: string;
+  golonganDarahAyah?: string;
   nikIbu?: string;
   namaIbu?: string;
   tanggalLahirIbu?: string;
   tempatLahirIbu?: string;
   telpIbu?: string;
+  golonganDarahIbu?: string;
 }
 
 export async function updateKK(input: UpdateKKInput): Promise<KK> {
@@ -572,6 +590,7 @@ export async function updateKK(input: UpdateKKInput): Promise<KK> {
           tanggal_lahir: input.tanggalLahirAyah,
           tempat_lahir: input.tempatLahirAyah || null,
           no_telp: input.telpAyah || null,
+          golongan_darah: input.golonganDarahAyah || null,
         })
         .eq("id", existingAyah.id);
       if (error) throw new Error(error.message);
@@ -586,6 +605,7 @@ export async function updateKK(input: UpdateKKInput): Promise<KK> {
         jenis_kelamin: "L",
         status_keluarga: "Kepala Keluarga",
         no_telp: input.telpAyah || null,
+        golongan_darah: input.golonganDarahAyah || null,
       });
       if (error) throw new Error(error.message);
     }
@@ -601,6 +621,7 @@ export async function updateKK(input: UpdateKKInput): Promise<KK> {
           tanggal_lahir: input.tanggalLahirIbu,
           tempat_lahir: input.tempatLahirIbu || null,
           no_telp: input.telpIbu || null,
+          golongan_darah: input.golonganDarahIbu || null,
         })
         .eq("id", existingIbu.id);
       if (error) throw new Error(error.message);
@@ -615,6 +636,7 @@ export async function updateKK(input: UpdateKKInput): Promise<KK> {
         jenis_kelamin: "P",
         status_keluarga: "Istri",
         no_telp: input.telpIbu || null,
+        golongan_darah: input.golonganDarahIbu || null,
       });
       if (error) throw new Error(error.message);
     }

@@ -18,6 +18,7 @@ export default function BalitaPage() {
 
   const [currentPageBayi, setCurrentPageBayi] = useState(1);
   const [currentPageBalita, setCurrentPageBalita] = useState(1);
+  const [currentPageNonAktif, setCurrentPageNonAktif] = useState(1);
 
   useEffect(() => {
     let active = true;
@@ -46,6 +47,7 @@ export default function BalitaPage() {
   useEffect(() => {
     setCurrentPageBayi(1);
     setCurrentPageBalita(1);
+    setCurrentPageNonAktif(1);
   }, [searchTerm]);
 
   const filteredBalitas = balitas.filter(
@@ -58,7 +60,12 @@ export default function BalitaPage() {
     (b) => calculateAge(b.tanggalLahir).totalMonths <= 12,
   );
   const balitaList = filteredBalitas.filter(
-    (b) => calculateAge(b.tanggalLahir).totalMonths > 12,
+    (b) =>
+      calculateAge(b.tanggalLahir).totalMonths > 12 &&
+      calculateAge(b.tanggalLahir).years < 5,
+  );
+  const nonAktifList = filteredBalitas.filter(
+    (b) => calculateAge(b.tanggalLahir).years >= 5 && b.hasPemeriksaan,
   );
 
   return (
@@ -127,6 +134,17 @@ export default function BalitaPage() {
             onPageChange={setCurrentPageBalita}
             showLockBadge
             emptyMessage="Tidak ada data balita ditemukan"
+          />
+
+          <BalitaTable
+            title="Data Member Non-aktif"
+            icon="no_accounts"
+            iconBgClass="bg-error-container"
+            list={nonAktifList}
+            currentPage={currentPageNonAktif}
+            onPageChange={setCurrentPageNonAktif}
+            showLockBadge
+            emptyMessage="Tidak ada data member non-aktif ditemukan"
           />
         </>
       )}

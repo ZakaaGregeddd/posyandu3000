@@ -20,6 +20,7 @@ export interface Balita {
   usiaKehamilanSaatLahirWeeks?: number;
   ttlAyah?: string;
   ttlIbu?: string;
+  hasPemeriksaan?: boolean;
 }
 
 export interface BalitaRecord {
@@ -55,7 +56,7 @@ function parseAlamat(alamatRaw: string | null) {
   if (!alamatRaw) return { alamat: "", rt: "", rw: "" };
   const rtMatch = alamatRaw.match(/\[RT:\s*([^\]]+)\]/);
   const rwMatch = alamatRaw.match(/\[RW:\s*([^\]]+)\]/);
-  let cleanAlamat = alamatRaw.replace(/\[RT:\s*[^\]]+\]/g, "").replace(/\[RW:\s*[^\]]+\]/g, "").trim();
+  const cleanAlamat = alamatRaw.replace(/\[RT:\s*[^\]]+\]/g, "").replace(/\[RW:\s*[^\]]+\]/g, "").trim();
   return {
     alamat: cleanAlamat,
     rt: rtMatch ? rtMatch[1] : "",
@@ -87,6 +88,7 @@ function mapRowToBalita(row: any): Balita {
     usiaKehamilanSaatLahirWeeks: birthRecord?.usia_kehamilan_minggu ?? undefined,
     ttlAyah: ayah ? `${ayah.tempat_lahir ?? ""}, ${ayah.tanggal_lahir ?? ""}` : undefined,
     ttlIbu: ibu ? `${ibu.tempat_lahir ?? ""}, ${ibu.tanggal_lahir ?? ""}` : undefined,
+    hasPemeriksaan: row.master_pemeriksaan ? row.master_pemeriksaan.length > 0 : false,
   };
 }
 
@@ -116,6 +118,9 @@ export async function getBalitas(): Promise<Balita[]> {
       kelahiran:kelahiran!kelahiran_individu_anak_id_fkey(
         cara_kelahiran,
         usia_kehamilan_minggu
+      ),
+      master_pemeriksaan(
+        id
       )
     `);
 
@@ -158,6 +163,9 @@ export async function getBalitaById(id: string): Promise<Balita | null> {
       kelahiran:kelahiran!kelahiran_individu_anak_id_fkey(
         cara_kelahiran,
         usia_kehamilan_minggu
+      ),
+      master_pemeriksaan(
+        id
       )
     `);
 

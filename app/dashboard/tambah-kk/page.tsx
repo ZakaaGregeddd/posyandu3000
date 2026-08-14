@@ -38,11 +38,13 @@ function TambahKKForm() {
             setTanggalLahirAyah(kk.tanggalLahirAyah || "");
             setTempatLahirAyah(kk.tempatLahirAyah || "");
             setTelpAyah(kk.telpAyah || "");
+            setGolonganDarahAyah(kk.golonganDarahAyah || "");
             setNikIbu(kk.nikIbu || "");
             setNamaIbu(kk.namaIbu || "");
             setTanggalLahirIbu(kk.tanggalLahirIbu || "");
             setTempatLahirIbu(kk.tempatLahirIbu || "");
             setTelpIbu(kk.telpIbu || "");
+            setGolonganDarahIbu(kk.golonganDarahIbu || "");
             setAnggotaList(kk.anggotaKeluarga || []);
           }
         } catch (err) {
@@ -66,6 +68,7 @@ function TambahKKForm() {
   const [tanggalLahirAyah, setTanggalLahirAyah] = useState("");
   const [tempatLahirAyah, setTempatLahirAyah] = useState("");
   const [telpAyah, setTelpAyah] = useState("");
+  const [golonganDarahAyah, setGolonganDarahAyah] = useState("");
 
   // Mother States
   const [nikIbu, setNikIbu] = useState("");
@@ -73,12 +76,13 @@ function TambahKKForm() {
   const [tanggalLahirIbu, setTanggalLahirIbu] = useState("");
   const [tempatLahirIbu, setTempatLahirIbu] = useState("");
   const [telpIbu, setTelpIbu] = useState("");
+  const [golonganDarahIbu, setGolonganDarahIbu] = useState("");
   const [anggotaList, setAnggotaList] = useState<AnggotaKeluargaInput[]>([]);
 
   const addAnggota = () => {
     setAnggotaList((prev) => [
       ...prev,
-      { nama: "", tanggalLahir: "", tempatLahir: "", jenisKelamin: "L", statusKeluarga: "Anak", nik: "", noTelp: "" },
+      { nama: "", tanggalLahir: "", tempatLahir: "", jenisKelamin: "L", statusKeluarga: "Anak", nik: "", noTelp: "", golonganDarah: "" },
     ]);
   };
 
@@ -168,11 +172,13 @@ function TambahKKForm() {
         tanggalLahirAyah: tanggalLahirAyah || undefined,
         tempatLahirAyah: tempatLahirAyah || undefined,
         telpAyah: telpAyah || undefined,
+        golonganDarahAyah: golonganDarahAyah || undefined,
         nikIbu: nikIbu || undefined,
         namaIbu: namaIbu || undefined,
         tanggalLahirIbu: tanggalLahirIbu || undefined,
         tempatLahirIbu: tempatLahirIbu || undefined,
         telpIbu: telpIbu || undefined,
+        golonganDarahIbu: golonganDarahIbu || undefined,
         noTelp: phone || telpAyah || telpIbu || undefined,
         anggotaKeluarga: anggotaList.length > 0 ? anggotaList : undefined,
       });
@@ -357,6 +363,22 @@ function TambahKKForm() {
                       }
                     />
                   </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="gol_darah_ayah">Golongan Darah Ayah</Label>
+                    <select
+                      id="gol_darah_ayah"
+                      value={golonganDarahAyah}
+                      onChange={(e) => setGolonganDarahAyah(e.target.value)}
+                      className="w-full h-10 rounded-lg border border-outline-variant/40 px-3 text-sm bg-white"
+                    >
+                      <option value="">Pilih Golongan Darah</option>
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="AB">AB</option>
+                      <option value="O">O</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -434,6 +456,22 @@ function TambahKKForm() {
                         handleNumericInput(e.target.value, 13, setTelpIbu)
                       }
                     />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="gol_darah_ibu">Golongan Darah Ibu</Label>
+                    <select
+                      id="gol_darah_ibu"
+                      value={golonganDarahIbu}
+                      onChange={(e) => setGolonganDarahIbu(e.target.value)}
+                      className="w-full h-10 rounded-lg border border-outline-variant/40 px-3 text-sm bg-white"
+                    >
+                      <option value="">Pilih Golongan Darah</option>
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="AB">AB</option>
+                      <option value="O">O</option>
+                    </select>
                   </div>
                 </div>
               </div>
@@ -546,6 +584,21 @@ function TambahKKForm() {
                           value={m.noTelp || ""}
                           onChange={(e) => updateAnggota(idx, "noTelp", e.target.value.replace(/[^0-9]/g, "").substring(0, 13))}
                         />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label>Golongan Darah</Label>
+                        <select
+                          value={m.golonganDarah || ""}
+                          onChange={(e) => updateAnggota(idx, "golonganDarah", e.target.value)}
+                          className="w-full h-10 rounded-lg border border-outline-variant/40 px-3 text-sm bg-white"
+                        >
+                          <option value="">Pilih Golongan Darah</option>
+                          <option value="A">A</option>
+                          <option value="B">B</option>
+                          <option value="AB">AB</option>
+                          <option value="O">O</option>
+                        </select>
                       </div>
                     </div>
                   </div>
