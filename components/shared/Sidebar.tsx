@@ -57,9 +57,8 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
   return (
     <aside
-      className={`fixed left-0 top-0 h-full w-[280px] bg-secondary-container flex flex-col py-8 border-r border-outline-variant z-40 shadow-sm transition-transform duration-300 ease-in-out lg:translate-x-0 ${
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      }`}
+      className={`fixed left-0 top-0 h-full w-[280px] bg-secondary-container flex flex-col py-8 border-r border-outline-variant z-40 shadow-sm transition-transform duration-300 ease-in-out lg:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
     >
       <div className="px-6 mb-8 flex justify-between items-center">
         <div className="flex items-center gap-3">
@@ -98,11 +97,10 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`${
-                isActive
+              className={`${isActive
                   ? "bg-tertiary text-white shadow-sm"
                   : "text-on-secondary-container hover:bg-white/60 hover:text-tertiary hover:translate-x-1.5"
-              } mx-4 px-4 py-3 flex items-center gap-3 rounded-full transition-all duration-200 font-medium text-sm`}
+                } mx-4 px-4 py-3 flex items-center gap-3 rounded-full transition-all duration-200 font-medium text-sm`}
             >
               <span className="material-symbols-outlined">{item.icon}</span>
               <span>{item.name}</span>

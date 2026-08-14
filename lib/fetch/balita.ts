@@ -526,7 +526,7 @@ export async function addBalitaRecord(
   input: AddBalitaRecordInput,
 ): Promise<BalitaRecord> {
   const supabase = createClient();
-  
+
   let individuId = input.balitaId;
   if (input.balitaId.length !== 36) {
     const { data: ind } = await supabase.from("individu").select("id").eq("nik", input.balitaId).single();
@@ -609,7 +609,7 @@ export async function updateBalitaRecord(
   input: UpdateBalitaRecordInput,
 ): Promise<BalitaRecord> {
   const supabase = createClient();
-  
+
   const { error: masterError } = await supabase
     .from("master_pemeriksaan")
     .update({
