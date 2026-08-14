@@ -4,34 +4,21 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogContent,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
   getLansias,
-  addLansia,
-  getKKs,
   getDiseaseStats,
   Lansia,
-  KKOption,
 } from "@/lib/fetch/lansia";
 import { calculateAge, classifyCategory } from "@/lib/utils/health";
+import TambahLansiaModal from "@/components/lansia/TambahLansiaModal";
 
 export default function LansiaPage() {
   const [lansias, setLansias] = useState<Lansia[]>([]);
-  const [kks, setKks] = useState<KKOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [diseaseStats, setDiseaseStats] = useState<
     { name: string; count: number }[]
   >([]);
@@ -39,18 +26,6 @@ export default function LansiaPage() {
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 3;
-
-  // Form states
-  const [noKk, setNoKk] = useState("");
-  const [nama, setNama] = useState("");
-  const [nik, setNik] = useState("");
-  const [jenisKelamin, setJenisKelamin] = useState<"L" | "P">("L");
-  const [tempatLahir, setTempatLahir] = useState("");
-  const [tanggalLahir, setTanggalLahir] = useState("");
-  const [namaIbu, setNamaIbu] = useState("");
-  const [namaAyah, setNamaAyah] = useState("");
-  const [golonganDarah, setGolonganDarah] = useState("");
-  const [formError, setFormError] = useState("");
 
   // Active Category Tab
   const [activeTab, setActiveTab] = useState<
@@ -62,14 +37,12 @@ export default function LansiaPage() {
 
     (async () => {
       try {
-        const [list, kkData, stats] = await Promise.all([
+        const [list, stats] = await Promise.all([
           getLansias(),
-          getKKs(),
           getDiseaseStats(),
         ]);
         if (!active) return;
         setLansias(list);
-        setKks(kkData);
         setDiseaseStats(stats);
       } catch (err: any) {
         if (active) setLoadError(err.message || "Gagal memuat data");
@@ -86,61 +59,6 @@ export default function LansiaPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, activeTab]);
-
-  const handleRegisterLansia = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError("");
-
-    if (!nama || !tempatLahir || !tanggalLahir || !namaIbu || !namaAyah) {
-      setFormError("Semua field wajib diisi");
-      return;
-    }
-
-    if (nik && nik.length !== 16) {
-      setFormError(
-        "NIK harus tepat 16 digit (atau kosongkan dulu jika belum ada)",
-      );
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const newLansia = await addLansia({
-        nama,
-        tempatLahir,
-        tanggalLahir,
-        jenisKelamin,
-        noKk: noKk || undefined,
-        namaIbu,
-        namaAyah,
-        statusHidup: "Hidup",
-        nik: nik || undefined,
-        golonganDarah: golonganDarah || undefined,
-      });
-
-      setLansias((prev) => [...prev, newLansia]);
-      setIsModalOpen(false);
-      resetForm();
-    } catch (err: any) {
-      setFormError(err.message || "Gagal mendaftarkan lansia");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const resetForm = () => {
-    setNoKk("");
-    setNama("");
-    setNik("");
-    setJenisKelamin("L");
-    setTempatLahir("");
-    setTanggalLahir("");
-    setNamaIbu("");
-    setNamaAyah("");
-    setGolonganDarah("");
-    setFormError("");
-  };
 
   // Filters
   const filteredLansias = lansias.filter((l) => {
@@ -408,165 +326,7 @@ export default function LansiaPage() {
       )}
 
       {/* Add Lansia Modal */}
-      <Dialog isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <form
-          onSubmit={handleRegisterLansia}
-          className="flex flex-col max-h-[85vh] overflow-hidden"
-        >
-          <DialogHeader>
-            <DialogTitle>Tambah Data Lansia</DialogTitle>
-            <DialogDescription>
-              Masukkan identitas warga pralansia atau lansia untuk rekam medis
-              berkala.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogContent className="space-y-4">
-            {formError && (
-              <div className="text-xs font-semibold text-red-700 bg-red-50 p-2.5 rounded-lg border border-red-200">
-                {formError}
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="modal_no_kk">Nomor KK (Opsional)</Label>
-                <select
-                  id="modal_no_kk"
-                  value={noKk}
-                  onChange={(e) => setNoKk(e.target.value)}
-                  className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
-                >
-                  <option value="">-- Tanpa KK / Berdiri Sendiri --</option>
-                  {kks.map((k) => (
-                    <option key={k.noKk} value={k.noKk}>
-                      {k.noKk}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="modal_nik">NIK</Label>
-                <Input
-                  id="modal_nik"
-                  placeholder="Masukkan 16 digit NIK"
-                  value={nik}
-                  onChange={(e) => {
-                    const clean = e.target.value
-                      .replace(/[^0-9]/g, "")
-                      .substring(0, 16);
-                    setNik(clean);
-                  }}
-                />
-              </div>
-
-              <div className="md:col-span-2 space-y-1.5">
-                <Label htmlFor="modal_nama">Nama Lengkap</Label>
-                <Input
-                  id="modal_nama"
-                  placeholder="Nama Lengkap Lansia"
-                  value={nama}
-                  onChange={(e) => setNama(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="modal_jk">Jenis Kelamin</Label>
-                <select
-                  id="modal_jk"
-                  value={jenisKelamin}
-                  onChange={(e) => setJenisKelamin(e.target.value as "L" | "P")}
-                  className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
-                >
-                  <option value="L">Laki-laki</option>
-                  <option value="P">Perempuan</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="modal_golongan_darah">
-                  Golongan Darah (Opsional)
-                </Label>
-                <select
-                  id="modal_golongan_darah"
-                  value={golonganDarah}
-                  onChange={(e) => setGolonganDarah(e.target.value)}
-                  className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-on-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 transition-all"
-                >
-                  <option value="">-- Belum diketahui --</option>
-                  <option value="A">A</option>
-                  <option value="B">B</option>
-                  <option value="AB">AB</option>
-                  <option value="O">O</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="modal_tempat">Tempat Lahir</Label>
-                <Input
-                  id="modal_tempat"
-                  placeholder="Kota / Kabupaten"
-                  value={tempatLahir}
-                  onChange={(e) => setTempatLahir(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="modal_tanggal">Tanggal Lahir</Label>
-                <Input
-                  id="modal_tanggal"
-                  type="date"
-                  value={tanggalLahir}
-                  max={new Date().toISOString().split("T")[0]}
-                  onChange={(e) => setTanggalLahir(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="modal_ayah">Nama Ayah</Label>
-                <Input
-                  id="modal_ayah"
-                  placeholder="Nama Lengkap Ayah (boleh tidak terdaftar di sistem)"
-                  value={namaAyah}
-                  onChange={(e) => setNamaAyah(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="md:col-span-2 space-y-1.5">
-                <Label htmlFor="modal_ibu">Nama Ibu</Label>
-                <Input
-                  id="modal_ibu"
-                  placeholder="Nama Lengkap Ibu (boleh tidak terdaftar di sistem)"
-                  value={namaIbu}
-                  onChange={(e) => setNamaIbu(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-          </DialogContent>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setIsModalOpen(false);
-                resetForm();
-              }}
-            >
-              Batal
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Menyimpan..." : "Simpan Data"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </Dialog>
+      <TambahLansiaModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }
