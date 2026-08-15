@@ -18,6 +18,14 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     email: string | null;
   } | null>(null);
 
+  // Initialize dropdown open state if pathname starts with any of the sub-routes
+  const isPemeriksaanActive =
+    pathname.startsWith("/dashboard/balita") ||
+    pathname.startsWith("/dashboard/ibu-hamil") ||
+    pathname.startsWith("/dashboard/lansia");
+
+  const [isPemeriksaanOpen, setIsPemeriksaanOpen] = React.useState(isPemeriksaanActive);
+
   React.useEffect(() => {
     let isMounted = true;
     getCurrentUser().then((u) => {
@@ -27,6 +35,12 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       isMounted = false;
     };
   }, []);
+
+  React.useEffect(() => {
+    if (isPemeriksaanActive) {
+      setIsPemeriksaanOpen(true);
+    }
+  }, [pathname, isPemeriksaanActive]);
 
   const handleLogout = async () => {
     try {
@@ -49,10 +63,12 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       href: "/dashboard/kk-terdaftar",
       icon: "folder_shared",
     },
+  ];
+
+  const pemeriksaanItems = [
     { name: "Balita", href: "/dashboard/balita", icon: "child_care" },
     { name: "Ibu Hamil", href: "/dashboard/ibu-hamil", icon: "pregnant_woman" },
     { name: "Lansia", href: "/dashboard/lansia", icon: "elderly" },
-    { name: "Laporan PDF", href: "/dashboard/laporan", icon: "picture_as_pdf" },
   ];
 
   return (
@@ -86,9 +102,8 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         </button>
       </div>
 
-      <nav className="flex-1 flex flex-col gap-2">
+      <nav className="flex-1 flex flex-col gap-2 overflow-y-auto">
         {navItems.map((item) => {
-          // Check if item.href matches pathname (with prefix check for subroutes)
           const isActive =
             pathname === item.href ||
             (item.href !== "/dashboard" && pathname.startsWith(item.href));
@@ -98,8 +113,8 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
               key={item.href}
               href={item.href}
               className={`${isActive
-                  ? "bg-tertiary text-white shadow-sm"
-                  : "text-on-secondary-container hover:bg-white/60 hover:text-tertiary hover:translate-x-1.5"
+                ? "bg-tertiary text-white shadow-sm"
+                : "text-on-secondary-container hover:bg-white/60 hover:text-tertiary hover:translate-x-1.5"
                 } mx-4 px-4 py-3 flex items-center gap-3 rounded-full transition-all duration-200 font-medium text-sm`}
             >
               <span className="material-symbols-outlined">{item.icon}</span>
@@ -107,9 +122,64 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             </Link>
           );
         })}
+
+        {/* Dropdown Data Pemeriksaan */}
+        <div className="flex flex-col">
+          <button
+            onClick={() => setIsPemeriksaanOpen(!isPemeriksaanOpen)}
+            className={`${isPemeriksaanActive
+              ? "text-tertiary font-semibold"
+              : "text-on-secondary-container hover:bg-white/60 hover:text-tertiary"
+              } mx-4 px-4 py-3 flex items-center justify-between rounded-full transition-all duration-200 font-medium text-sm cursor-pointer`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined">medical_information</span>
+              <span>Data Pemeriksaan</span>
+            </div>
+            <span className={`material-symbols-outlined transition-transform duration-200 ${isPemeriksaanOpen ? "rotate-180" : ""}`}>
+              expand_more
+            </span>
+          </button>
+
+          {/* Collapsible content */}
+          <div
+            className={`transition-all duration-300 ease-in-out overflow-hidden flex flex-col gap-1 mt-1 ${isPemeriksaanOpen ? "max-h-[200px] opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+              }`}
+          >
+            {pemeriksaanItems.map((item) => {
+              const isActive =
+                pathname === item.href || pathname.startsWith(item.href);
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`${isActive
+                    ? "bg-tertiary text-white shadow-sm"
+                    : "text-on-secondary-container/80 hover:bg-white/60 hover:text-tertiary hover:translate-x-1.5"
+                    } ml-10 mr-4 px-4 py-2.5 flex items-center gap-3 rounded-full transition-all duration-200 font-medium text-sm`}
+                >
+                  <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
+                  <span>{item.name}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+
+        <Link
+          href="/dashboard/laporan"
+          className={`${pathname.startsWith("/dashboard/laporan")
+            ? "bg-tertiary text-white shadow-sm"
+            : "text-on-secondary-container hover:bg-white/60 hover:text-tertiary hover:translate-x-1.5"
+            } mx-4 px-4 py-3 flex items-center gap-3 rounded-full transition-all duration-200 font-medium text-sm`}
+        >
+          <span className="material-symbols-outlined">picture_as_pdf</span>
+          <span>Laporan PDF</span>
+        </Link>
       </nav>
 
-      <div className="mt-auto px-4 flex flex-col gap-2">
+      <div className="mt-auto px-4 flex flex-col gap-2 pt-4 border-t border-outline-variant/10">
         <div className="mx-4 p-3 bg-white/60 rounded-xl flex items-center gap-3 border border-outline-variant/30">
           <div className="w-8 h-8 rounded-full bg-tertiary text-white flex items-center justify-center font-bold text-sm">
             {user?.id ? user.id.charAt(0).toUpperCase() : "K"}
@@ -135,3 +205,4 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     </aside>
   );
 }
+
