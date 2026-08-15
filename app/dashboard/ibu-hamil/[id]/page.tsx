@@ -46,6 +46,14 @@ import {
 } from "@/lib/fetch/ibuHamil";
 import { calculateAge } from "@/lib/utils/health";
 
+interface ConfirmState {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  variant?: "danger" | "default";
+  onConfirm: () => void;
+}
+
 export default function IbuHamilDetailPage({
   params,
 }: {
@@ -62,6 +70,8 @@ export default function IbuHamilDetailPage({
   const [isBirthModalOpen, setIsBirthModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSubmittingExam, setIsSubmittingExam] = useState(false);
+  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  const [isConfirmSubmitting, setIsConfirmSubmitting] = useState(false);
   const [isSubmittingBirth, setIsSubmittingBirth] = useState(false);
 
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
@@ -323,18 +333,26 @@ export default function IbuHamilDetailPage({
     }
   };
 
-  const handleDeleteRecord = async (recordId: string) => {
-    const confirmDel = window.confirm(
-      "Apakah Anda yakin ingin menghapus data pemeriksaan ini?",
-    );
-    if (!confirmDel) return;
-
-    try {
-      await deleteIbuHamilRecord(recordId);
-      setRecords((prev) => prev.filter((r) => r.id !== recordId));
-    } catch (err: any) {
-      alert(err.message || "Gagal menghapus data pemeriksaan");
-    }
+  const handleDeleteRecord = (recordId: string) => {
+    setConfirmState({
+      title: "Hapus Data Pemeriksaan",
+      message:
+        "Apakah Anda yakin ingin menghapus data pemeriksaan ini? Tindakan ini tidak dapat dibatalkan.",
+      confirmLabel: "Hapus",
+      variant: "danger",
+      onConfirm: async () => {
+        setIsConfirmSubmitting(true);
+        try {
+          await deleteIbuHamilRecord(recordId);
+          setRecords((prev) => prev.filter((r) => r.id !== recordId));
+          setConfirmState(null);
+        } catch (err: any) {
+          alert(err.message || "Gagal menghapus data pemeriksaan");
+        } finally {
+          setIsConfirmSubmitting(false);
+        }
+      },
+    });
   };
 
   const handleAddBirth = async (e: React.FormEvent) => {
@@ -1200,6 +1218,43 @@ export default function IbuHamilDetailPage({
             </Button>
           </DialogFooter>
         </div>
+      </Dialog>
+
+      {/* Modal Konfirmasi generik (pengganti window.confirm) */}
+      <Dialog isOpen={!!confirmState} onClose={() => setConfirmState(null)}>
+        {confirmState && (
+          <div className="flex flex-col max-h-[85vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle>{confirmState.title}</DialogTitle>
+              <DialogDescription>{confirmState.message}</DialogDescription>
+            </DialogHeader>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setConfirmState(null)}
+                disabled={isConfirmSubmitting}
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                onClick={confirmState.onConfirm}
+                disabled={isConfirmSubmitting}
+                className={
+                  confirmState.variant === "danger"
+                    ? "bg-red-600 hover:bg-red-700"
+                    : ""
+                }
+              >
+                {isConfirmSubmitting
+                  ? "Memproses..."
+                  : confirmState.confirmLabel || "Konfirmasi"}
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
       </Dialog>
     </div>
   );
