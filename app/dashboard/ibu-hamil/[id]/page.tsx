@@ -22,7 +22,6 @@ import {
   DialogContent,
   DialogFooter,
 } from "@/components/ui/dialog";
-import StatusHidupControl from "@/components/shared/StatusHidupControl";
 import {
   LineChart,
   Line,
@@ -64,6 +63,14 @@ export default function IbuHamilDetailPage({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSubmittingExam, setIsSubmittingExam] = useState(false);
   const [isSubmittingBirth, setIsSubmittingBirth] = useState(false);
+
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [statusTarget, setStatusTarget] = useState<StatusHidup>("Meninggal");
+  const [statusTanggalMeninggal, setStatusTanggalMeninggal] = useState(
+    new Date().toISOString().split("T")[0],
+  );
+  const [statusPenyebab, setStatusPenyebab] = useState("");
+  const [isSubmittingStatus, setIsSubmittingStatus] = useState(false);
 
   // Exam Form States (dipakai untuk TAMBAH & EDIT - lihat editingRecordId)
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
@@ -184,6 +191,38 @@ export default function IbuHamilDetailPage({
       setBumil(updated);
     } catch (err: any) {
       alert(err.message || "Gagal mengubah status");
+    }
+  };
+
+  const openStatusModal = () => {
+    setIsMenuOpen(false);
+    const target: StatusHidup =
+      bumil.statusHidup === "Hidup" ? "Meninggal" : "Hidup";
+    setStatusTarget(target);
+    setStatusTanggalMeninggal(
+      bumil.tanggalMeninggal
+        ? bumil.tanggalMeninggal.split("T")[0]
+        : new Date().toISOString().split("T")[0],
+    );
+    setStatusPenyebab(bumil.penyebabMeninggal || "");
+    setIsStatusModalOpen(true);
+  };
+
+  const handleConfirmStatusChange = async () => {
+    setIsSubmittingStatus(true);
+    try {
+      if (statusTarget === "Meninggal") {
+        await handleStatusChange(
+          "Meninggal",
+          statusTanggalMeninggal,
+          statusPenyebab,
+        );
+      } else {
+        await handleStatusChange("Hidup");
+      }
+      setIsStatusModalOpen(false);
+    } finally {
+      setIsSubmittingStatus(false);
     }
   };
 
@@ -378,89 +417,117 @@ export default function IbuHamilDetailPage({
   }));
 
   return (
-    <div className="max-w-5xl mx-auto w-full space-y-8 animate-in fade-in duration-300">
-      {/* Profile Header */}
-      <Card className="p-6 border border-outline-variant/20 relative bg-white">
-        <div className="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
-          <div className="absolute -right-20 -top-20 w-64 h-64 bg-tertiary-fixed/30 opacity-50 rounded-full blur-3xl" />
-        </div>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
+    <div className="max-w-[1200px] mx-auto w-full space-y-8 animate-in fade-in duration-300">
+      {/* Profile Card Section */}
+      <section className="glass-card rounded-2xl p-8 flex flex-col md:flex-row justify-between items-start gap-6">
+        <div className="space-y-4">
           <div>
-            <h2 className="font-headline text-2xl font-bold text-on-background">
-              Halo, {bumil.nama}! 👋
+            <h2 className="font-headline text-2xl font-bold text-on-surface uppercase">
+              {bumil.nama}
             </h2>
-            <p className="text-sm text-on-surface-variant mt-0.5">
-              Kelola data rekam medis kehamilan di bawah ini.
-            </p>
-            {!hasBorn && !isDeceased && (
-              <div className="flex items-center gap-2 bg-white border border-outline-variant/30 px-4 py-2 rounded-full mt-3 shadow-sm inline-flex">
-                <span className="text-xs font-semibold text-on-surface-variant">
-                  Usia Kandungan:
-                </span>
-                <span className="text-sm font-bold text-tertiary">
-                  {getGestationAge(bumil.hpht)}
-                </span>
-              </div>
-            )}
-            {hasBorn && (
-              <div className="flex items-center gap-2 bg-teal-50 border border-teal-200 px-4 py-2 rounded-full mt-3 shadow-sm inline-flex">
-                <span className="material-symbols-outlined text-teal-600 text-sm">
-                  child_care
-                </span>
-                <span className="text-xs font-bold text-teal-800">
+            <div className="flex items-center gap-2 mt-1">
+              <span className="inline-block px-3 py-1 bg-tertiary-fixed text-black rounded-full text-xs font-bold tracking-wider">
+                Ibu Hamil
+              </span>
+              <span
+                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
+                  bumil.statusHidup === "Hidup"
+                    ? "bg-teal-50 text-teal-700 border border-teal-200"
+                    : "bg-red-50 text-red-700 border border-red-200"
+                }`}
+              >
+                {bumil.statusHidup}
+              </span>
+              {hasBorn && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200">
                   Sudah Melahirkan
                 </span>
-              </div>
-            )}
-          </div>
-
-          {/* Aksi: samakan pola dengan halaman Balita - tombol utama + menu "lainnya" */}
-          <div className="flex items-center gap-3 relative">
-            <StatusHidupControl
-              currentStatus={bumil.statusHidup}
-              tanggalMeninggal={bumil.tanggalMeninggal}
-              penyebabMeninggal={bumil.penyebabMeninggal}
-              onStatusChange={handleStatusChange}
-            />
-
-            <Button
-              onClick={openAddExamModal}
-              disabled={!canAddRecord}
-              className="flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <span className="material-symbols-outlined">add_circle</span>
-              <span>Update Pemeriksaan</span>
-            </Button>
-
-            {/* More options menu */}
-            <div className="relative">
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-3 text-outline hover:bg-slate-100 border border-outline-variant/20 rounded-xl transition-colors cursor-pointer"
-              >
-                <span className="material-symbols-outlined">more_vert</span>
-              </button>
-              {isMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-outline-variant/20 z-20 overflow-hidden">
-                  <button
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      setIsBirthModalOpen(true);
-                    }}
-                    disabled={isDeceased || hasBorn}
-                    className="w-full px-4 py-3 text-left text-xs font-bold text-pink-700 hover:bg-pink-50 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <span className="material-symbols-outlined text-sm">
-                      child_care
-                    </span>
-                    <span>Sudah Melahirkan</span>
-                  </button>
-                </div>
               )}
             </div>
           </div>
+          <div className="flex items-center gap-2 text-sm font-medium text-on-surface-variant pt-1">
+            <span className="material-symbols-outlined text-tertiary text-sm">
+              location_on
+            </span>
+            <p>
+              TTL: {bumil.tempatLahir.toUpperCase()},{" "}
+              {new Date(bumil.tanggalLahir).toLocaleDateString("id-ID", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </p>
+          </div>
         </div>
-      </Card>
+
+        <div className="flex items-center gap-3 relative">
+          <Button
+            onClick={openAddExamModal}
+            disabled={!canAddRecord}
+            className="flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-tertiary text-white hover:bg-[#8b224a] px-6 py-3 rounded-xl text-sm font-bold animate-all"
+          >
+            <span className="material-symbols-outlined text-sm">
+              add_circle
+            </span>
+            <span>Update Pemeriksaan</span>
+          </Button>
+
+          {/* More options menu */}
+          <div className="relative">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="p-3 text-outline hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined">more_vert</span>
+            </button>
+            {isMenuOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-outline-variant/20 z-20 overflow-hidden">
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setIsBirthModalOpen(true);
+                  }}
+                  disabled={isDeceased || hasBorn}
+                  className="w-full px-4 py-3 text-left text-xs font-bold text-on-surface hover:bg-slate-100 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border-b border-outline-variant/10"
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    child_care
+                  </span>
+                  <span>Catat Kelahiran</span>
+                </button>
+                <button
+                  onClick={openStatusModal}
+                  className="w-full px-4 py-3 text-left text-xs font-bold text-on-surface hover:bg-slate-100 transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    settings_heart
+                  </span>
+                  <span>Ubah Status Hidup</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Warnings */}
+      {isDeceased && (
+        <div className="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 p-3.5 rounded-xl flex gap-2 items-start">
+          <span className="material-symbols-outlined text-sm">block</span>
+          <div>
+            <p>Riwayat entri data dikunci karena status kematian anggota.</p>
+            {bumil.tanggalMeninggal && (
+              <p className="mt-1 font-semibold text-red-600">
+                Meninggal pada: {new Date(bumil.tanggalMeninggal).toLocaleDateString("id-ID", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })} {bumil.penyebabMeninggal && `karena ${bumil.penyebabMeninggal}`}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Stats Bento Grid */}
       <section className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -524,37 +591,37 @@ export default function IbuHamilDetailPage({
 
       {/* Post Birth Details if applicable */}
       {bumil.postBirthRecord && (
-        <Card className="p-6 border border-teal-200 bg-teal-50/20 rounded-xl space-y-4">
-          <h3 className="text-md font-bold text-teal-800 flex items-center gap-2">
+        <Card className="p-6 bg-white border border-outline-variant/20 rounded-xl space-y-4">
+          <h3 className="text-md font-bold text-tertiary flex items-center gap-2">
             <span className="material-symbols-outlined">
               baby_changing_station
             </span>
             Riwayat Kelahiran Anak
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-teal-900">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-on-surface-variant">
             <p>
-              <span className="font-semibold">Nama Anak:</span>{" "}
+              <span className="font-semibold text-on-surface">Nama Anak:</span>{" "}
               {bumil.postBirthRecord.nama}
             </p>
             <p>
-              <span className="font-semibold">Tempat/Tgl Lahir:</span>{" "}
+              <span className="font-semibold text-on-surface">Tempat/Tgl Lahir:</span>{" "}
               {bumil.postBirthRecord.tempat},{" "}
               {new Date(bumil.postBirthRecord.tanggalLahir).toLocaleDateString(
                 "id-ID",
               )}
             </p>
             <p>
-              <span className="font-semibold">Jenis Kelamin:</span>{" "}
+              <span className="font-semibold text-on-surface">Jenis Kelamin:</span>{" "}
               {bumil.postBirthRecord.jenisKelamin === "L"
                 ? "Laki-laki"
                 : "Perempuan"}
             </p>
             <p>
-              <span className="font-semibold">Cara Lahir:</span>{" "}
+              <span className="font-semibold text-on-surface">Cara Lahir:</span>{" "}
               {bumil.postBirthRecord.caraLahir}
             </p>
             <p>
-              <span className="font-semibold">Usia Kehamilan saat Lahir:</span>{" "}
+              <span className="font-semibold text-on-surface">Usia Kehamilan saat Lahir:</span>{" "}
               {bumil.postBirthRecord.usiaKehamilanSaatLahirWeeks} minggu
             </p>
           </div>
@@ -1030,6 +1097,73 @@ export default function IbuHamilDetailPage({
             </Button>
           </DialogFooter>
         </form>
+      </Dialog>
+
+      {/* Ubah Status Hidup Modal */}
+      <Dialog
+        isOpen={isStatusModalOpen}
+        onClose={() => setIsStatusModalOpen(false)}
+      >
+        <div className="flex flex-col max-h-[85vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Ubah Status Hidup</DialogTitle>
+            <DialogDescription>
+              {statusTarget === "Meninggal"
+                ? "Anggota ini akan ditandai sebagai Meninggal. Isi tanggal dan penyebab (opsional) di bawah."
+                : `Status anggota akan diubah kembali menjadi "Hidup".`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogContent className="space-y-4">
+            {statusTarget === "Meninggal" && (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="status_tanggal">Tanggal Meninggal</Label>
+                  <Input
+                    id="status_tanggal"
+                    type="date"
+                    value={statusTanggalMeninggal}
+                    max={new Date().toISOString().split("T")[0]}
+                    onChange={(e) => setStatusTanggalMeninggal(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="status_penyebab">
+                    Penyebab Meninggal (Opsional)
+                  </Label>
+                  <Input
+                    id="status_penyebab"
+                    placeholder="Contoh: Sakit, kecelakaan, dll."
+                    value={statusPenyebab}
+                    onChange={(e) => setStatusPenyebab(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+          </DialogContent>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsStatusModalOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmStatusChange}
+              disabled={isSubmittingStatus}
+              className={
+                statusTarget === "Meninggal"
+                  ? "bg-red-600 hover:bg-red-700"
+                  : ""
+              }
+            >
+              {isSubmittingStatus ? "Menyimpan..." : "Konfirmasi"}
+            </Button>
+          </DialogFooter>
+        </div>
       </Dialog>
     </div>
   );

@@ -269,10 +269,10 @@ export default function IbuHamilPage() {
                       >
                         <td className="px-6 py-4 border-y border-l border-outline-variant/10 rounded-l-xl">
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
                               bumil.postBirthRecord
-                                ? "bg-teal-50 text-teal-700 border-teal-200"
-                                : "bg-amber-50 text-amber-700 border-amber-200"
+                                ? "bg-teal-50 text-teal-700 border border-teal-200"
+                                : "bg-amber-50 text-amber-700 border border-amber-200"
                             }`}
                           >
                             {bumil.postBirthRecord ? "Melahirkan" : "Belum"}
