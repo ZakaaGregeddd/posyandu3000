@@ -22,7 +22,6 @@ import {
   DialogContent,
   DialogFooter,
 } from "@/components/ui/dialog";
-import StatusHidupControl from "@/components/shared/StatusHidupControl";
 import {
   LineChart,
   Line,
@@ -76,6 +75,15 @@ export default function LansiaDetailPage({
   const [obat, setObat] = useState("-");
   const [penyakitBaru, setPenyakitBaru] = useState("-");
   const [examError, setExamError] = useState("");
+
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [statusTarget, setStatusTarget] = useState<StatusHidup>("Meninggal");
+  const [statusTanggalMeninggal, setStatusTanggalMeninggal] = useState(
+    new Date().toISOString().split("T")[0],
+  );
+  const [statusPenyebab, setStatusPenyebab] = useState("");
+  const [isSubmittingStatus, setIsSubmittingStatus] = useState(false);
 
   // Resolve params (Next.js 15 async params)
   useEffect(() => {
@@ -149,6 +157,38 @@ export default function LansiaDetailPage({
       setLansia(updated);
     } catch (err: any) {
       alert(err.message || "Gagal mengubah status");
+    }
+  };
+
+  const openStatusModal = () => {
+    setIsMenuOpen(false);
+    const target: StatusHidup =
+      lansia.statusHidup === "Hidup" ? "Meninggal" : "Hidup";
+    setStatusTarget(target);
+    setStatusTanggalMeninggal(
+      lansia.tanggalMeninggal
+        ? lansia.tanggalMeninggal.split("T")[0]
+        : new Date().toISOString().split("T")[0],
+    );
+    setStatusPenyebab(lansia.penyebabMeninggal || "");
+    setIsStatusModalOpen(true);
+  };
+
+  const handleConfirmStatusChange = async () => {
+    setIsSubmittingStatus(true);
+    try {
+      if (statusTarget === "Meninggal") {
+        await handleStatusChange(
+          "Meninggal",
+          statusTanggalMeninggal,
+          statusPenyebab,
+        );
+      } else {
+        await handleStatusChange("Hidup");
+      }
+      setIsStatusModalOpen(false);
+    } finally {
+      setIsSubmittingStatus(false);
     }
   };
 
@@ -301,100 +341,167 @@ export default function LansiaDetailPage({
   }));
 
   return (
-    <div className="max-w-5xl mx-auto w-full space-y-8 animate-in fade-in duration-300">
-      {/* Profile Header */}
-      <Card className="p-6 border border-outline-variant/20 relative overflow-hidden bg-white">
-        <div className="flex flex-col md:flex-row justify-between items-start gap-6">
-          <div className="space-y-3 flex-1">
-            <div>
-              <h2 className="font-headline text-2xl font-bold text-on-background">
-                {lansia.nama}
-              </h2>
-              <div className="flex gap-2 items-center mt-1.5 flex-wrap">
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-                    category.includes("Resiko")
-                      ? "bg-red-50 text-red-700 border-red-200"
-                      : category.includes("Pralansia")
-                        ? "bg-amber-50 text-amber-700 border-amber-200"
-                        : "bg-orange-50 text-orange-700 border-orange-200"
-                  }`}
-                >
-                  {category.toUpperCase()}
-                </span>
-                <span className="text-xs text-on-surface-variant">•</span>
-                <span className="text-xs font-semibold text-on-surface-variant">
-                  No. KK: {lansia.noKk}
-                </span>
-              </div>
+    <div className="max-w-[1200px] mx-auto w-full space-y-8 animate-in fade-in duration-300">
+      {/* Profile Card Section */}
+      <section className="glass-card rounded-2xl p-8 flex flex-col md:flex-row justify-between items-start gap-6">
+        <div className="space-y-4">
+          <div>
+            <h2 className="font-headline text-2xl font-bold text-on-surface uppercase">
+              {lansia.nama}
+            </h2>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="inline-block px-3 py-1 bg-tertiary-fixed text-black rounded-full text-xs font-bold tracking-wider">
+                {category.toUpperCase()}
+              </span>
+              <span
+                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
+                  lansia.statusHidup === "Hidup"
+                    ? "bg-teal-50 text-teal-700 border border-teal-200"
+                    : "bg-red-50 text-red-700 border border-red-200"
+                }`}
+              >
+                {lansia.statusHidup}
+              </span>
             </div>
+          </div>
+          <div className="flex items-center gap-2 text-sm font-medium text-on-surface-variant">
+            <span className="material-symbols-outlined text-tertiary text-sm">
+              location_on
+            </span>
+            <p>
+              TTL: {lansia.tempatLahir.toUpperCase()},{" "}
+              {new Date(lansia.tanggalLahir).toLocaleDateString("id-ID", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </p>
+          </div>
+        </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-6 text-sm text-on-surface-variant pt-2 border-t border-outline-variant/10">
-              <p>
-                <span className="font-medium text-on-surface">TTL:</span>{" "}
-                {lansia.tempatLahir},{" "}
-                {new Date(lansia.tanggalLahir).toLocaleDateString("id-ID", {
+        <div className="flex items-center gap-3 relative">
+          <Button
+            onClick={openAddExamModal}
+            disabled={!canAddRecord}
+            className="flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-tertiary text-white hover:bg-[#8b224a] px-6 py-3 rounded-xl text-sm font-bold animate-all"
+          >
+            <span className="material-symbols-outlined text-sm">
+              add_circle
+            </span>
+            <span>Update Pemeriksaan</span>
+          </Button>
+
+          {/* More options menu */}
+          <div className="relative">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="p-3 text-outline hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined">more_vert</span>
+            </button>
+            {isMenuOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-outline-variant/20 z-20 overflow-hidden">
+                <button
+                  onClick={openStatusModal}
+                  className="w-full px-4 py-3 text-left text-xs font-bold text-on-surface hover:bg-slate-100 transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    settings_heart
+                  </span>
+                  <span>Ubah Status Hidup</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Warnings */}
+      {isDeceased && (
+        <div className="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 p-3.5 rounded-xl flex gap-2 items-start">
+          <span className="material-symbols-outlined text-sm">block</span>
+          <div>
+            <p>Riwayat entri data dikunci karena status kematian anggota.</p>
+            {lansia.tanggalMeninggal && (
+              <p className="mt-1 font-semibold text-red-600">
+                Meninggal pada: {new Date(lansia.tanggalMeninggal).toLocaleDateString("id-ID", {
                   day: "numeric",
                   month: "long",
                   year: "numeric",
-                })}
+                })} {lansia.penyebabMeninggal && `karena ${lansia.penyebabMeninggal}`}
               </p>
-              <p>
-                <span className="font-medium text-on-surface">Usia:</span>{" "}
-                {age.years} tahun
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Grid Layout for Data */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Data Individu */}
+        <div className="glass-card rounded-2xl p-8 space-y-6">
+          <h3 className="font-headline text-lg font-bold text-tertiary">
+            Data Individu
+          </h3>
+          <div className="grid grid-cols-2 gap-y-4 text-sm">
+            <div>
+              <p className="font-bold text-outline text-xs mb-1">
+                Jenis Kelamin
               </p>
-              <p>
-                <span className="font-medium text-on-surface">Nama Wali:</span>{" "}
-                {lansia.namaAyah || "-"}
-              </p>
-              <p>
-                <span className="font-medium text-on-surface">
-                  No. Telp Wali:
-                </span>{" "}
-                {lansia.namaIbu || "-"}
-              </p>
-              <p>
-                <span className="font-medium text-on-surface">
-                  Jenis Kelamin:
-                </span>{" "}
+              <p className="font-semibold text-on-surface">
                 {lansia.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}
               </p>
-              <p>
-                <span className="font-medium text-on-surface">
-                  Golongan Darah:
-                </span>{" "}
+            </div>
+            <div>
+              <p className="font-bold text-outline text-xs mb-1">
+                Golongan Darah
+              </p>
+              <p className="font-semibold text-on-surface">
                 {lansia.golonganDarah || "-"}
               </p>
             </div>
-          </div>
-
-          <div className="flex flex-col gap-4 items-stretch md:items-end w-full md:w-auto">
-            {/* Status Control */}
-            <StatusHidupControl
-              currentStatus={lansia.statusHidup}
-              tanggalMeninggal={lansia.tanggalMeninggal}
-              penyebabMeninggal={lansia.penyebabMeninggal}
-              onStatusChange={handleStatusChange}
-            />
-
-            {isDeceased && (
-              <div className="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 p-3 rounded-xl max-w-xs flex gap-2 items-start">
-                <span className="material-symbols-outlined text-sm">block</span>
-                <p>Riwayat entri dikunci karena status kematian anggota.</p>
-              </div>
-            )}
-
-            <Button
-              onClick={openAddExamModal}
-              disabled={!canAddRecord}
-              className="flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed w-full md:w-auto"
-            >
-              <span className="material-symbols-outlined">add_circle</span>
-              <span>Update Pemeriksaan</span>
-            </Button>
+            <div>
+              <p className="font-bold text-outline text-xs mb-1">
+                Usia
+              </p>
+              <p className="font-semibold text-on-surface">
+                {age.years} tahun
+              </p>
+            </div>
+            <div>
+              <p className="font-bold text-outline text-xs mb-1">
+                No. KK
+              </p>
+              <p className="font-semibold text-on-surface">
+                {lansia.noKk || "-"}
+              </p>
+            </div>
           </div>
         </div>
-      </Card>
+
+        {/* Data Wali & Kontak */}
+        <div className="glass-card rounded-2xl p-8 space-y-6">
+          <h3 className="font-headline text-lg font-bold text-tertiary">
+            Data Wali & Kontak
+          </h3>
+          <div className="grid grid-cols-2 gap-y-4 text-sm">
+            <div>
+              <p className="font-bold text-outline text-xs mb-1">Nama Wali</p>
+              <p className="font-semibold text-on-surface">
+                {lansia.namaAyah || "-"}
+              </p>
+            </div>
+            <div>
+              <p className="font-bold text-outline text-xs mb-1">No. Telp Wali / HP</p>
+              <p className="font-semibold text-on-surface">
+                {lansia.namaIbu || "-"}
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-on-surface-variant italic">
+            Nama wali & No. Telp wali diambil dari data registrasi lansia.
+          </p>
+        </div>
+      </div>
 
       {/* Stats Bento Grid */}
       <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -777,6 +884,73 @@ export default function LansiaDetailPage({
             </Button>
           </DialogFooter>
         </form>
+      </Dialog>
+
+      {/* Ubah Status Hidup Modal */}
+      <Dialog
+        isOpen={isStatusModalOpen}
+        onClose={() => setIsStatusModalOpen(false)}
+      >
+        <div className="flex flex-col max-h-[85vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Ubah Status Hidup</DialogTitle>
+            <DialogDescription>
+              {statusTarget === "Meninggal"
+                ? "Anggota ini akan ditandai sebagai Meninggal. Isi tanggal dan penyebab (opsional) di bawah."
+                : `Status anggota akan diubah kembali menjadi "Hidup".`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogContent className="space-y-4">
+            {statusTarget === "Meninggal" && (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="status_tanggal">Tanggal Meninggal</Label>
+                  <Input
+                    id="status_tanggal"
+                    type="date"
+                    value={statusTanggalMeninggal}
+                    max={new Date().toISOString().split("T")[0]}
+                    onChange={(e) => setStatusTanggalMeninggal(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="status_penyebab">
+                    Penyebab Meninggal (Opsional)
+                  </Label>
+                  <Input
+                    id="status_penyebab"
+                    placeholder="Contoh: Sakit, kecelakaan, dll."
+                    value={statusPenyebab}
+                    onChange={(e) => setStatusPenyebab(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+          </DialogContent>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsStatusModalOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmStatusChange}
+              disabled={isSubmittingStatus}
+              className={
+                statusTarget === "Meninggal"
+                  ? "bg-red-600 hover:bg-red-700"
+                  : ""
+              }
+            >
+              {isSubmittingStatus ? "Menyimpan..." : "Konfirmasi"}
+            </Button>
+          </DialogFooter>
+        </div>
       </Dialog>
     </div>
   );
