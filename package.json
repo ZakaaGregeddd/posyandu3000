@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "dev:desktop": "concurrently -k \"npm run dev\" \"wait-on http://localhost:3000 && electron dist-electron/electron/main.js\"",
-    "build:desktop": "npx tsc -p tsconfig.electron.json && npm run build && electron-builder",
+    "build:desktop": "npx tsc -p tsconfig.electron.json && npm run build && node scripts/copy-assets.js && electron-builder",
     "postinstall": "cd node_modules/better-sqlite3 && npx prebuild-install --runtime=electron --target=32.0.0"
   },
   "dependencies": {

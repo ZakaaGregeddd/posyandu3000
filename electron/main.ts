@@ -1,9 +1,8 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
-const path = require("path");
-const { initDb, executeQuery, getDbPath } = require("../lib/db/sqlite");
+import { app, BrowserWindow, ipcMain } from "electron";
+import * as path from "path";
+import { initDb, executeQuery, getDbPath } from "../lib/db/sqlite";
 
-let mainWindow = null;
-let serverProcess = null;
+let mainWindow: BrowserWindow | null = null;
 const isDev = !app.isPackaged;
 
 function createWindow() {
@@ -22,26 +21,27 @@ function createWindow() {
     mainWindow.loadURL("http://localhost:3000");
     mainWindow.webContents.openDevTools();
   } else {
-    // Start Next.js server in production using child_process
+    // Start Next.js server directly in the Main Process (no child process spawn needed)
     try {
-      const { fork } = require("child_process");
-      const nextPath = require.resolve("next/dist/bin/next");
+      process.env.PORT = "3000";
+      process.env.NODE_ENV = "production";
       
-      serverProcess = fork(nextPath, ["start", "-p", "3000"], {
-        cwd: path.join(__dirname, ".."),
-        env: { ...process.env, NODE_ENV: "production" }
-      });
+      // Require the standalone server. Next.js starts listening automatically when loaded.
+      // Use dynamic require since it's a generated JS file at runtime
+      require(path.join(__dirname, "../.next/standalone/server.js"));
 
       const waitOn = require("wait-on");
       waitOn({ 
         resources: ["http://localhost:3000"],
-        timeout: 10000 
+        timeout: 15000 
       }).then(() => {
-        mainWindow.loadURL("http://localhost:3000");
-      }).catch((err) => {
+        if (mainWindow) {
+          mainWindow.loadURL("http://localhost:3000");
+        }
+      }).catch((err: any) => {
         console.error("Gagal terhubung ke server Next.js lokal:", err);
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Gagal mematangkan server Next.js:", err);
     }
   }
@@ -77,9 +77,6 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
-  if (serverProcess) {
-    serverProcess.kill();
-  }
   if (process.platform !== "darwin") {
     app.quit();
   }
