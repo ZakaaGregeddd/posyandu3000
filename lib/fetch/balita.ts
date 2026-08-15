@@ -1,5 +1,3 @@
-import { createClient } from "@/lib/supabase/client";
-
 export type StatusHidup = "Hidup" | "Meninggal";
 
 export interface Balita {
@@ -64,69 +62,40 @@ function parseAlamat(alamatRaw: string | null) {
   };
 }
 
-function mapRowToBalita(row: any): Balita {
-  const members = row.keluarga?.members || [];
-  const ayah = members.find((m: any) => m.status_keluarga === "Kepala Keluarga" || m.status_keluarga === "Ayah");
-  const ibu = members.find((m: any) => m.status_keluarga === "Istri" || m.status_keluarga === "Ibu");
-  const birthRecord = row.kelahiran?.[0] || row.kelahiran;
-
-  return {
-    id: row.id,
-    nik: row.nik || "",
-    noKk: row.keluarga?.no_kk || "",
-    nama: row.nama,
-    tempatLahir: row.tempat_lahir ?? "",
-    tanggalLahir: row.tanggal_lahir,
-    jenisKelamin: row.jenis_kelamin,
-    namaIbu: ibu?.nama || "",
-    namaAyah: ayah?.nama || "",
-    golonganDarah: row.golongan_darah ?? undefined,
-    statusHidup: row.status_hidup,
-    tanggalMeninggal: row.tanggal_meninggal ?? undefined,
-    penyebabMeninggal: row.keterangan_meninggal ?? undefined,
-    caraLahir: birthRecord?.cara_kelahiran ?? undefined,
-    usiaKehamilanSaatLahirWeeks: birthRecord?.usia_kehamilan_minggu ?? undefined,
-    ttlAyah: ayah ? `${ayah.tempat_lahir ?? ""}, ${ayah.tanggal_lahir ?? ""}` : undefined,
-    ttlIbu: ibu ? `${ibu.tempat_lahir ?? ""}, ${ibu.tanggal_lahir ?? ""}` : undefined,
-    hasPemeriksaan: row.master_pemeriksaan ? row.master_pemeriksaan.length > 0 : false,
-  };
+// Helper to execute DB queries via Electron Bridge
+async function dbQuery(sql: string, params: any[] = []): Promise<any> {
+  if (typeof window !== "undefined" && window.electronAPI) {
+    return window.electronAPI.query(sql, params);
+  }
+  return [];
 }
 
 // ---------------------------------------------------------------------------
 // DAFTAR BALITA
 // ---------------------------------------------------------------------------
 export async function getBalitas(): Promise<Balita[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("individu")
-    .select(`
-      *,
-      keluarga:keluarga(
-        id,
-        no_kk,
-        alamat,
-        no_telp,
-        members:individu(
-          id,
-          nik,
-          nama,
-          status_keluarga,
-          tanggal_lahir,
-          tempat_lahir
-        )
-      ),
-      kelahiran:kelahiran!kelahiran_individu_anak_id_fkey(
-        cara_kelahiran,
-        usia_kehamilan_minggu
-      ),
-      master_pemeriksaan(
-        id
-      )
-    `);
+  const individuals = await dbQuery("SELECT * FROM individu");
+  const keluargaList = await dbQuery("SELECT * FROM keluarga");
+  const kelahiranList = await dbQuery("SELECT * FROM kelahiran");
+  const exams = await dbQuery("SELECT DISTINCT individu_id FROM master_pemeriksaan WHERE jenis_pemeriksaan = 'Balita'");
 
-  if (error) throw new Error(error.message);
+  const keluargaMap = new Map(keluargaList.map((k: any) => [k.id, k]));
+  const kelahiranMap = new Map(kelahiranList.map((k: any) => [k.individu_anak_id, k]));
+  const examSet = new Set(exams.map((e: any) => e.individu_id));
 
-  const balitas = (data ?? []).filter((r: any) => {
+  // Group members by keluarga_id
+  const membersByKeluarga = new Map<string, any[]>();
+  for (const ind of individuals) {
+    if (ind.keluarga_id) {
+      if (!membersByKeluarga.has(ind.keluarga_id)) {
+        membersByKeluarga.set(ind.keluarga_id, []);
+      }
+      membersByKeluarga.get(ind.keluarga_id)!.push(ind);
+    }
+  }
+
+  // Filter balitas (under 5 years or role "Anak")
+  const balitaRows = individuals.filter((r: any) => {
     const birthDate = new Date(r.tanggal_lahir);
     const today = new Date();
     let ageYears = today.getFullYear() - birthDate.getFullYear();
@@ -137,79 +106,63 @@ export async function getBalitas(): Promise<Balita[]> {
     return ageYears <= 5 || r.status_keluarga === "Anak";
   });
 
-  return balitas.map(mapRowToBalita);
+  return balitaRows.map((row: any) => {
+    const keluarga: any = keluargaMap.get(row.keluarga_id) || {};
+    const members = membersByKeluarga.get(row.keluarga_id) || [];
+    const ayah = members.find((m: any) => m.status_keluarga === "Kepala Keluarga" || m.status_keluarga === "Ayah");
+    const ibu = members.find((m: any) => m.status_keluarga === "Istri" || m.status_keluarga === "Ibu");
+    const birthRecord: any = kelahiranMap.get(row.id);
+
+    return {
+      id: row.id,
+      nik: row.nik || "",
+      noKk: keluarga.no_kk || "",
+      nama: row.nama,
+      tempatLahir: row.tempat_lahir ?? "",
+      tanggalLahir: row.tanggal_lahir,
+      jenisKelamin: row.jenis_kelamin,
+      namaIbu: ibu?.nama || "",
+      namaAyah: ayah?.nama || "",
+      golonganDarah: row.golongan_darah ?? undefined,
+      statusHidup: row.status_hidup,
+      tanggalMeninggal: row.tanggal_meninggal ?? undefined,
+      penyebabMeninggal: row.keterangan_meninggal ?? undefined,
+      caraLahir: birthRecord?.cara_kelahiran ?? undefined,
+      usiaKehamilanSaatLahirWeeks: birthRecord?.usia_kehamilan_minggu ?? undefined,
+      ttlAyah: ayah ? `${ayah.tempat_lahir ?? ""}, ${ayah.tanggal_lahir ?? ""}` : undefined,
+      ttlIbu: ibu ? `${ibu.tempat_lahir ?? ""}, ${ibu.tanggal_lahir ?? ""}` : undefined,
+      hasPemeriksaan: examSet.has(row.id),
+    };
+  });
 }
 
 export async function getBalitaById(id: string): Promise<Balita | null> {
-  const supabase = createClient();
-  let query = supabase
-    .from("individu")
-    .select(`
-      *,
-      keluarga:keluarga(
-        id,
-        no_kk,
-        alamat,
-        no_telp,
-        members:individu(
-          id,
-          nik,
-          nama,
-          status_keluarga,
-          tanggal_lahir,
-          tempat_lahir
-        )
-      ),
-      kelahiran:kelahiran!kelahiran_individu_anak_id_fkey(
-        cara_kelahiran,
-        usia_kehamilan_minggu
-      ),
-      master_pemeriksaan(
-        id
-      )
-    `);
-
-  if (id.length === 36) {
-    query = query.eq("id", id);
-  } else {
-    query = query.eq("nik", id);
-  }
-
-  const { data, error } = await query.maybeSingle();
-  if (error) throw new Error(error.message);
-  return data ? mapRowToBalita(data) : null;
+  const individuals = await getBalitas();
+  return individuals.find(b => b.id === id || b.nik === id) || null;
 }
 
 // ---------------------------------------------------------------------------
 // DAFTAR KK (untuk dropdown "Nomor KK")
 // ---------------------------------------------------------------------------
 export async function getKKs(): Promise<KKOption[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("keluarga")
-    .select(`
-      id,
-      no_kk,
-      alamat,
-      no_telp,
-      members:individu(
-        id,
-        nik,
-        nama,
-        tempat_lahir,
-        tanggal_lahir,
-        jenis_kelamin,
-        status_keluarga
-      )
-    `)
-    .order("no_kk");
+  const keluargaList = await dbQuery("SELECT * FROM keluarga ORDER BY no_kk");
+  const individuals = await dbQuery("SELECT * FROM individu");
 
-  if (error) throw new Error(error.message);
+  const membersByKeluarga = new Map<string, any[]>();
+  for (const ind of individuals) {
+    if (ind.keluarga_id) {
+      if (!membersByKeluarga.has(ind.keluarga_id)) {
+        membersByKeluarga.set(ind.keluarga_id, []);
+      }
+      membersByKeluarga.get(ind.keluarga_id)!.push(ind);
+    }
+  }
 
-  return (data ?? []).map((k: any) => {
+  return keluargaList.map((k: any) => {
     const { alamat, rt, rw } = parseAlamat(k.alamat);
-    const ayah = k.members?.find((m: any) => m.status_keluarga === "Kepala Keluarga" || m.status_keluarga === "Ayah");
-    const ibu = k.members?.find((m: any) => m.status_keluarga === "Istri" || m.status_keluarga === "Ibu");
+    const members = membersByKeluarga.get(k.id) || [];
+    const ayah = members.find((m: any) => m.status_keluarga === "Kepala Keluarga" || m.status_keluarga === "Ayah");
+    const ibu = members.find((m: any) => m.status_keluarga === "Istri" || m.status_keluarga === "Ibu");
 
     return {
       noKk: k.no_kk || "",
@@ -250,55 +203,35 @@ function generateTempNik(): string {
 }
 
 export async function addBalita(input: AddBalitaInput): Promise<Balita> {
-  const supabase = createClient();
-
-  // Find keluarga_id by noKk
-  const { data: kk } = await supabase
-    .from("keluarga")
-    .select("id")
-    .eq("no_kk", input.noKk)
-    .single();
-
+  const kkList = await dbQuery("SELECT id FROM keluarga WHERE no_kk = ? LIMIT 1", [input.noKk]);
+  const kk = kkList[0];
   if (!kk) throw new Error(`Keluarga dengan nomor KK ${input.noKk} tidak ditemukan.`);
 
   const nik = input.nik && input.nik.length === 16 ? input.nik : generateTempNik();
+  const id = crypto.randomUUID();
 
-  const { data: individu, error: individuError } = await supabase
-    .from("individu")
-    .insert({
-      keluarga_id: kk.id,
-      nik,
-      nama: input.nama,
-      tempat_lahir: input.tempatLahir,
-      tanggal_lahir: input.tanggalLahir,
-      jenis_kelamin: input.jenisKelamin,
-      status_keluarga: "Anak",
-      status_hidup: input.statusHidup,
-      golongan_darah: input.golonganDarah ?? null,
-    })
-    .select("id")
-    .single();
-
-  if (individuError) throw new Error(individuError.message);
+  await dbQuery(
+    `INSERT INTO individu (id, keluarga_id, nik, nama, tempat_lahir, tanggal_lahir, jenis_kelamin, status_keluarga, status_hidup, golongan_darah)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'Anak', ?, ?)`,
+    [id, kk.id, nik, input.nama, input.tempatLahir, input.tanggalLahir, input.jenisKelamin, input.statusHidup, input.golonganDarah ?? null]
+  );
 
   if (input.caraLahir || input.usiaKehamilanSaatLahirWeeks) {
-    const { error: birthError } = await supabase.from("kelahiran").insert({
-      pemeriksaan_ibu_hamil_id: "00000000-0000-0000-0000-000000000000", // Dummy/fallback if independent birth
-      individu_anak_id: individu.id,
-      cara_kelahiran: input.caraLahir ?? null,
-      usia_kehamilan_minggu: input.usiaKehamilanSaatLahirWeeks ?? null,
-      tanggal_kelahiran: input.tanggalLahir,
-      tempat_kelahiran: input.tempatLahir,
-    });
-
-    if (birthError) {
+    const birthId = crypto.randomUUID();
+    try {
+      await dbQuery(
+        `INSERT INTO kelahiran (id, pemeriksaan_ibu_hamil_id, individu_anak_id, cara_kelahiran, usia_kehamilan_minggu, tanggal_kelahiran, tempat_kelahiran)
+         VALUES (?, NULL, ?, ?, ?, ?, ?)`,
+        [birthId, id, input.caraLahir ?? null, input.usiaKehamilanSaatLahirWeeks ?? null, input.tanggalLahir, input.tempatLahir]
+      );
+    } catch (err: any) {
       // rollback
-      await supabase.from("individu").delete().eq("id", individu.id);
-      throw new Error(birthError.message);
+      await dbQuery("DELETE FROM individu WHERE id = ?", [id]);
+      throw err;
     }
   }
 
-  const balita = await getBalitaById(individu.id);
+  const balita = await getBalitaById(id);
   if (!balita) throw new Error("Data tersimpan tapi gagal dimuat ulang");
   return balita;
 }
@@ -314,21 +247,13 @@ export interface UpdateBalitaInput {
 }
 
 export async function updateBalita(input: UpdateBalitaInput): Promise<Balita> {
-  const supabase = createClient();
-  let query = supabase.from("individu").update({
-    status_hidup: input.statusHidup,
-    tanggal_meninggal: input.tanggalMeninggal || null,
-    keterangan_meninggal: input.penyebabMeninggal || null,
-  });
-
-  if (input.id.length === 36) {
-    query = query.eq("id", input.id);
-  } else {
-    query = query.eq("nik", input.id);
-  }
-
-  const { error } = await query;
-  if (error) throw new Error(error.message);
+  const isUuid = input.id.length === 36;
+  const whereCol = isUuid ? "id" : "nik";
+  
+  await dbQuery(
+    `UPDATE individu SET status_hidup = ?, tanggal_meninggal = ?, keterangan_meninggal = ? WHERE ${whereCol} = ?`,
+    [input.statusHidup, input.tanggalMeninggal || null, input.penyebabMeninggal || null, input.id]
+  );
 
   const balita = await getBalitaById(input.id);
   if (!balita) throw new Error("Data balita tidak ditemukan setelah update");
@@ -352,37 +277,32 @@ export interface UpdateBalitaDataInput {
 export async function updateBalitaData(
   input: UpdateBalitaDataInput,
 ): Promise<Balita> {
-  const supabase = createClient();
   let id = input.id;
   if (id.length !== 36) {
-    const { data } = await supabase.from("individu").select("id").eq("nik", id).maybeSingle();
-    if (data) id = data.id;
+    const list = await dbQuery("SELECT id FROM individu WHERE nik = ? LIMIT 1", [id]);
+    if (list[0]) id = list[0].id;
   }
 
-  const { error: individuError } = await supabase
-    .from("individu")
-    .update({
-      nama: input.nama,
-      tempat_lahir: input.tempatLahir,
-      tanggal_lahir: input.tanggalLahir,
-      jenis_kelamin: input.jenisKelamin,
-      golongan_darah: input.golonganDarah || null,
-    })
-    .eq("id", id);
-
-  if (individuError) throw new Error(individuError.message);
+  await dbQuery(
+    `UPDATE individu SET nama = ?, tempat_lahir = ?, tanggal_lahir = ?, jenis_kelamin = ?, golongan_darah = ? WHERE id = ?`,
+    [input.nama, input.tempatLahir, input.tanggalLahir, input.jenisKelamin, input.golonganDarah || null, id]
+  );
 
   if (input.caraLahir || input.usiaKehamilanSaatLahirWeeks) {
-    const { error: birthError } = await supabase.from("kelahiran").upsert(
-      {
-        individu_anak_id: id,
-        cara_kelahiran: input.caraLahir ?? null,
-        usia_kehamilan_minggu: input.usiaKehamilanSaatLahirWeeks ?? null,
-        pemeriksaan_ibu_hamil_id: "00000000-0000-0000-0000-000000000000" // dummy if not exists
-      },
-      { onConflict: "individu_anak_id" }
-    );
-    if (birthError) throw new Error(birthError.message);
+    const list = await dbQuery("SELECT id FROM kelahiran WHERE individu_anak_id = ? LIMIT 1", [id]);
+    if (list[0]) {
+      await dbQuery(
+        `UPDATE kelahiran SET cara_kelahiran = ?, usia_kehamilan_minggu = ? WHERE individu_anak_id = ?`,
+        [input.caraLahir ?? null, input.usiaKehamilanSaatLahirWeeks ?? null, id]
+      );
+    } else {
+      const birthId = crypto.randomUUID();
+      await dbQuery(
+        `INSERT INTO kelahiran (id, pemeriksaan_ibu_hamil_id, individu_anak_id, cara_kelahiran, usia_kehamilan_minggu, tanggal_kelahiran, tempat_kelahiran)
+         VALUES (?, NULL, ?, ?, ?, ?, ?)`,
+        [birthId, id, input.caraLahir ?? null, input.usiaKehamilanSaatLahirWeeks ?? null, input.tanggalLahir, input.tempatLahir]
+      );
+    }
   }
 
   const updated = await getBalitaById(id);
@@ -394,15 +314,9 @@ export async function updateBalitaData(
 // HAPUS BALITA
 // ---------------------------------------------------------------------------
 export async function deleteBalita(id: string): Promise<void> {
-  const supabase = createClient();
-  let query = supabase.from("individu").delete();
-  if (id.length === 36) {
-    query = query.eq("id", id);
-  } else {
-    query = query.eq("nik", id);
-  }
-  const { error } = await query;
-  if (error) throw new Error(error.message);
+  const isUuid = id.length === 36;
+  const whereCol = isUuid ? "id" : "nik";
+  await dbQuery(`DELETE FROM individu WHERE ${whereCol} = ?`, [id]);
 }
 
 // ---------------------------------------------------------------------------
@@ -411,53 +325,34 @@ export async function deleteBalita(id: string): Promise<void> {
 export async function getBalitaRecords(
   balitaId: string,
 ): Promise<BalitaRecord[]> {
-  const supabase = createClient();
   let indId = balitaId;
   if (balitaId.length !== 36) {
-    const { data: indData } = await supabase.from("individu").select("id").eq("nik", balitaId).maybeSingle();
-    if (indData) indId = indData.id;
+    const list = await dbQuery("SELECT id FROM individu WHERE nik = ? LIMIT 1", [balitaId]);
+    if (list[0]) indId = list[0].id;
   }
 
-  const { data, error } = await supabase
-    .from("master_pemeriksaan")
-    .select(`
-      id,
-      individu_id,
-      tanggal_pemeriksaan,
-      kunjungan_ke,
-      jenis_pemeriksaan,
-      pemeriksaan_balita(
-        berat_badan,
-        tinggi_badan,
-        lingkar_kepala,
-        lingkar_lengan,
-        imunisasi,
-        obat_vitamin,
-        imt,
-        catatan
-      )
-    `)
-    .eq("individu_id", indId)
-    .eq("jenis_pemeriksaan", "Balita")
-    .order("tanggal_pemeriksaan", { ascending: true });
+  const list = await dbQuery(
+    `SELECT m.id, m.individu_id, m.tanggal_pemeriksaan, 
+            p.berat_badan, p.tinggi_badan, p.lingkar_kepala, p.lingkar_lengan, p.imunisasi, p.obat_vitamin, p.imt
+     FROM master_pemeriksaan m
+     JOIN pemeriksaan_balita p ON m.id = p.pemeriksaan_id
+     WHERE m.individu_id = ? AND m.jenis_pemeriksaan = 'Balita'
+     ORDER BY m.tanggal_pemeriksaan ASC`,
+    [indId]
+  );
 
-  if (error) throw new Error(error.message);
-
-  return (data ?? []).map((row: any) => {
-    const pb = row.pemeriksaan_balita || {};
-    return {
-      id: row.id,
-      balitaId: row.individu_id,
-      tanggalPemeriksaan: row.tanggal_pemeriksaan,
-      tinggiBadan: pb.tinggi_badan ? Number(pb.tinggi_badan) : 0,
-      beratBadan: pb.berat_badan ? Number(pb.berat_badan) : 0,
-      lingkarKepala: pb.lingkar_kepala ? Number(pb.lingkar_kepala) : 0,
-      lingkarLengan: pb.lingkar_lengan ? Number(pb.lingkar_lengan) : 0,
-      imunisasi: pb.imunisasi ?? "",
-      obatVitamin: pb.obat_vitamin ?? "",
-      imt: pb.imt ? Number(pb.imt) : 0,
-    };
-  });
+  return list.map((row: any) => ({
+    id: row.id,
+    balitaId: row.individu_id,
+    tanggalPemeriksaan: row.tanggal_pemeriksaan,
+    tinggiBadan: row.tinggi_badan ? Number(row.tinggi_badan) : 0,
+    beratBadan: row.berat_badan ? Number(row.berat_badan) : 0,
+    lingkarKepala: row.lingkar_kepala ? Number(row.lingkar_kepala) : 0,
+    lingkarLengan: row.lingkar_lengan ? Number(row.lingkar_lengan) : 0,
+    imunisasi: row.imunisasi ?? "",
+    obatVitamin: row.obat_vitamin ?? "",
+    imt: row.imt ? Number(row.imt) : 0,
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -468,55 +363,33 @@ export async function getBalitaRecordsForNiks(
 ): Promise<BalitaRecord[]> {
   if (niksOrIds.length === 0) return [];
 
-  const supabase = createClient();
-  let query = supabase
-    .from("master_pemeriksaan")
-    .select(`
-      id,
-      individu_id,
-      tanggal_pemeriksaan,
-      kunjungan_ke,
-      jenis_pemeriksaan,
-      pemeriksaan_balita(
-        berat_badan,
-        tinggi_badan,
-        lingkar_kepala,
-        lingkar_lengan,
-        imunisasi,
-        obat_vitamin,
-        imt,
-        catatan
-      ),
-      individu!inner(id, nik)
-    `)
-    .eq("jenis_pemeriksaan", "Balita");
+  const isUuid = niksOrIds[0].length === 36;
+  const placeholders = niksOrIds.map(() => "?").join(",");
+  const whereCol = isUuid ? "m.individu_id" : "i.nik";
 
-  if (niksOrIds[0].length === 36) {
-    query = query.in("individu_id", niksOrIds);
-  } else {
-    query = query.in("individu.nik", niksOrIds);
-  }
+  const list = await dbQuery(
+    `SELECT m.id, m.individu_id, m.tanggal_pemeriksaan, 
+            p.berat_badan, p.tinggi_badan, p.lingkar_kepala, p.lingkar_lengan, p.imunisasi, p.obat_vitamin, p.imt
+     FROM master_pemeriksaan m
+     JOIN pemeriksaan_balita p ON m.id = p.pemeriksaan_id
+     JOIN individu i ON m.individu_id = i.id
+     WHERE ${whereCol} IN (${placeholders}) AND m.jenis_pemeriksaan = 'Balita'
+     ORDER BY m.tanggal_pemeriksaan ASC`,
+    niksOrIds
+  );
 
-  const { data, error } = await query
-    .order("tanggal_pemeriksaan", { ascending: true });
-
-  if (error) throw new Error(error.message);
-
-  return (data ?? []).map((row: any) => {
-    const pb = row.pemeriksaan_balita || {};
-    return {
-      id: row.id,
-      balitaId: row.individu_id,
-      tanggalPemeriksaan: row.tanggal_pemeriksaan,
-      tinggiBadan: pb.tinggi_badan ? Number(pb.tinggi_badan) : 0,
-      beratBadan: pb.berat_badan ? Number(pb.berat_badan) : 0,
-      lingkarKepala: pb.lingkar_kepala ? Number(pb.lingkar_kepala) : 0,
-      lingkarLengan: pb.lingkar_lengan ? Number(pb.lingkar_lengan) : 0,
-      imunisasi: pb.imunisasi ?? "",
-      obatVitamin: pb.obat_vitamin ?? "",
-      imt: pb.imt ? Number(pb.imt) : 0,
-    };
-  });
+  return list.map((row: any) => ({
+    id: row.id,
+    balitaId: row.individu_id,
+    tanggalPemeriksaan: row.tanggal_pemeriksaan,
+    tinggiBadan: row.tinggi_badan ? Number(row.tinggi_badan) : 0,
+    beratBadan: row.berat_badan ? Number(row.berat_badan) : 0,
+    lingkarKepala: row.lingkar_kepala ? Number(row.lingkar_kepala) : 0,
+    lingkarLengan: row.lingkar_lengan ? Number(row.lingkar_lengan) : 0,
+    imunisasi: row.imunisasi ?? "",
+    obatVitamin: row.obat_vitamin ?? "",
+    imt: row.imt ? Number(row.imt) : 0,
+  }));
 }
 
 export interface AddBalitaRecordInput {
@@ -533,69 +406,49 @@ export interface AddBalitaRecordInput {
 export async function addBalitaRecord(
   input: AddBalitaRecordInput,
 ): Promise<BalitaRecord> {
-  const supabase = createClient();
-
   let individuId = input.balitaId;
   if (input.balitaId.length !== 36) {
-    const { data: ind } = await supabase.from("individu").select("id").eq("nik", input.balitaId).single();
-    if (ind) individuId = ind.id;
+    const list = await dbQuery("SELECT id FROM individu WHERE nik = ? LIMIT 1", [input.balitaId]);
+    if (list[0]) individuId = list[0].id;
   }
 
-  const { count } = await supabase
-    .from("master_pemeriksaan")
-    .select("*", { count: "exact", head: true })
-    .eq("individu_id", individuId)
-    .eq("jenis_pemeriksaan", "Balita");
+  const countList = await dbQuery(
+    "SELECT COUNT(*) as count FROM master_pemeriksaan WHERE individu_id = ? AND jenis_pemeriksaan = 'Balita'",
+    [individuId]
+  );
+  const kunjunganKe = (countList[0]?.count || 0) + 1;
 
-  const kunjunganKe = (count || 0) + 1;
-
-  const { data: master, error: masterError } = await supabase
-    .from("master_pemeriksaan")
-    .insert({
-      individu_id: individuId,
-      tanggal_pemeriksaan: input.tanggalPemeriksaan,
-      kunjungan_ke: kunjunganKe,
-      jenis_pemeriksaan: "Balita",
-    })
-    .select("id")
-    .single();
-
-  if (masterError) throw new Error(masterError.message);
+  const masterId = crypto.randomUUID();
+  await dbQuery(
+    `INSERT INTO master_pemeriksaan (id, individu_id, tanggal_pemeriksaan, kunjungan_ke, jenis_pemeriksaan)
+     VALUES (?, ?, ?, ?, 'Balita')`,
+    [masterId, individuId, input.tanggalPemeriksaan, kunjunganKe]
+  );
 
   const imt = input.tinggiBadan > 0 ? Number((input.beratBadan / Math.pow(input.tinggiBadan / 100, 2)).toFixed(2)) : 0;
 
-  const { data: detail, error: detailError } = await supabase
-    .from("pemeriksaan_balita")
-    .insert({
-      pemeriksaan_id: master.id,
-      berat_badan: input.beratBadan,
-      tinggi_badan: input.tinggiBadan,
-      lingkar_kepala: input.lingkarKepala,
-      lingkar_lengan: input.lingkarLengan,
-      imunisasi: input.imunisasi,
-      obat_vitamin: input.obatVitamin,
-      imt: imt,
-      catatan: "",
-    })
-    .select()
-    .single();
-
-  if (detailError) {
-    await supabase.from("master_pemeriksaan").delete().eq("id", master.id);
-    throw new Error(detailError.message);
+  try {
+    await dbQuery(
+      `INSERT INTO pemeriksaan_balita (pemeriksaan_id, berat_badan, tinggi_badan, lingkar_kepala, lingkar_lengan, imunisasi, obat_vitamin, imt, catatan)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, '')`,
+      [masterId, input.beratBadan, input.tinggiBadan, input.lingkarKepala, input.lingkarLengan, input.imunisasi, input.obatVitamin, imt]
+    );
+  } catch (err: any) {
+    await dbQuery("DELETE FROM master_pemeriksaan WHERE id = ?", [masterId]);
+    throw err;
   }
 
   return {
-    id: master.id,
+    id: masterId,
     balitaId: individuId,
     tanggalPemeriksaan: input.tanggalPemeriksaan,
-    tinggiBadan: Number(detail.tinggi_badan),
-    beratBadan: Number(detail.berat_badan),
-    lingkarKepala: Number(detail.lingkar_kepala),
-    lingkarLengan: Number(detail.lingkar_lengan),
-    imunisasi: detail.imunisasi ?? "",
-    obatVitamin: detail.obat_vitamin ?? "",
-    imt: Number(detail.imt),
+    tinggiBadan: input.tinggiBadan,
+    beratBadan: input.beratBadan,
+    lingkarKepala: input.lingkarKepala,
+    lingkarLengan: input.lingkarLengan,
+    imunisasi: input.imunisasi,
+    obatVitamin: input.obatVitamin,
+    imt: imt,
   };
 }
 
@@ -616,54 +469,33 @@ export interface UpdateBalitaRecordInput {
 export async function updateBalitaRecord(
   input: UpdateBalitaRecordInput,
 ): Promise<BalitaRecord> {
-  const supabase = createClient();
-
-  const { error: masterError } = await supabase
-    .from("master_pemeriksaan")
-    .update({
-      tanggal_pemeriksaan: input.tanggalPemeriksaan,
-    })
-    .eq("id", input.id);
-
-  if (masterError) throw new Error(masterError.message);
+  await dbQuery(
+    `UPDATE master_pemeriksaan SET tanggal_pemeriksaan = ? WHERE id = ?`,
+    [input.tanggalPemeriksaan, input.id]
+  );
 
   const imt = input.tinggiBadan > 0 ? Number((input.beratBadan / Math.pow(input.tinggiBadan / 100, 2)).toFixed(2)) : 0;
 
-  const { data: detail, error: detailError } = await supabase
-    .from("pemeriksaan_balita")
-    .update({
-      berat_badan: input.beratBadan,
-      tinggi_badan: input.tinggiBadan,
-      lingkar_kepala: input.lingkarKepala,
-      lingkar_lengan: input.lingkarLengan,
-      imunisasi: input.imunisasi,
-      obat_vitamin: input.obatVitamin,
-      imt: imt,
-    })
-    .eq("pemeriksaan_id", input.id)
-    .select()
-    .single();
+  await dbQuery(
+    `UPDATE pemeriksaan_balita SET berat_badan = ?, tinggi_badan = ?, lingkar_kepala = ?, lingkar_lengan = ?, imunisasi = ?, obat_vitamin = ?, imt = ?
+     WHERE pemeriksaan_id = ?`,
+    [input.beratBadan, input.tinggiBadan, input.lingkarKepala, input.lingkarLengan, input.imunisasi, input.obatVitamin, imt, input.id]
+  );
 
-  if (detailError) throw new Error(detailError.message);
-
-  // Get master pemeriksaan to return balitaId
-  const { data: master } = await supabase
-    .from("master_pemeriksaan")
-    .select("individu_id")
-    .eq("id", input.id)
-    .single();
+  const masterList = await dbQuery("SELECT individu_id FROM master_pemeriksaan WHERE id = ? LIMIT 1", [input.id]);
+  const balitaId = masterList[0]?.individu_id || "";
 
   return {
     id: input.id,
-    balitaId: master?.individu_id || "",
+    balitaId,
     tanggalPemeriksaan: input.tanggalPemeriksaan,
-    tinggiBadan: Number(detail.tinggi_badan),
-    beratBadan: Number(detail.berat_badan),
-    lingkarKepala: Number(detail.lingkar_kepala),
-    lingkarLengan: Number(detail.lingkar_lengan),
-    imunisasi: detail.imunisasi ?? "",
-    obatVitamin: detail.obat_vitamin ?? "",
-    imt: Number(detail.imt),
+    tinggiBadan: input.tinggiBadan,
+    beratBadan: input.beratBadan,
+    lingkarKepala: input.lingkarKepala,
+    lingkarLengan: input.lingkarLengan,
+    imunisasi: input.imunisasi,
+    obatVitamin: input.obatVitamin,
+    imt: imt,
   };
 }
 
@@ -671,12 +503,5 @@ export async function updateBalitaRecord(
 // HAPUS SATU DATA PEMERIKSAAN
 // ---------------------------------------------------------------------------
 export async function deleteBalitaRecord(recordId: string): Promise<void> {
-  const supabase = createClient();
-  const { error } = await supabase
-    .from("master_pemeriksaan")
-    .delete()
-    .eq("id", recordId);
-
-  if (error) throw new Error(error.message);
+  await dbQuery(`DELETE FROM master_pemeriksaan WHERE id = ?`, [recordId]);
 }
-
