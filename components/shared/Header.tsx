@@ -93,6 +93,8 @@ export default function Header({ onMenuToggle }: HeaderProps) {
       else if (part === "ibu-hamil") href = "/dashboard/ibu-hamil";
       else if (part === "lansia") href = "/dashboard/lansia";
       else if (part === "tambah-kk") href = "/dashboard/tambah-kk";
+      else if (part === "kk-terdaftar") href = "/dashboard/kk-terdaftar";
+      else if (part === "laporan") href = "/dashboard/laporan";
       else if (index === 0 && part === "dashboard") href = "/dashboard";
 
       const isDetailPage = parts.length === 2 && index === 1;
@@ -135,32 +137,34 @@ export default function Header({ onMenuToggle }: HeaderProps) {
           <span className="material-symbols-outlined text-[24px]">menu</span>
         </button>
 
-        <span className="material-symbols-outlined text-body-lg text-tertiary">
-          home
-        </span>
-        {breadcrumbs.map((crumb, idx) => (
-          <React.Fragment key={crumb.href}>
-            <span className="text-on-surface-variant font-light text-xs">
-              /
-            </span>
-            <span
-              className={
-                idx === breadcrumbs.length - 1
-                  ? "text-on-background font-semibold truncate max-w-[140px] xs:max-w-[180px] sm:max-w-none"
-                  : "text-on-surface-variant"
-              }
-            >
-              {idx === breadcrumbs.length - 1 ? (
-                crumb.name
+        <Link href="/dashboard" className="flex items-center hover:opacity-80 transition-opacity">
+          <span className="material-symbols-outlined text-body-lg text-tertiary">
+            home
+          </span>
+        </Link>
+        {breadcrumbs.map((crumb, idx) => {
+          const isLast = idx === breadcrumbs.length - 1;
+          return (
+            <React.Fragment key={`${crumb.href}-${idx}`}>
+              <span className="text-on-surface-variant font-light text-xs px-1">
+                /
+              </span>
+              {isLast ? (
+                <span className="text-on-background font-semibold truncate max-w-[140px] xs:max-w-[180px] sm:max-w-none">
+                  {crumb.name}
+                </span>
               ) : (
-                <>
+                <Link
+                  href={crumb.href}
+                  className="text-on-surface-variant hover:text-tertiary hover:underline transition-colors font-medium truncate max-w-[140px] xs:max-w-[180px] sm:max-w-none"
+                >
                   <span className="hidden md:inline">{crumb.name}</span>
                   <span className="inline md:hidden">...</span>
-                </>
+                </Link>
               )}
-            </span>
-          </React.Fragment>
-        ))}
+            </React.Fragment>
+          );
+        })}
       </div>
       <div className="flex items-center gap-4">
         <div

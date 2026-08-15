@@ -163,16 +163,6 @@ export default function KKDetailPage({
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
           <Button
             variant="outline"
-            onClick={() => router.push("/dashboard/kk-terdaftar")}
-            className="flex items-center justify-center gap-2 flex-1 md:flex-initial"
-          >
-            <span className="material-symbols-outlined text-sm">
-              arrow_back
-            </span>
-            <span>Kembali</span>
-          </Button>
-          <Button
-            variant="outline"
             onClick={() => setIsEditOpen(true)}
             className="flex items-center justify-center gap-2 font-bold flex-1 md:flex-initial text-tertiary border-tertiary/40 hover:bg-secondary-container"
           >
