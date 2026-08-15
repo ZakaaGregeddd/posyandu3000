@@ -650,72 +650,63 @@ export default function LansiaDetailPage({
         </section>
       )}
 
-      {/* Historical Record Table */}
-      <section className="space-y-4">
-        <h3 className="font-headline text-lg font-bold text-on-background flex items-center gap-2">
+      {/* Historical Record Section */}
+      <section className="space-y-6">
+        <h3 className="font-headline text-xl font-bold text-on-surface flex items-center gap-2">
           <span className="material-symbols-outlined text-tertiary">
             history
           </span>
           Riwayat Pemeriksaan Lansia
         </h3>
 
-        <Card className="border border-outline-variant/20 overflow-hidden p-0 bg-white">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tanggal Pemeriksaan</TableHead>
-                <TableHead>TB (cm)</TableHead>
-                <TableHead>BB (kg)</TableHead>
-                <TableHead>IMT (BB/TB²)</TableHead>
-                <TableHead>Tensi (mmHg)</TableHead>
-                <TableHead>Penyakit Baru</TableHead>
-                <TableHead>Obat</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {records.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={8}
-                    className="text-center text-on-surface-variant py-8"
-                  >
-                    Belum ada riwayat pemeriksaan lansia.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                records.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium">
-                      {new Date(r.tanggalPemeriksaan).toLocaleDateString(
-                        "id-ID",
-                        {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        },
-                      )}
-                    </TableCell>
-                    <TableCell>{r.tinggiBadan} cm</TableCell>
-                    <TableCell>{r.beratBadan} kg</TableCell>
-                    <TableCell className="font-bold text-tertiary">
-                      {r.imt}
-                    </TableCell>
-                    <TableCell>
-                      {r.tekananDarahSistolik}/{r.tekananDarahDiastolik} mmHg
-                    </TableCell>
-                    <TableCell className="text-red-700 font-medium">
-                      {r.penyakitBaru || "-"}
-                    </TableCell>
-                    <TableCell>{r.obat || "-"}</TableCell>
-                    <TableCell className="text-right whitespace-nowrap">
+        <div className="space-y-6">
+          {records.length === 0 ? (
+            <div className="glass-card p-8 text-center text-on-surface-variant font-medium rounded-2xl">
+              Belum ada riwayat pemeriksaan lansia.
+            </div>
+          ) : (
+            records
+              .slice()
+              .reverse()
+              .map((r, idx) => (
+                <div
+                  key={r.id}
+                  className={`glass-card p-8 rounded-2xl space-y-6 relative ${
+                    idx > 0
+                      ? "opacity-85 hover:opacity-100 transition-opacity"
+                      : ""
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-tertiary">
+                        calendar_month
+                      </span>
+                      <p className="font-headline font-bold text-on-surface text-lg">
+                        {new Date(r.tanggalPemeriksaan).toLocaleDateString(
+                          "id-ID",
+                          {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          },
+                        )}
+                      </p>
+                      {idx === 0 ? (
+                        <span className="px-3 py-1 bg-secondary-container text-tertiary rounded-full text-xs font-bold">
+                          Terbaru
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div className="flex items-center gap-1">
                       <button
                         type="button"
                         onClick={() => openEditExamModal(r)}
                         title="Edit data pemeriksaan"
-                        className="inline-flex items-center gap-1 text-tertiary hover:bg-secondary-container/40 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-slate-100 hover:text-tertiary transition-colors cursor-pointer"
                       >
-                        <span className="material-symbols-outlined text-sm">
+                        <span className="material-symbols-outlined text-lg">
                           edit
                         </span>
                       </button>
@@ -723,19 +714,77 @@ export default function LansiaDetailPage({
                         type="button"
                         onClick={() => handleDeleteRecord(r.id)}
                         title="Hapus data pemeriksaan"
-                        className="inline-flex items-center gap-1 text-red-600 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
                       >
-                        <span className="material-symbols-outlined text-sm">
+                        <span className="material-symbols-outlined text-lg">
                           delete
                         </span>
                       </button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </Card>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4">
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-outline">
+                        Tinggi Badan
+                      </p>
+                      <p className="text-sm font-bold text-on-surface">
+                        {r.tinggiBadan} cm
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-outline">
+                        Berat Badan
+                      </p>
+                      <p className="text-sm font-bold text-on-surface">
+                        {r.beratBadan} kg
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-outline">
+                        IMT (BB/TB²)
+                      </p>
+                      <p className="text-sm font-bold text-tertiary">
+                        {r.imt}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-outline">
+                        Tekanan Darah
+                      </p>
+                      <p className="text-sm font-bold text-on-surface">
+                        {r.tekananDarahSistolik}/{r.tekananDarahDiastolik} mmHg
+                      </p>
+                    </div>
+                    <div className="col-span-2 md:col-span-1 space-y-1">
+                      <p className="text-xs font-bold text-outline">
+                        Penyakit Baru Terdeteksi
+                      </p>
+                      <p className="text-sm font-semibold text-red-700">
+                        {r.penyakitBaru || "-"}
+                      </p>
+                    </div>
+                    <div className="col-span-2 md:col-span-1 space-y-1">
+                      <p className="text-xs font-bold text-outline">
+                        Obat Rutin
+                      </p>
+                      <p className="text-sm font-semibold text-on-surface">
+                        {r.obat || "-"}
+                      </p>
+                    </div>
+                    <div className="col-span-2 space-y-1">
+                      <p className="text-xs font-bold text-outline">
+                        Riwayat Penyakit Terdaftar
+                      </p>
+                      <p className="text-sm font-semibold text-on-surface-variant">
+                        {r.riwayatPenyakit || "-"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))
+          )}
+        </div>
       </section>
 
       {/* Update / Edit Examination Modal */}

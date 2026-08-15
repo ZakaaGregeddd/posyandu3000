@@ -487,7 +487,7 @@ export async function addLansiaRecord(
       kunjungan_ke: kunjunganKe,
       jenis_pemeriksaan: "Lansia",
     })
-    .select("id")
+    .select("id, tanggal_pemeriksaan")
     .single();
 
   if (masterError) throw new Error(masterError.message);

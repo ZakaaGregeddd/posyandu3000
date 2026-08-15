@@ -609,7 +609,7 @@ export async function addIbuHamilRecord(
       kunjungan_ke: input.kunjunganKe,
       jenis_pemeriksaan: "Ibu Hamil",
     })
-    .select("id")
+    .select("id, tanggal_pemeriksaan")
     .single();
 
   if (masterError) throw new Error(masterError.message);

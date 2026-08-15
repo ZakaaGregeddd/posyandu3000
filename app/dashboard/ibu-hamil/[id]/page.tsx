@@ -689,92 +689,128 @@ export default function IbuHamilDetailPage({
         </section>
       )}
 
-      {/* Table of History */}
-      <section className="space-y-4">
-        <h3 className="font-headline text-lg font-bold text-on-background flex items-center gap-2">
+      {/* Historical Record Section */}
+      <section className="space-y-6">
+        <h3 className="font-headline text-xl font-bold text-on-surface flex items-center gap-2">
           <span className="material-symbols-outlined text-tertiary">
             history
           </span>
           Riwayat Pemeriksaan Kehamilan
         </h3>
 
-        <Card className="border border-outline-variant/20 overflow-hidden p-0 bg-white">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Kunjungan</TableHead>
-                <TableHead>Tanggal Pemeriksaan</TableHead>
-                <TableHead>Berat Badan (kg)</TableHead>
-                <TableHead>Tinggi Badan (cm)</TableHead>
-                <TableHead>Tekanan Darah (mmHg)</TableHead>
-                <TableHead>Usia Kehamilan (Wk)</TableHead>
-                <TableHead>Vitamin Diberikan</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {records.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={8}
-                    className="text-center text-on-surface-variant py-8"
-                  >
-                    Belum ada riwayat pemeriksaan kehamilan.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                records.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-bold text-tertiary">
-                      K-#{r.kunjunganKe}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(r.tanggalPemeriksaan).toLocaleDateString(
-                        "id-ID",
-                        {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        },
-                      )}
-                    </TableCell>
-                    <TableCell>{r.beratBadan} kg</TableCell>
-                    <TableCell>{r.tinggiBadan} cm</TableCell>
-                    <TableCell>
-                      {r.tekananDarahSistolik}/{r.tekananDarahDiastolik} mmHg
-                    </TableCell>
-                    <TableCell>{r.usiaKehamilanWeeks} minggu</TableCell>
-                    <TableCell>{r.vitamin || "-"}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="inline-flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => openEditExamModal(r)}
-                          title="Edit data pemeriksaan"
-                          className="inline-flex items-center gap-1 text-on-surface-variant hover:bg-slate-100 hover:text-tertiary px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined text-sm">
-                            edit
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteRecord(r.id)}
-                          title="Hapus data pemeriksaan"
-                          className="inline-flex items-center gap-1 text-red-600 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined text-sm">
-                            delete
-                          </span>
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </Card>
+        <div className="space-y-6">
+          {records.length === 0 ? (
+            <div className="glass-card p-8 text-center text-on-surface-variant font-medium rounded-2xl">
+              Belum ada riwayat pemeriksaan kehamilan.
+            </div>
+          ) : (
+            records
+              .slice()
+              .reverse()
+              .map((r, idx) => (
+                <div
+                  key={r.id}
+                  className={`glass-card p-8 rounded-2xl space-y-6 relative ${
+                    idx > 0
+                      ? "opacity-85 hover:opacity-100 transition-opacity"
+                      : ""
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-tertiary">
+                        calendar_month
+                      </span>
+                      <p className="font-headline font-bold text-on-surface text-lg">
+                        {new Date(r.tanggalPemeriksaan).toLocaleDateString(
+                          "id-ID",
+                          {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          },
+                        )}
+                      </p>
+                      <span className="px-3 py-1 bg-pink-100 text-pink-700 rounded-full text-xs font-bold">
+                        Kunjungan Ke-{r.kunjunganKe}
+                      </span>
+                      {idx === 0 ? (
+                        <span className="px-3 py-1 bg-secondary-container text-tertiary rounded-full text-xs font-bold">
+                          Terbaru
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openEditExamModal(r)}
+                        title="Edit data pemeriksaan"
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-slate-100 hover:text-tertiary transition-colors cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-lg">
+                          edit
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteRecord(r.id)}
+                        title="Hapus data pemeriksaan"
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-lg">
+                          delete
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4">
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-outline">
+                        Berat Badan
+                      </p>
+                      <p className="text-sm font-bold text-on-surface">
+                        {r.beratBadan} kg
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-outline">
+                        Tinggi Badan
+                      </p>
+                      <p className="text-sm font-bold text-on-surface">
+                        {r.tinggiBadan || "-"} cm
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-outline">
+                        Tekanan Darah
+                      </p>
+                      <p className="text-sm font-bold text-on-surface">
+                        {r.tekananDarahSistolik}/{r.tekananDarahDiastolik} mmHg
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-outline">
+                        Usia Kehamilan
+                      </p>
+                      <p className="text-sm font-bold text-tertiary">
+                        {r.usiaKehamilanWeeks} minggu
+                      </p>
+                    </div>
+                    <div className="col-span-2 space-y-1">
+                      <p className="text-xs font-bold text-outline">
+                        Vitamin yang Diberikan
+                      </p>
+                      <p className="text-sm font-semibold text-on-surface">
+                        {r.vitamin || "-"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))
+          )}
+        </div>
       </section>
 
       {/* Add/Edit Examination Modal */}
