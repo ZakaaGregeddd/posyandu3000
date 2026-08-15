@@ -28,7 +28,7 @@ function createWindow() {
       
       // Require the standalone server. Next.js starts listening automatically when loaded.
       // Use dynamic require since it's a generated JS file at runtime
-      require(path.join(__dirname, "../.next/standalone/server.js"));
+      require(path.join(__dirname, "../../.next/standalone/server.js"));
 
       const waitOn = require("wait-on");
       waitOn({ 
