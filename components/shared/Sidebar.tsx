@@ -168,6 +168,17 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         </div>
 
         <Link
+          href="/dashboard/penerima-manfaat"
+          className={`${pathname.startsWith("/dashboard/penerima-manfaat")
+            ? "bg-tertiary text-white shadow-sm"
+            : "text-on-secondary-container hover:bg-white/60 hover:text-tertiary hover:translate-x-1.5"
+            } mx-4 px-4 py-3 flex items-center gap-3 rounded-full transition-all duration-200 font-medium text-sm`}
+        >
+          <span className="material-symbols-outlined">featured_seasonal_and_gifts</span>
+          <span>Penerima Manfaat</span>
+        </Link>
+
+        <Link
           href="/dashboard/laporan"
           className={`${pathname.startsWith("/dashboard/laporan")
             ? "bg-tertiary text-white shadow-sm"

@@ -126,11 +126,14 @@ export async function getKKs(): Promise<KK[]> {
 
 export async function getKKByNoKk(noKkOrId: string): Promise<KK | null> {
   let keluargaRows: any[] = [];
-  if (noKkOrId.length === 36) {
-    keluargaRows = await dbQuery("SELECT * FROM keluarga WHERE id = ? LIMIT 1", [noKkOrId]);
-  } else {
+  // Coba cari berdasarkan ID keluarga terlebih dahulu
+  keluargaRows = await dbQuery("SELECT * FROM keluarga WHERE id = ? LIMIT 1", [noKkOrId]);
+  
+  // Jika tidak ditemukan, coba cari berdasarkan nomor KK
+  if (keluargaRows.length === 0) {
     keluargaRows = await dbQuery("SELECT * FROM keluarga WHERE no_kk = ? LIMIT 1", [noKkOrId]);
   }
+  
   if (keluargaRows.length === 0) return null;
   const row = keluargaRows[0];
   const members = await dbQuery("SELECT * FROM individu WHERE keluarga_id = ?", [row.id]);
@@ -455,8 +458,13 @@ export async function addKK(input: AddKKInput): Promise<KK> {
     throw err;
   }
 
-  const kk = await getKKByNoKk(keluargaId);
-  if (!kk) throw new Error("Data tersimpan tapi gagal dimuat ulang");
+  let kk = await getKKByNoKk(keluargaId);
+  if (!kk && input.noKk) {
+    kk = await getKKByNoKk(input.noKk);
+  }
+  if (!kk) {
+    throw new Error(`Data tersimpan tapi gagal dimuat ulang (ID: ${keluargaId || "null"}, KK: ${input.noKk || "null"})`);
+  }
   return kk;
 }
 

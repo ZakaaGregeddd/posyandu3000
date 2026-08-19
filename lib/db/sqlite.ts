@@ -16,6 +16,80 @@ export function initDb(dbPath: string): Database.Database {
   const db = new Database(dbPath);
   db.pragma("foreign_keys = ON");
 
+  // Schema Migration for Keluarga Table (if it existed without 'id' column)
+  try {
+    const columns = db.prepare("PRAGMA table_info(keluarga)").all() as any[];
+    if (columns.length > 0) {
+      const hasId = columns.some(col => col.name === "id");
+      if (!hasId) {
+        db.exec(`
+          ALTER TABLE keluarga RENAME TO keluarga_old;
+          CREATE TABLE keluarga (
+            id TEXT PRIMARY KEY,
+            no_kk TEXT UNIQUE NOT NULL,
+            alamat TEXT,
+            no_telp TEXT
+          );
+          INSERT INTO keluarga (id, no_kk, alamat, no_telp)
+          SELECT no_kk, no_kk, alamat, no_telp FROM keluarga_old;
+          DROP TABLE keluarga_old;
+        `);
+        console.log("Database Migration: Successfully migrated 'keluarga' table schema.");
+      }
+    }
+  } catch (e) {
+    console.error("Migration check for keluarga table failed:", e);
+  }
+
+  // Schema Migration for Individu Table (if it existed without 'id' column)
+  try {
+    const columns = db.prepare("PRAGMA table_info(individu)").all() as any[];
+    if (columns.length > 0) {
+      const hasId = columns.some(col => col.name === "id");
+      if (!hasId) {
+        db.exec(`
+          ALTER TABLE individu RENAME TO individu_old;
+          CREATE TABLE individu (
+            id TEXT PRIMARY KEY,
+            keluarga_id TEXT,
+            nik TEXT UNIQUE NOT NULL,
+            nama TEXT NOT NULL,
+            tempat_lahir TEXT,
+            tanggal_lahir TEXT,
+            jenis_kelamin TEXT CHECK(jenis_kelamin IN ('L', 'P')),
+            status_keluarga TEXT,
+            golongan_darah TEXT,
+            no_telp TEXT,
+            status_hidup TEXT DEFAULT 'Hidup' CHECK(status_hidup IN ('Hidup', 'Meninggal')),
+            tanggal_meninggal TEXT,
+            keterangan_meninggal TEXT,
+            FOREIGN KEY (keluarga_id) REFERENCES keluarga(id) ON DELETE CASCADE
+          );
+          INSERT INTO individu (id, keluarga_id, nik, nama, tempat_lahir, tanggal_lahir, jenis_kelamin, status_keluarga, golongan_darah, no_telp, status_hidup, tanggal_meninggal, keterangan_meninggal)
+          SELECT nik, keluarga_id, nik, nama, tempat_lahir, tanggal_lahir, jenis_kelamin, status_keluarga, golongan_darah, NULL, status_hidup, tanggal_meninggal, keterangan_meninggal FROM individu_old;
+          DROP TABLE individu_old;
+        `);
+        console.log("Database Migration: Successfully migrated 'individu' table schema.");
+      }
+    }
+  } catch (e) {
+    console.error("Migration check for individu table failed:", e);
+  }
+
+  // Schema Migration to add 'no_telp' to Individu Table if it's missing
+  try {
+    const columns = db.prepare("PRAGMA table_info(individu)").all() as any[];
+    if (columns.length > 0) {
+      const hasNoTelp = columns.some(col => col.name === "no_telp");
+      if (!hasNoTelp) {
+        db.exec("ALTER TABLE individu ADD COLUMN no_telp TEXT;");
+        console.log("Database Migration: Successfully added 'no_telp' column to 'individu' table.");
+      }
+    }
+  } catch (e) {
+    console.error("Migration check for no_telp in individu failed:", e);
+  }
+
   // Create Keluarga Table
   db.exec(`
     CREATE TABLE IF NOT EXISTS keluarga (
@@ -38,6 +112,7 @@ export function initDb(dbPath: string): Database.Database {
       jenis_kelamin TEXT CHECK(jenis_kelamin IN ('L', 'P')),
       status_keluarga TEXT,
       golongan_darah TEXT,
+      no_telp TEXT,
       status_hidup TEXT DEFAULT 'Hidup' CHECK(status_hidup IN ('Hidup', 'Meninggal')),
       tanggal_meninggal TEXT,
       keterangan_meninggal TEXT,
@@ -115,6 +190,18 @@ export function initDb(dbPath: string): Database.Database {
       penyakit TEXT,
       keterangan TEXT,
       FOREIGN KEY (pemeriksaan_id) REFERENCES master_pemeriksaan(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Create Penerima Manfaat Table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS penerima_manfaat (
+      id TEXT PRIMARY KEY,
+      individu_id TEXT NOT NULL,
+      tanggal_diterima TEXT NOT NULL,
+      keterangan TEXT,
+      foto_bukti TEXT,
+      FOREIGN KEY (individu_id) REFERENCES individu(id) ON DELETE CASCADE
     )
   `);
 

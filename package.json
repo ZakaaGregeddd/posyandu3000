@@ -8,8 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "dev:desktop": "concurrently -k \"npm run dev\" \"wait-on http://localhost:3000 && electron dist-electron/electron/main.js\"",
-    "build:desktop": "npx tsc -p tsconfig.electron.json && npm run build && node scripts/copy-assets.js && electron-builder",
+    "dev:desktop": "node node_modules/typescript/bin/tsc -p tsconfig.electron.json && concurrently -k \"npm run dev\" \"wait-on http://localhost:3000 && electron dist-electron/electron/main.js\"",
+    "build:desktop": "node node_modules/typescript/bin/tsc -p tsconfig.electron.json && npm run build && node scripts/copy-assets.js && electron-builder",
     "postinstall": "cd node_modules/better-sqlite3 && npx prebuild-install --runtime=electron --target=32.0.0"
   },
   "dependencies": {
@@ -19,6 +19,7 @@
     "@supabase/supabase-js": "^2.112.1",
     "better-sqlite3": "^11.8.1",
     "electron-is-dev": "^3.0.1",
+    "html-to-image": "^1.11.13",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.24.0",
