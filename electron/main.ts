@@ -17,32 +17,52 @@ function createWindow() {
     title: "Posyandu3000 Desktop",
   });
 
+  // Always open DevTools for debugging packaged app white screen issues
+  mainWindow.webContents.openDevTools();
+
   if (isDev) {
     mainWindow.loadURL("http://localhost:3000");
-    mainWindow.webContents.openDevTools();
   } else {
-    // Start Next.js server directly in the Main Process (no child process spawn needed)
+    // Start Next.js server directly in the Main Process
     try {
       process.env.PORT = "3000";
       process.env.NODE_ENV = "production";
       
-      // Require the standalone server. Next.js starts listening automatically when loaded.
-      // Use dynamic require since it's a generated JS file at runtime
-      require(path.join(__dirname, "../../.next/standalone/server.js"));
+      const serverDir = path.join(__dirname, "../../.next/standalone").replace("app.asar", "app.asar.unpacked");
+      const serverScript = path.join(serverDir, "server.js");
 
-      const waitOn = require("wait-on");
-      waitOn({ 
-        resources: ["http://localhost:3000"],
-        timeout: 15000 
-      }).then(() => {
-        if (mainWindow) {
-          mainWindow.loadURL("http://localhost:3000");
-        }
-      }).catch((err: any) => {
-        console.error("Gagal terhubung ke server Next.js lokal:", err);
-      });
+      // Critical: Next.js standalone expects process.cwd() to be the standalone directory 
+      // to correctly find the .next folder and required server files.
+      if (require("fs").existsSync(serverDir)) {
+        process.chdir(serverDir);
+      } else {
+        const { dialog } = require("electron");
+        dialog.showErrorBox("Server Directory Missing", `Directory not found: ${serverDir}`);
+      }
+      
+      require(serverScript);
+
+      const http = require("http");
+      
+      const checkServer = (retries = 40, delay = 500) => {
+        http.get("http://localhost:3000", () => {
+          if (mainWindow) {
+            mainWindow.loadURL("http://localhost:3000");
+          }
+        }).on("error", (err: any) => {
+          if (retries > 0) {
+            setTimeout(() => checkServer(retries - 1, delay), delay);
+          } else {
+            const { dialog } = require("electron");
+            dialog.showErrorBox("Next.js Connection Error", "Gagal terhubung ke server Next.js setelah 20 detik.\n" + (err.stack || err.message || String(err)));
+          }
+        });
+      };
+
+      checkServer();
     } catch (err: any) {
-      console.error("Gagal mematangkan server Next.js:", err);
+      const { dialog } = require("electron");
+      dialog.showErrorBox("Next.js Server Launch Error", err.stack || err.message || String(err));
     }
   }
 

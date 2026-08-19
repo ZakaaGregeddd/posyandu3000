@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { dbQuery } from "@/lib/db/db-client";
 
 export interface Individu {
   id: string; // UUID
@@ -31,7 +31,7 @@ function mapRowToIndividu(row: any): Individu {
   return {
     id: row.id,
     nik: row.nik,
-    noKk: row.no_kk,
+    noKk: row.no_kk || null,
     nama: row.nama,
     tempatLahir: row.tempat_lahir,
     tanggalLahir: row.tanggal_lahir,
@@ -44,61 +44,75 @@ function mapRowToIndividu(row: any): Individu {
 }
 
 export async function getIndividuByNik(nik: string): Promise<Individu | null> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("individu")
-    .select("*")
-    .eq("nik", nik)
-    .maybeSingle();
-
-  if (error) throw new Error(error.message);
-  return data ? mapRowToIndividu(data) : null;
+  const rows = await dbQuery(
+    `SELECT i.*, k.no_kk 
+     FROM individu i 
+     LEFT JOIN keluarga k ON i.keluarga_id = k.id 
+     WHERE i.nik = ? OR i.id = ? 
+     LIMIT 1`,
+    [nik, nik]
+  );
+  if (rows.length === 0) return null;
+  return mapRowToIndividu(rows[0]);
 }
 
 export async function updateIndividu(
   input: UpdateIndividuInput,
 ): Promise<Individu> {
-  const supabase = createClient();
   const identifier = input.id || input.nik;
   if (!identifier) throw new Error("Identifier (id or NIK) is required for update");
 
-  let query = supabase
-    .from("individu")
-    .update({
-      nik: input.nik,
-      nama: input.nama,
-      tempat_lahir: input.tempatLahir,
-      tanggal_lahir: input.tanggalLahir,
-      jenis_kelamin: input.jenisKelamin,
-      status_hidup: input.statusHidup,
-      tanggal_meninggal:
-        input.statusHidup === "Meninggal" ? input.tanggalMeninggal : null,
-      keterangan_meninggal:
-        input.statusHidup === "Meninggal" ? input.keteranganMeninggal : null,
-      no_telp: input.noTelp,
-    });
+  const isUuid = identifier.length === 36;
+  const updateQuery = isUuid
+    ? `UPDATE individu SET 
+         nik = ?, 
+         nama = ?, 
+         tempat_lahir = ?, 
+         tanggal_lahir = ?, 
+         jenis_kelamin = ?, 
+         status_hidup = ?, 
+         tanggal_meninggal = ?, 
+         keterangan_meninggal = ?, 
+         no_telp = ? 
+       WHERE id = ?`
+    : `UPDATE individu SET 
+         nik = ?, 
+         nama = ?, 
+         tempat_lahir = ?, 
+         tanggal_lahir = ?, 
+         jenis_kelamin = ?, 
+         status_hidup = ?, 
+         tanggal_meninggal = ?, 
+         keterangan_meninggal = ?, 
+         no_telp = ? 
+       WHERE nik = ?`;
 
-  if (identifier.length === 36) {
-    query = query.eq("id", identifier);
-  } else {
-    query = query.eq("nik", identifier);
-  }
+  const tanggalMeninggal = input.statusHidup === "Meninggal" ? input.tanggalMeninggal : null;
+  const keteranganMeninggal = input.statusHidup === "Meninggal" ? input.keteranganMeninggal : null;
 
-  const { data, error } = await query.select("*").single();
+  await dbQuery(updateQuery, [
+    input.nik || null,
+    input.nama,
+    input.tempatLahir,
+    input.tanggalLahir,
+    input.jenisKelamin,
+    input.statusHidup,
+    tanggalMeninggal,
+    keteranganMeninggal,
+    input.noTelp || null,
+    identifier
+  ]);
 
-  if (error) throw new Error(error.message);
-  return mapRowToIndividu(data);
+  const updated = await getIndividuByNik(identifier);
+  if (!updated) throw new Error("Gagal memuat ulang data individu setelah update");
+  return updated;
 }
 
 export async function deleteIndividu(nik: string): Promise<void> {
-  const supabase = createClient();
-  let query = supabase.from("individu").delete();
-  if (nik.length === 36) {
-    query = query.eq("id", nik);
+  const isUuid = nik.length === 36;
+  if (isUuid) {
+    await dbQuery("DELETE FROM individu WHERE id = ?", [nik]);
   } else {
-    query = query.eq("nik", nik);
+    await dbQuery("DELETE FROM individu WHERE nik = ?", [nik]);
   }
-  const { error } = await query;
-  if (error) throw new Error(error.message);
 }
-

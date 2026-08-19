@@ -1,3 +1,5 @@
+import { dbQuery } from "@/lib/db/db-client";
+
 export type StatusHidup = "Hidup" | "Meninggal";
 
 export interface PostBirthRecord {
@@ -65,13 +67,7 @@ function parseAlamat(alamatRaw: string | null) {
   };
 }
 
-// Helper to execute DB queries via Electron Bridge
-async function dbQuery(sql: string, params: any[] = []): Promise<any> {
-  if (typeof window !== "undefined" && window.electronAPI) {
-    return window.electronAPI.query(sql, params);
-  }
-  return [];
-}
+
 
 // ---------------------------------------------------------------------------
 // DAFTAR IBU HAMIL

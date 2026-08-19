@@ -1,28 +1,31 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
-function copyFolderSync(from, to) {
-  if (!fs.existsSync(from)) return;
-  fs.mkdirSync(to, { recursive: true });
-  fs.readdirSync(from).forEach(element => {
-    if (fs.lstatSync(path.join(from, element)).isDirectory()) {
-      copyFolderSync(path.join(from, element), path.join(to, element));
+function copyDir(src, dest) {
+  if (!fs.existsSync(src)) return;
+  fs.mkdirSync(dest, { recursive: true });
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+
+  for (let entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+
+    if (entry.isDirectory()) {
+      copyDir(srcPath, destPath);
     } else {
-      fs.copyFileSync(path.join(from, element), path.join(to, element));
+      fs.copyFileSync(srcPath, destPath);
     }
-  });
+  }
 }
 
-// Copy public folder to standalone public
-copyFolderSync(
-  path.join(__dirname, '../public'),
-  path.join(__dirname, '../.next/standalone/public')
-);
+// Target paths inside standalone bundle
+const standalonePath = path.join(__dirname, "../.next/standalone");
 
-// Copy static assets to standalone static
-copyFolderSync(
-  path.join(__dirname, '../.next/static'),
-  path.join(__dirname, '../.next/standalone/.next/static')
-);
-
-console.log('Aset statis berhasil disalin ke standalone build!');
+if (fs.existsSync(standalonePath)) {
+  console.log("Copying assets to standalone directory...");
+  copyDir(path.join(__dirname, "../public"), path.join(standalonePath, "public"));
+  copyDir(path.join(__dirname, "../.next/static"), path.join(standalonePath, ".next/static"));
+  console.log("Assets copied successfully!");
+} else {
+  console.warn("Standalone directory not found. Make sure output: 'standalone' is set in next.config.ts and you ran npm run build.");
+}

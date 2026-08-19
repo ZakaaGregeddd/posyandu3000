@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { dbQuery } from "@/lib/db/db-client";
 
 export interface KK {
   id?: string; // UUID of keluarga
@@ -105,82 +105,50 @@ function mapRowToKK(row: any): KK {
 // DAFTAR KK
 // ---------------------------------------------------------------------------
 export async function getKKs(): Promise<KK[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("keluarga")
-    .select(`
-      id,
-      no_kk,
-      alamat,
-      no_telp,
-      members:individu(
-        id,
-        nik,
-        nama,
-        tempat_lahir,
-        tanggal_lahir,
-        jenis_kelamin,
-        status_keluarga,
-        no_telp,
-        golongan_darah
-      )
-    `)
-    .order("no_kk");
+  const keluargaList = await dbQuery("SELECT * FROM keluarga ORDER BY no_kk");
+  const individuals = await dbQuery("SELECT * FROM individu");
 
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(mapRowToKK);
+  const membersByKeluarga = new Map<string, any[]>();
+  for (const ind of individuals) {
+    if (ind.keluarga_id) {
+      if (!membersByKeluarga.has(ind.keluarga_id)) {
+        membersByKeluarga.set(ind.keluarga_id, []);
+      }
+      membersByKeluarga.get(ind.keluarga_id)!.push(ind);
+    }
+  }
+
+  return keluargaList.map((row: any) => {
+    const members = membersByKeluarga.get(row.id) || [];
+    return mapRowToKK({ ...row, members });
+  });
 }
 
 export async function getKKByNoKk(noKkOrId: string): Promise<KK | null> {
-  const supabase = createClient();
-  let query = supabase
-    .from("keluarga")
-    .select(`
-      id,
-      no_kk,
-      alamat,
-      no_telp,
-      members:individu(
-        id,
-        nik,
-        nama,
-        tempat_lahir,
-        tanggal_lahir,
-        jenis_kelamin,
-        status_keluarga,
-        no_telp,
-        golongan_darah
-      )
-    `);
-
+  let keluargaRows: any[] = [];
   if (noKkOrId.length === 36) {
-    query = query.eq("id", noKkOrId);
+    keluargaRows = await dbQuery("SELECT * FROM keluarga WHERE id = ? LIMIT 1", [noKkOrId]);
   } else {
-    query = query.eq("no_kk", noKkOrId);
+    keluargaRows = await dbQuery("SELECT * FROM keluarga WHERE no_kk = ? LIMIT 1", [noKkOrId]);
   }
-
-  const { data, error } = await query.maybeSingle();
-  if (error) throw new Error(error.message);
-  return data ? mapRowToKK(data) : null;
+  if (keluargaRows.length === 0) return null;
+  const row = keluargaRows[0];
+  const members = await dbQuery("SELECT * FROM individu WHERE keluarga_id = ?", [row.id]);
+  return mapRowToKK({ ...row, members });
 }
 
 // ---------------------------------------------------------------------------
 // JUMLAH ANGGOTA per KK
 // ---------------------------------------------------------------------------
 export async function getAnggotaCountMap(): Promise<Map<string, number>> {
-  const supabase = createClient();
-  // Join with keluarga to map count by no_kk
-  const { data, error } = await supabase
-    .from("individu")
-    .select(`
-      id,
-      keluarga:keluarga(no_kk)
-    `);
-  if (error) throw new Error(error.message);
-
+  const data = await dbQuery(`
+    SELECT i.id, k.no_kk
+    FROM individu i
+    JOIN keluarga k ON i.keluarga_id = k.id
+  `);
   const map = new Map<string, number>();
-  (data ?? []).forEach((row: any) => {
-    const noKk = row.keluarga?.no_kk;
+  data.forEach((row: any) => {
+    const noKk = row.no_kk;
     if (noKk) {
       map.set(noKk, (map.get(noKk) ?? 0) + 1);
     }
@@ -218,40 +186,39 @@ function getKategoriAndRole(tanggalLahirStr: string, jenisKelamin: string, statu
 // ANGGOTA KELUARGA
 // ---------------------------------------------------------------------------
 export async function getKKMembers(noKkOrId: string): Promise<KKMember[]> {
-  const supabase = createClient();
-
-  // Dapatkan keluarga_id (UUID)
-  let kkQuery = supabase.from("keluarga").select("id");
+  let keluargaRows: any[] = [];
   if (noKkOrId.length === 36) {
-    kkQuery = kkQuery.eq("id", noKkOrId);
+    keluargaRows = await dbQuery("SELECT id FROM keluarga WHERE id = ? LIMIT 1", [noKkOrId]);
   } else {
-    kkQuery = kkQuery.eq("no_kk", noKkOrId);
+    keluargaRows = await dbQuery("SELECT id FROM keluarga WHERE no_kk = ? LIMIT 1", [noKkOrId]);
   }
-  const { data: kkData, error: kkError } = await kkQuery.maybeSingle();
-  if (kkError) throw new Error(kkError.message);
-  if (!kkData) return [];
+  if (keluargaRows.length === 0) return [];
+  const keluargaId = keluargaRows[0].id;
 
-  const keluargaId = kkData.id;
+  const rows = await dbQuery("SELECT * FROM individu WHERE keluarga_id = ? ORDER BY tanggal_lahir", [keluargaId]);
+  
+  const masterExams = await dbQuery(`
+    SELECT m.id, m.individu_id, m.jenis_pemeriksaan, p.status_kelahiran
+    FROM master_pemeriksaan m
+    LEFT JOIN pemeriksaan_ibu_hamil p ON m.id = p.pemeriksaan_id
+    WHERE m.individu_id IN (SELECT id FROM individu WHERE keluarga_id = ?)
+  `, [keluargaId]);
 
-  const { data, error } = await supabase
-    .from("individu")
-    .select(`
-      *,
-      master_pemeriksaan(
-        id,
-        jenis_pemeriksaan,
-        pemeriksaan_ibu_hamil(status_kelahiran)
-      )
-    `)
-    .eq("keluarga_id", keluargaId)
-    .order("tanggal_lahir");
-
-  if (error) throw new Error(error.message);
-  const rows = data ?? [];
+  const examsByIndividu = new Map<string, any[]>();
+  masterExams.forEach((me: any) => {
+    if (!examsByIndividu.has(me.individu_id)) {
+      examsByIndividu.set(me.individu_id, []);
+    }
+    examsByIndividu.get(me.individu_id)!.push({
+      id: me.id,
+      jenis_pemeriksaan: me.jenis_pemeriksaan,
+      pemeriksaan_ibu_hamil: { status_kelahiran: me.status_kelahiran }
+    });
+  });
 
   return rows.map((r: any) => {
-    // Check if there is an active pregnancy (has examination of type 'Ibu Hamil' and no status_kelahiran/not birthed yet)
-    const pregExams = r.master_pemeriksaan?.filter((mp: any) => mp.jenis_pemeriksaan === "Ibu Hamil") || [];
+    const rExams = examsByIndividu.get(r.id) || [];
+    const pregExams = rExams.filter((mp: any) => mp.jenis_pemeriksaan === "Ibu Hamil");
     const isHamil = pregExams.some((mp: any) => {
       const detail = mp.pemeriksaan_ibu_hamil;
       return !detail || !detail.status_kelahiran;
@@ -265,13 +232,12 @@ export async function getKKMembers(noKkOrId: string): Promise<KKMember[]> {
     } else if (role === "Lansia") {
       routePath = `/dashboard/lansia/${r.id}`;
     } else if (role === "Ibu Hamil") {
-      // Find the examination ID for routing
       const latestPregExam = pregExams[pregExams.length - 1];
       routePath = `/dashboard/ibu-hamil/${latestPregExam?.id || r.id}`;
     }
 
     return {
-      id: r.id, // UUID
+      id: r.id,
       nik: r.nik,
       nama: r.nama,
       role,
@@ -327,8 +293,6 @@ function generateTempNik(): string {
 }
 
 export async function addKK(input: AddKKInput): Promise<KK> {
-  const supabase = createClient();
-
   if (!input.namaAyah && !input.namaIbu) {
     throw new Error("Harap masukkan setidaknya nama salah satu orang tua (Ayah atau Ibu)");
   }
@@ -342,165 +306,151 @@ export async function addKK(input: AddKKInput): Promise<KK> {
   const combinedAlamat = formatAlamat(input.alamat || "", input.rt || "", input.rw || "");
   const noTelp = input.noTelp || input.telpAyah || input.telpIbu || null;
 
-  // Check if KK already exists in the database
   let keluargaId = null;
   let isExisting = false;
+
   if (input.noKk) {
-    const { data: existingKK } = await supabase
-      .from("keluarga")
-      .select("id")
-      .eq("no_kk", input.noKk)
-      .maybeSingle();
-    if (existingKK) {
-      keluargaId = existingKK.id;
+    const existingKK = await dbQuery("SELECT id FROM keluarga WHERE no_kk = ? LIMIT 1", [input.noKk]);
+    if (existingKK.length > 0) {
+      keluargaId = existingKK[0].id;
       isExisting = true;
     }
   }
 
   if (isExisting && keluargaId) {
-    // Update address and phone for existing KK if needed
-    const { error: kkUpdateError } = await supabase
-      .from("keluarga")
-      .update({
-        alamat: combinedAlamat,
-        no_telp: noTelp,
-      })
-      .eq("id", keluargaId);
-    if (kkUpdateError) throw new Error(kkUpdateError.message);
+    await dbQuery(
+      "UPDATE keluarga SET alamat = ?, no_telp = ? WHERE id = ?",
+      [combinedAlamat, noTelp, keluargaId]
+    );
   } else {
-    // Create new keluarga row
-    const { data: kkData, error: kkError } = await supabase
-      .from("keluarga")
-      .insert({
-        no_kk: input.noKk || null,
-        alamat: combinedAlamat,
-        no_telp: noTelp,
-      })
-      .select("id")
-      .single();
-
-    if (kkError) throw new Error(kkError.message);
-    keluargaId = kkData.id;
+    keluargaId = crypto.randomUUID();
+    await dbQuery(
+      "INSERT INTO keluarga (id, no_kk, alamat, no_telp) VALUES (?, ?, ?, ?)",
+      [keluargaId, input.noKk || null, combinedAlamat, noTelp]
+    );
   }
 
   try {
     if (input.namaAyah) {
-      // Check if Father exists
-      const { data: existingAyah } = await supabase
-        .from("individu")
-        .select("id")
-        .eq("keluarga_id", keluargaId)
-        .or("status_keluarga.eq.Kepala Keluarga,status_keluarga.eq.Ayah")
-        .maybeSingle();
+      const existingAyah = await dbQuery(
+        "SELECT id FROM individu WHERE keluarga_id = ? AND (status_keluarga = 'Kepala Keluarga' OR status_keluarga = 'Ayah') LIMIT 1",
+        [keluargaId]
+      );
 
       const nikAyah = input.nikAyah && input.nikAyah.length === 16 ? input.nikAyah : generateTempNik();
-      if (existingAyah) {
-        const { error } = await supabase
-          .from("individu")
-          .update({
-            nik: input.nikAyah || undefined,
-            nama: input.namaAyah,
-            tempat_lahir: input.tempatLahirAyah || null,
-            tanggal_lahir: input.tanggalLahirAyah,
-            no_telp: input.telpAyah || null,
-            golongan_darah: input.golonganDarahAyah || null,
-          })
-          .eq("id", existingAyah.id);
-        if (error) throw new Error(error.message);
+      if (existingAyah.length > 0) {
+        await dbQuery(
+          `UPDATE individu SET nik = ?, nama = ?, tempat_lahir = ?, tanggal_lahir = ?, no_telp = ?, golongan_darah = ? WHERE id = ?`,
+          [
+            input.nikAyah || null,
+            input.namaAyah,
+            input.tempatLahirAyah || null,
+            input.tanggalLahirAyah,
+            input.telpAyah || null,
+            input.golonganDarahAyah || null,
+            existingAyah[0].id
+          ]
+        );
       } else {
-        const { error } = await supabase.from("individu").insert({
-          keluarga_id: keluargaId,
-          nik: nikAyah,
-          nama: input.namaAyah,
-          tempat_lahir: input.tempatLahirAyah || null,
-          tanggal_lahir: input.tanggalLahirAyah,
-          jenis_kelamin: "L",
-          status_keluarga: "Kepala Keluarga",
-          no_telp: input.telpAyah || null,
-          golongan_darah: input.golonganDarahAyah || null,
-        });
-        if (error) throw new Error(error.message);
+        const idAyah = crypto.randomUUID();
+        await dbQuery(
+          `INSERT INTO individu (id, keluarga_id, nik, nama, tempat_lahir, tanggal_lahir, jenis_kelamin, status_keluarga, no_telp, golongan_darah)
+           VALUES (?, ?, ?, ?, ?, ?, 'L', 'Kepala Keluarga', ?, ?)`,
+          [
+            idAyah,
+            keluargaId,
+            nikAyah,
+            input.namaAyah,
+            input.tempatLahirAyah || null,
+            input.tanggalLahirAyah,
+            input.telpAyah || null,
+            input.golonganDarahAyah || null
+          ]
+        );
       }
     }
 
     if (input.namaIbu) {
-      // Check if Mother exists
-      const { data: existingIbu } = await supabase
-        .from("individu")
-        .select("id")
-        .eq("keluarga_id", keluargaId)
-        .or("status_keluarga.eq.Istri,status_keluarga.eq.Ibu")
-        .maybeSingle();
+      const existingIbu = await dbQuery(
+        "SELECT id FROM individu WHERE keluarga_id = ? AND (status_keluarga = 'Istri' OR status_keluarga = 'Ibu') LIMIT 1",
+        [keluargaId]
+      );
 
       const nikIbu = input.nikIbu && input.nikIbu.length === 16 ? input.nikIbu : generateTempNik();
-      if (existingIbu) {
-        const { error } = await supabase
-          .from("individu")
-          .update({
-            nik: input.nikIbu || undefined,
-            nama: input.namaIbu,
-            tempat_lahir: input.tempatLahirIbu || null,
-            tanggal_lahir: input.tanggalLahirIbu,
-            no_telp: input.telpIbu || null,
-            golongan_darah: input.golonganDarahIbu || null,
-          })
-          .eq("id", existingIbu.id);
-        if (error) throw new Error(error.message);
+      if (existingIbu.length > 0) {
+        await dbQuery(
+          `UPDATE individu SET nik = ?, nama = ?, tempat_lahir = ?, tanggal_lahir = ?, no_telp = ?, golongan_darah = ? WHERE id = ?`,
+          [
+            input.nikIbu || null,
+            input.namaIbu,
+            input.tempatLahirIbu || null,
+            input.tanggalLahirIbu,
+            input.telpIbu || null,
+            input.golonganDarahIbu || null,
+            existingIbu[0].id
+          ]
+        );
       } else {
-        const { error } = await supabase.from("individu").insert({
-          keluarga_id: keluargaId,
-          nik: nikIbu,
-          nama: input.namaIbu,
-          tempat_lahir: input.tempatLahirIbu || null,
-          tanggal_lahir: input.tanggalLahirIbu,
-          jenis_kelamin: "P",
-          status_keluarga: "Istri",
-          no_telp: input.telpIbu || null,
-          golongan_darah: input.golonganDarahIbu || null,
-        });
-        if (error) throw new Error(error.message);
+        const idIbu = crypto.randomUUID();
+        await dbQuery(
+          `INSERT INTO individu (id, keluarga_id, nik, nama, tempat_lahir, tanggal_lahir, jenis_kelamin, status_keluarga, no_telp, golongan_darah)
+           VALUES (?, ?, ?, ?, ?, ?, 'P', 'Istri', ?, ?)`,
+          [
+            idIbu,
+            keluargaId,
+            nikIbu,
+            input.namaIbu,
+            input.tempatLahirIbu || null,
+            input.tanggalLahirIbu,
+            input.telpIbu || null,
+            input.golonganDarahIbu || null
+          ]
+        );
       }
     }
 
     if (input.anggotaKeluarga && input.anggotaKeluarga.length > 0) {
       for (const member of input.anggotaKeluarga) {
         if (member.id || member.isExisting) {
-          // Update pre-existing member details
-          const { error } = await supabase
-            .from("individu")
-            .update({
-              nik: member.nik || null,
-              nama: member.nama,
-              tempat_lahir: member.tempatLahir || null,
-              tanggal_lahir: member.tanggalLahir,
-              jenis_kelamin: member.jenisKelamin,
-              status_keluarga: member.statusKeluarga,
-              no_telp: member.noTelp || null,
-              golongan_darah: member.golonganDarah || null,
-            })
-            .eq("id", member.id);
-          if (error) throw new Error(error.message);
+          await dbQuery(
+            `UPDATE individu SET nik = ?, nama = ?, tempat_lahir = ?, tanggal_lahir = ?, jenis_kelamin = ?, status_keluarga = ?, no_telp = ?, golongan_darah = ? WHERE id = ?`,
+            [
+              member.nik || null,
+              member.nama,
+              member.tempatLahir || null,
+              member.tanggalLahir,
+              member.jenisKelamin,
+              member.statusKeluarga,
+              member.noTelp || null,
+              member.golonganDarah || null,
+              member.id
+            ]
+          );
           continue;
         }
         const memberNik = member.nik && member.nik.length === 16 ? member.nik : generateTempNik();
-        const { error } = await supabase.from("individu").insert({
-          keluarga_id: keluargaId,
-          nik: memberNik,
-          nama: member.nama,
-          tempat_lahir: member.tempatLahir || null,
-          tanggal_lahir: member.tanggalLahir,
-          jenis_kelamin: member.jenisKelamin,
-          status_keluarga: member.statusKeluarga,
-          no_telp: member.noTelp || null,
-          golongan_darah: member.golonganDarah || null,
-        });
-        if (error) throw new Error(error.message);
+        const memberId = crypto.randomUUID();
+        await dbQuery(
+          `INSERT INTO individu (id, keluarga_id, nik, nama, tempat_lahir, tanggal_lahir, jenis_kelamin, status_keluarga, no_telp, golongan_darah)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            memberId,
+            keluargaId,
+            memberNik,
+            member.nama,
+            member.tempatLahir || null,
+            member.tanggalLahir,
+            member.jenisKelamin,
+            member.statusKeluarga,
+            member.noTelp || null,
+            member.golonganDarah || null
+          ]
+        );
       }
     }
   } catch (err) {
-    // Rollback keluarga ONLY if we created it new
     if (!isExisting) {
-      await supabase.from("keluarga").delete().eq("id", keluargaId);
+      await dbQuery("DELETE FROM keluarga WHERE id = ?", [keluargaId]);
     }
     throw err;
   }
@@ -535,7 +485,6 @@ export interface UpdateKKInput {
 }
 
 export async function updateKK(input: UpdateKKInput): Promise<KK> {
-  const supabase = createClient();
   const identifier = input.id || input.noKk;
 
   const existingKK = await getKKByNoKk(identifier);
@@ -549,96 +498,81 @@ export async function updateKK(input: UpdateKKInput): Promise<KK> {
   }
 
   const combinedAlamat = formatAlamat(input.alamat || "", input.rt || "", input.rw || "");
-
-  // Update data keluarga
-  let kkQuery = supabase.from("keluarga").update({
-    no_kk: input.noKk || null,
-    alamat: combinedAlamat,
-    no_telp: input.noTelp || null,
-  });
-
-  if (existingKK.id) {
-    kkQuery = kkQuery.eq("id", existingKK.id);
-  } else {
-    kkQuery = kkQuery.eq("no_kk", input.noKk);
-  }
-
-  const { error: kkError } = await kkQuery;
-  if (kkError) throw new Error(kkError.message);
-
   const keluargaId = existingKK.id;
   if (!keluargaId) throw new Error("ID Keluarga tidak valid");
 
-  // Fetch current father/mother in this keluarga
-  const { data: members, error: memError } = await supabase
-    .from("individu")
-    .select("id, status_keluarga")
-    .eq("keluarga_id", keluargaId);
+  await dbQuery(
+    "UPDATE keluarga SET no_kk = ?, alamat = ?, no_telp = ? WHERE id = ?",
+    [input.noKk || null, combinedAlamat, input.noTelp || null, keluargaId]
+  );
 
-  if (memError) throw new Error(memError.message);
-
+  const members = await dbQuery("SELECT id, status_keluarga FROM individu WHERE keluarga_id = ?", [keluargaId]);
   const existingAyah = members?.find((m: any) => m.status_keluarga === "Kepala Keluarga" || m.status_keluarga === "Ayah");
   const existingIbu = members?.find((m: any) => m.status_keluarga === "Istri" || m.status_keluarga === "Ibu");
 
-  // Update/insert Ayah
   if (input.namaAyah) {
     if (existingAyah) {
-      const { error } = await supabase
-        .from("individu")
-        .update({
-          nama: input.namaAyah,
-          tanggal_lahir: input.tanggalLahirAyah,
-          tempat_lahir: input.tempatLahirAyah || null,
-          no_telp: input.telpAyah || null,
-          golongan_darah: input.golonganDarahAyah || null,
-        })
-        .eq("id", existingAyah.id);
-      if (error) throw new Error(error.message);
+      await dbQuery(
+        `UPDATE individu SET nama = ?, tanggal_lahir = ?, tempat_lahir = ?, no_telp = ?, golongan_darah = ? WHERE id = ?`,
+        [
+          input.namaAyah,
+          input.tanggalLahirAyah,
+          input.tempatLahirAyah || null,
+          input.telpAyah || null,
+          input.golonganDarahAyah || null,
+          existingAyah.id
+        ]
+      );
     } else {
       const nikAyah = input.nikAyah && input.nikAyah.length === 16 ? input.nikAyah : generateTempNik();
-      const { error } = await supabase.from("individu").insert({
-        keluarga_id: keluargaId,
-        nik: nikAyah,
-        nama: input.namaAyah,
-        tempat_lahir: input.tempatLahirAyah || null,
-        tanggal_lahir: input.tanggalLahirAyah,
-        jenis_kelamin: "L",
-        status_keluarga: "Kepala Keluarga",
-        no_telp: input.telpAyah || null,
-        golongan_darah: input.golonganDarahAyah || null,
-      });
-      if (error) throw new Error(error.message);
+      const idAyah = crypto.randomUUID();
+      await dbQuery(
+        `INSERT INTO individu (id, keluarga_id, nik, nama, tempat_lahir, tanggal_lahir, jenis_kelamin, status_keluarga, no_telp, golongan_darah)
+         VALUES (?, ?, ?, ?, ?, ?, 'L', 'Kepala Keluarga', ?, ?)`,
+        [
+          idAyah,
+          keluargaId,
+          nikAyah,
+          input.namaAyah,
+          input.tempatLahirAyah || null,
+          input.tanggalLahirAyah,
+          input.telpAyah || null,
+          input.golonganDarahAyah || null
+        ]
+      );
     }
   }
 
-  // Update/insert Ibu
   if (input.namaIbu) {
     if (existingIbu) {
-      const { error } = await supabase
-        .from("individu")
-        .update({
-          nama: input.namaIbu,
-          tanggal_lahir: input.tanggalLahirIbu,
-          tempat_lahir: input.tempatLahirIbu || null,
-          no_telp: input.telpIbu || null,
-          golongan_darah: input.golonganDarahIbu || null,
-        })
-        .eq("id", existingIbu.id);
-      if (error) throw new Error(error.message);
+      await dbQuery(
+        `UPDATE individu SET nama = ?, tanggal_lahir = ?, tempat_lahir = ?, no_telp = ?, golongan_darah = ? WHERE id = ?`,
+        [
+          input.namaIbu,
+          input.tanggalLahirIbu,
+          input.tempatLahirIbu || null,
+          input.telpIbu || null,
+          input.golonganDarahIbu || null,
+          existingIbu.id
+        ]
+      );
     } else {
       const nikIbu = input.nikIbu && input.nikIbu.length === 16 ? input.nikIbu : generateTempNik();
-      const { error } = await supabase.from("individu").insert({
-        keluarga_id: keluargaId,
-        nik: nikIbu,
-        nama: input.namaIbu,
-        tempat_lahir: input.tempatLahirIbu || null,
-        tanggal_lahir: input.tanggalLahirIbu,
-        jenis_kelamin: "P",
-        status_keluarga: "Istri",
-        no_telp: input.telpIbu || null,
-        golongan_darah: input.golonganDarahIbu || null,
-      });
-      if (error) throw new Error(error.message);
+      const idIbu = crypto.randomUUID();
+      await dbQuery(
+        `INSERT INTO individu (id, keluarga_id, nik, nama, tempat_lahir, tanggal_lahir, jenis_kelamin, status_keluarga, no_telp, golongan_darah)
+         VALUES (?, ?, ?, ?, ?, ?, 'P', 'Istri', ?, ?)`,
+        [
+          idIbu,
+          keluargaId,
+          nikIbu,
+          input.namaIbu,
+          input.tempatLahirIbu || null,
+          input.tanggalLahirIbu,
+          input.telpIbu || null,
+          input.golonganDarahIbu || null
+        ]
+      );
     }
   }
 
@@ -651,14 +585,9 @@ export async function updateKK(input: UpdateKKInput): Promise<KK> {
 // HAPUS KK
 // ---------------------------------------------------------------------------
 export async function deleteKK(noKkOrId: string): Promise<void> {
-  const supabase = createClient();
-  let query = supabase.from("keluarga").delete();
   if (noKkOrId.length === 36) {
-    query = query.eq("id", noKkOrId);
+    await dbQuery("DELETE FROM keluarga WHERE id = ?", [noKkOrId]);
   } else {
-    query = query.eq("no_kk", noKkOrId);
+    await dbQuery("DELETE FROM keluarga WHERE no_kk = ?", [noKkOrId]);
   }
-  const { error } = await query;
-  if (error) throw new Error(error.message);
 }
-

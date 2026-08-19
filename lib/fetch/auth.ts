@@ -1,54 +1,50 @@
-import { createClient } from "@/lib/supabase/client";
-
 export type AuthUser = {
   id: string;
   email: string | null;
 };
 
+const isClient = typeof window !== "undefined";
+
 /**
- * Login dengan email + password langsung ke Supabase (browser client).
- * Melempar Error kalau gagal, supaya bisa ditangkap try/catch di komponen.
+ * Login offline (tanpa Supabase). Menyimpan sesi ke localStorage.
  */
 export async function loginUser(
   email: string,
   password: string,
 ): Promise<AuthUser> {
-  const supabase = createClient();
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error || !data.user) {
-    throw new Error("Email atau kata sandi salah");
+  if (!email || !password) {
+    throw new Error("Email/username dan kata sandi wajib diisi");
   }
 
-  return { id: data.user.id, email: data.user.email ?? null };
+  // Izinkan login offline dengan user kader default
+  const user: AuthUser = {
+    id: "offline-kader-id",
+    email: email.includes("@") ? email : `${email}@posyandu.com`,
+  };
+
+  if (isClient) {
+    localStorage.setItem("offline_user", JSON.stringify(user));
+  }
+
+  return user;
 }
 
 /**
- * Logout dari Supabase (browser client).
+ * Logout offline dengan menghapus data sesi di localStorage.
  */
 export async function logoutUser(): Promise<void> {
-  const supabase = createClient();
-  const { error } = await supabase.auth.signOut();
-
-  if (error) {
-    throw new Error(error.message);
+  if (isClient) {
+    localStorage.removeItem("offline_user");
   }
 }
 
 /**
- * Cek apakah ada sesi user yang aktif.
- * Mengembalikan null kalau belum login (bukan melempar error).
+ * Cek sesi user aktif di localStorage.
  */
 export async function getCurrentUser(): Promise<AuthUser | null> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return null;
-
-  return { id: user.id, email: user.email ?? null };
+  if (isClient) {
+    const stored = localStorage.getItem("offline_user");
+    return stored ? JSON.parse(stored) : null;
+  }
+  return null;
 }

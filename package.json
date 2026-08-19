@@ -59,6 +59,10 @@
       "public/**/*",
       "package.json"
     ],
+    "asar": true,
+    "asarUnpack": [
+      ".next/**/*"
+    ],
     "win": {
       "target": "nsis"
     }

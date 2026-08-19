@@ -107,6 +107,17 @@ export function initDb(dbPath: string): Database.Database {
     )
   `);
 
+  // Create Pemeriksaan Lansia Table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS pemeriksaan_lansia (
+      pemeriksaan_id TEXT PRIMARY KEY,
+      nama_wali TEXT,
+      penyakit TEXT,
+      keterangan TEXT,
+      FOREIGN KEY (pemeriksaan_id) REFERENCES master_pemeriksaan(id) ON DELETE CASCADE
+    )
+  `);
+
   dbInstance = db;
   return db;
 }

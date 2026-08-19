@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { dbQuery } from "@/lib/db/db-client";
 
 export interface AttendanceDataPoint {
   name: string; // label bulan singkat, mis. 'Jan', 'Feb'
@@ -27,23 +27,21 @@ const BULAN_LABELS = [
 export async function getAttendanceStats(
   year: string,
 ): Promise<AttendanceDataPoint[]> {
-  const supabase = createClient();
   const startDate = `${year}-01-01`;
   const endDate = `${year}-12-31`;
 
-  const { data, error } = await supabase
-    .from("master_pemeriksaan")
-    .select("tanggal_pemeriksaan")
-    .gte("tanggal_pemeriksaan", startDate)
-    .lte("tanggal_pemeriksaan", endDate);
-
-  if (error) throw new Error(error.message);
+  const data = await dbQuery(
+    "SELECT tanggal_pemeriksaan FROM master_pemeriksaan WHERE tanggal_pemeriksaan >= ? AND tanggal_pemeriksaan <= ?",
+    [startDate, endDate]
+  );
 
   const counts = new Array(12).fill(0);
 
-  (data ?? []).forEach((r) => {
+  (data ?? []).forEach((r: any) => {
     const month = new Date(r.tanggal_pemeriksaan).getMonth(); // 0 = Januari
-    counts[month]++;
+    if (month >= 0 && month < 12) {
+      counts[month]++;
+    }
   });
 
   return BULAN_LABELS.map((label, i) => ({
@@ -51,4 +49,3 @@ export async function getAttendanceStats(
     kehadiran: counts[i],
   }));
 }
-

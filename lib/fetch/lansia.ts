@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { dbQuery } from "@/lib/db/db-client";
 
 export type StatusHidup = "Hidup" | "Meninggal";
 
@@ -64,7 +64,6 @@ function parseKeterangan(ket: string | null): LansiaMeta {
   try {
     return { ...defaultMeta, ...JSON.parse(ket) };
   } catch {
-    // fallback if raw text
     return { ...defaultMeta, obat: ket };
   }
 }
@@ -74,7 +73,6 @@ function serializeKeterangan(meta: LansiaMeta): string {
 }
 
 function mapRowToLansia(row: any): Lansia {
-  // Find the latest examination to fetch the wali info
   const exams = row.master_pemeriksaan || [];
   const latestExam = exams[exams.length - 1]?.pemeriksaan_lansia;
   const meta = parseKeterangan(latestExam?.keterangan);
@@ -120,26 +118,34 @@ function mapRowToRecord(row: any, episodeId: string): LansiaRecord {
 // DAFTAR LANSIA
 // ---------------------------------------------------------------------------
 export async function getLansias(): Promise<Lansia[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("individu")
-    .select(`
-      *,
-      keluarga:keluarga(no_kk),
-      master_pemeriksaan(
-        id,
-        jenis_pemeriksaan,
-        pemeriksaan_lansia(
-          nama_wali,
-          keterangan
-        )
-      )
-    `)
-    .order("tanggal_lahir", { ascending: true });
+  const individuals = await dbQuery("SELECT * FROM individu ORDER BY tanggal_lahir ASC");
+  const keluargaList = await dbQuery("SELECT * FROM keluarga");
+  const masterExams = await dbQuery(`
+    SELECT m.id, m.individu_id, m.jenis_pemeriksaan, p.nama_wali, p.keterangan
+    FROM master_pemeriksaan m
+    JOIN pemeriksaan_lansia p ON m.id = p.pemeriksaan_id
+    WHERE m.jenis_pemeriksaan = 'Lansia'
+    ORDER BY m.tanggal_pemeriksaan ASC
+  `);
 
-  if (error) throw new Error(error.message);
+  const keluargaMap = new Map(keluargaList.map((k: any) => [k.id, k]));
+  
+  const examsByIndividu = new Map<string, any[]>();
+  masterExams.forEach((me: any) => {
+    if (!examsByIndividu.has(me.individu_id)) {
+      examsByIndividu.set(me.individu_id, []);
+    }
+    examsByIndividu.get(me.individu_id)!.push({
+      id: me.id,
+      jenis_pemeriksaan: me.jenis_pemeriksaan,
+      pemeriksaan_lansia: {
+        nama_wali: me.nama_wali,
+        keterangan: me.keterangan
+      }
+    });
+  });
 
-  const lansias = (data ?? []).filter((r: any) => {
+  const lansias = individuals.filter((r: any) => {
     const birthDate = new Date(r.tanggal_lahir);
     const today = new Date();
     let ageYears = today.getFullYear() - birthDate.getFullYear();
@@ -150,70 +156,47 @@ export async function getLansias(): Promise<Lansia[]> {
     return ageYears >= 60;
   });
 
-  return lansias.map(mapRowToLansia);
+  return lansias.map((row: any) => {
+    const exams = examsByIndividu.get(row.id) || [];
+    const keluarga = keluargaMap.get(row.keluarga_id) as any;
+    return mapRowToLansia({
+      ...row,
+      keluarga: keluarga ? { no_kk: keluarga.no_kk } : null,
+      master_pemeriksaan: exams
+    });
+  });
 }
 
 export async function getLansiaById(id: string): Promise<Lansia | null> {
-  const supabase = createClient();
-  let query = supabase
-    .from("individu")
-    .select(`
-      *,
-      keluarga:keluarga(no_kk),
-      master_pemeriksaan(
-        id,
-        jenis_pemeriksaan,
-        pemeriksaan_lansia(
-          nama_wali,
-          keterangan
-        )
-      )
-    `);
-
-  if (id.length === 36) {
-    query = query.eq("id", id);
-  } else {
-    query = query.eq("nik", id);
-  }
-
-  const { data, error } = await query.maybeSingle();
-  if (error) throw new Error(error.message);
-  return data ? mapRowToLansia(data) : null;
+  const individuals = await getLansias();
+  return individuals.find(b => b.id === id || b.nik === id) || null;
 }
 
 // ---------------------------------------------------------------------------
 // DAFTAR KK (untuk dropdown "Nomor KK")
 // ---------------------------------------------------------------------------
 export async function getKKs(): Promise<KKOption[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("keluarga")
-    .select("no_kk, alamat, no_telp")
-    .order("no_kk");
-
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((k) => {
-    return {
-      noKk: k.no_kk || "",
-      alamat: k.alamat ?? undefined,
-      noTelp: k.no_telp ?? undefined,
-    };
-  });
+  const keluargaList = await dbQuery("SELECT no_kk, alamat, no_telp FROM keluarga ORDER BY no_kk");
+  return keluargaList.map((k: any) => ({
+    noKk: k.no_kk || "",
+    alamat: k.alamat ?? undefined,
+    noTelp: k.no_telp ?? undefined,
+  }));
 }
 
 // ---------------------------------------------------------------------------
-// TAMBAH LANSIA
+// TAMBAH LANSIA BARU
 // ---------------------------------------------------------------------------
 export interface AddLansiaInput {
   nama: string;
   tempatLahir: string;
   tanggalLahir: string;
   jenisKelamin: "L" | "P";
-  noKk?: string;
-  namaAyah: string; // Used as Nama Wali
-  namaIbu: string;  // Used as No. Telp Wali
+  noKk: string;
   statusHidup: StatusHidup;
   nik?: string;
+  namaAyah: string; // nama wali
+  namaIbu: string;  // no telp wali
   golonganDarah?: string;
 }
 
@@ -222,46 +205,28 @@ function generateTempNik(): string {
 }
 
 export async function addLansia(input: AddLansiaInput): Promise<Lansia> {
-  const supabase = createClient();
-
-  let keluargaId = null;
-  if (input.noKk) {
-    const { data: kk } = await supabase.from("keluarga").select("id").eq("no_kk", input.noKk).single();
-    if (kk) keluargaId = kk.id;
-  }
+  const kkList = await dbQuery("SELECT id FROM keluarga WHERE no_kk = ? LIMIT 1", [input.noKk]);
+  const kk = kkList[0];
+  if (!kk) throw new Error(`Keluarga dengan nomor KK ${input.noKk} tidak ditemukan.`);
 
   const nik = input.nik && input.nik.length === 16 ? input.nik : generateTempNik();
+  const id = crypto.randomUUID();
 
-  const { data: individu, error: individuError } = await supabase
-    .from("individu")
-    .insert({
-      keluarga_id: keluargaId,
-      nik,
-      nama: input.nama,
-      tempat_lahir: input.tempatLahir,
-      tanggal_lahir: input.tanggalLahir,
-      jenis_kelamin: input.jenisKelamin,
-      status_hidup: input.statusHidup,
-      golongan_darah: input.golonganDarah ?? null,
-    })
-    .select("id")
-    .single();
+  await dbQuery(
+    `INSERT INTO individu (id, keluarga_id, nik, nama, tempat_lahir, tanggal_lahir, jenis_kelamin, status_keluarga, status_hidup, golongan_darah)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'Anak', ?, ?)`,
+    [id, kk.id, nik, input.nama, input.tempatLahir, input.tanggalLahir, input.jenisKelamin, input.statusHidup, input.golonganDarah ?? null]
+  );
 
-  if (individuError) throw new Error(individuError.message);
+  if (input.namaAyah || input.namaIbu) {
+    const examId = crypto.randomUUID();
+    const kunjunganKe = 1;
+    await dbQuery(
+      `INSERT INTO master_pemeriksaan (id, individu_id, tanggal_pemeriksaan, kunjungan_ke, jenis_pemeriksaan)
+       VALUES (?, ?, ?, ?, 'Lansia')`,
+      [examId, id, input.tanggalLahir, kunjunganKe]
+    );
 
-  // Store the initial Wali information in a representative examination
-  const { data: master, error: masterError } = await supabase
-    .from("master_pemeriksaan")
-    .insert({
-      individu_id: individu.id,
-      tanggal_pemeriksaan: new Date().toISOString().split("T")[0],
-      kunjungan_ke: 1,
-      jenis_pemeriksaan: "Lansia",
-    })
-    .select("id")
-    .single();
-
-  if (!masterError) {
     const serialized = serializeKeterangan({
       tinggiBadan: 0,
       beratBadan: 0,
@@ -272,15 +237,14 @@ export async function addLansia(input: AddLansiaInput): Promise<Lansia> {
       penyakitBaru: ""
     });
 
-    await supabase.from("pemeriksaan_lansia").insert({
-      pemeriksaan_id: master.id,
-      nama_wali: input.namaAyah,
-      penyakit: "",
-      keterangan: serialized,
-    });
+    await dbQuery(
+      `INSERT INTO pemeriksaan_lansia (pemeriksaan_id, nama_wali, penyakit, keterangan)
+       VALUES (?, ?, '', ?)`,
+      [examId, input.namaAyah, serialized]
+    );
   }
 
-  const lansia = await getLansiaById(individu.id);
+  const lansia = await getLansiaById(id);
   if (!lansia) throw new Error("Data tersimpan tapi gagal dimuat ulang");
   return lansia;
 }
@@ -296,24 +260,20 @@ export interface UpdateLansiaInput {
 }
 
 export async function updateLansia(input: UpdateLansiaInput): Promise<Lansia> {
-  const supabase = createClient();
-  let query = supabase.from("individu").update({
-    status_hidup: input.statusHidup,
-    tanggal_meninggal: input.tanggalMeninggal || null,
-    keterangan_meninggal: input.penyebabMeninggal || null,
-  });
-
-  if (input.id.length === 36) {
-    query = query.eq("id", input.id);
-  } else {
-    query = query.eq("nik", input.id);
-  }
-
-  const { error } = await query;
-  if (error) throw new Error(error.message);
+  const isUuid = input.id.length === 36;
+  const updateQuery = isUuid
+    ? "UPDATE individu SET status_hidup = ?, tanggal_meninggal = ?, keterangan_meninggal = ? WHERE id = ?"
+    : "UPDATE individu SET status_hidup = ?, tanggal_meninggal = ?, keterangan_meninggal = ? WHERE nik = ?";
+  
+  await dbQuery(updateQuery, [
+    input.statusHidup,
+    input.statusHidup === "Meninggal" ? input.tanggalMeninggal ?? null : null,
+    input.statusHidup === "Meninggal" ? input.penyebabMeninggal ?? null : null,
+    input.id
+  ]);
 
   const lansia = await getLansiaById(input.id);
-  if (!lansia) throw new Error("Data lansia tidak ditemukan setelah update");
+  if (!lansia) throw new Error("Gagal memuat ulang data lansia");
   return lansia;
 }
 
@@ -321,53 +281,41 @@ export async function updateLansia(input: UpdateLansiaInput): Promise<Lansia> {
 // HAPUS LANSIA
 // ---------------------------------------------------------------------------
 export async function deleteLansia(id: string): Promise<void> {
-  const supabase = createClient();
-  let query = supabase.from("individu").delete();
   if (id.length === 36) {
-    query = query.eq("id", id);
+    await dbQuery("DELETE FROM individu WHERE id = ?", [id]);
   } else {
-    query = query.eq("nik", id);
+    await dbQuery("DELETE FROM individu WHERE nik = ?", [id]);
   }
-  const { error } = await query;
-  if (error) throw new Error(error.message);
 }
 
 // ---------------------------------------------------------------------------
-// RIWAYAT PEMERIKSAAN
+// RIWAYAT PEMERIKSAAN LANSIA
 // ---------------------------------------------------------------------------
-export async function getLansiaRecords(
-  lansiaId: string,
-): Promise<LansiaRecord[]> {
-  const supabase = createClient();
-  let indId = lansiaId;
+export async function getLansiaRecords(lansiaId: string): Promise<LansiaRecord[]> {
+  let individuId = lansiaId;
   if (lansiaId.length !== 36) {
-    const { data: indData } = await supabase.from("individu").select("id").eq("nik", lansiaId).maybeSingle();
-    if (indData) indId = indData.id;
+    const rows = await dbQuery("SELECT id FROM individu WHERE nik = ? LIMIT 1", [lansiaId]);
+    if (rows.length > 0) individuId = rows[0].id;
   }
 
-  const { data, error } = await supabase
-    .from("master_pemeriksaan")
-    .select(`
-      id,
-      individu_id,
-      tanggal_pemeriksaan,
-      kunjungan_ke,
-      jenis_pemeriksaan,
-      pemeriksaan_lansia(
-        nama_wali,
-        penyakit,
-        keterangan
-      )
-    `)
-    .eq("individu_id", indId)
-    .eq("jenis_pemeriksaan", "Lansia")
-    .order("tanggal_pemeriksaan", { ascending: true });
+  const rows = await dbQuery(`
+    SELECT m.id, m.tanggal_pemeriksaan, p.penyakit, p.keterangan
+    FROM master_pemeriksaan m
+    JOIN pemeriksaan_lansia p ON m.id = p.pemeriksaan_id
+    WHERE m.individu_id = ? AND m.jenis_pemeriksaan = 'Lansia'
+    ORDER BY m.tanggal_pemeriksaan ASC
+  `, [individuId]);
 
-  if (error) throw new Error(error.message);
-
-  // Filter out the initial "dummy" pendaftaran if there are real examinations
-  const list = data ?? [];
-  return list.map((row: any) => mapRowToRecord(row, indId));
+  return rows.map((r: any) => {
+    return mapRowToRecord({
+      id: r.id,
+      tanggal_pemeriksaan: r.tanggal_pemeriksaan,
+      pemeriksaan_lansia: {
+        penyakit: r.penyakit,
+        keterangan: r.keterangan
+      }
+    }, lansiaId);
+  });
 }
 
 export async function getLansiaRecordsForNiks(
@@ -375,64 +323,44 @@ export async function getLansiaRecordsForNiks(
 ): Promise<LansiaRecord[]> {
   if (niksOrIds.length === 0) return [];
 
-  const supabase = createClient();
-  let query = supabase
-    .from("master_pemeriksaan")
-    .select(`
-      id,
-      individu_id,
-      tanggal_pemeriksaan,
-      kunjungan_ke,
-      jenis_pemeriksaan,
-      pemeriksaan_lansia(
-        nama_wali,
-        penyakit,
-        keterangan
-      ),
-      individu!inner(id, nik)
-    `)
-    .eq("jenis_pemeriksaan", "Lansia");
+  const placeholders = niksOrIds.map(() => "?").join(",");
+  const queryField = niksOrIds[0].length === 36 ? "m.individu_id" : "i.nik";
 
-  if (niksOrIds[0].length === 36) {
-    query = query.in("individu_id", niksOrIds);
-  } else {
-    query = query.in("individu.nik", niksOrIds);
-  }
+  const rows = await dbQuery(`
+    SELECT m.id, m.individu_id, m.tanggal_pemeriksaan, p.penyakit, p.keterangan
+    FROM master_pemeriksaan m
+    JOIN pemeriksaan_lansia p ON m.id = p.pemeriksaan_id
+    JOIN individu i ON m.individu_id = i.id
+    WHERE m.jenis_pemeriksaan = 'Lansia' AND ${queryField} IN (${placeholders})
+    ORDER BY m.tanggal_pemeriksaan ASC
+  `, niksOrIds);
 
-  const { data, error } = await query
-    .order("tanggal_pemeriksaan", { ascending: true });
-
-  if (error) throw new Error(error.message);
-
-  return (data ?? []).map((row: any) => mapRowToRecord(row, row.individu_id));
+  return rows.map((r: any) => {
+    return mapRowToRecord({
+      id: r.id,
+      tanggal_pemeriksaan: r.tanggal_pemeriksaan,
+      pemeriksaan_lansia: {
+        penyakit: r.penyakit,
+        keterangan: r.keterangan
+      }
+    }, r.individu_id);
+  });
 }
 
 // ---------------------------------------------------------------------------
-// STATISTIK PENYAKIT DOMINAN
+// PENYAKIT PALING BANYAK (DASHBOARD STATS)
 // ---------------------------------------------------------------------------
-export interface DiseaseStat {
-  name: string;
-  count: number;
-}
-
-export async function getDiseaseStats(): Promise<DiseaseStat[]> {
-  const supabase = createClient();
-
-  const { data, error } = await supabase
-    .from("master_pemeriksaan")
-    .select(`
-      individu_id,
-      pemeriksaan_lansia!inner(
-        penyakit
-      )
-    `)
-    .eq("jenis_pemeriksaan", "Lansia");
-
-  if (error) throw new Error(error.message);
+export async function getDiseaseStats(): Promise<{ name: string; count: number }[]> {
+  const data = await dbQuery(`
+    SELECT p.penyakit
+    FROM master_pemeriksaan m
+    JOIN pemeriksaan_lansia p ON m.id = p.pemeriksaan_id
+    WHERE m.jenis_pemeriksaan = 'Lansia'
+  `);
 
   const diseaseMap: Record<string, number> = {};
   (data ?? []).forEach((row: any) => {
-    const riwayat = row.pemeriksaan_lansia?.penyakit;
+    const riwayat = row.penyakit;
     if (riwayat && riwayat !== "-") {
       riwayat
         .split(",")
@@ -448,6 +376,9 @@ export async function getDiseaseStats(): Promise<DiseaseStat[]> {
     .sort((a, b) => b.count - a.count);
 }
 
+// ---------------------------------------------------------------------------
+// TAMBAH RIWAYAT PEMERIKSAAN
+// ---------------------------------------------------------------------------
 export interface AddLansiaRecordInput {
   lansiaId: string;
   tanggalPemeriksaan: string;
@@ -463,52 +394,39 @@ export interface AddLansiaRecordInput {
 export async function addLansiaRecord(
   input: AddLansiaRecordInput,
 ): Promise<LansiaRecord> {
-  const supabase = createClient();
-  
   let individuId = input.lansiaId;
   if (input.lansiaId.length !== 36) {
-    const { data: ind } = await supabase.from("individu").select("id").eq("nik", input.lansiaId).single();
-    if (ind) individuId = ind.id;
+    const rows = await dbQuery("SELECT id FROM individu WHERE nik = ? LIMIT 1", [input.lansiaId]);
+    if (rows.length > 0) individuId = rows[0].id;
   }
 
-  const { count } = await supabase
-    .from("master_pemeriksaan")
-    .select("*", { count: "exact", head: true })
-    .eq("individu_id", individuId)
-    .eq("jenis_pemeriksaan", "Lansia");
+  const counts = await dbQuery(
+    "SELECT COUNT(*) as count FROM master_pemeriksaan WHERE individu_id = ? AND jenis_pemeriksaan = 'Lansia'",
+    [individuId]
+  );
+  const kunjunganKe = (counts[0]?.count || 0) + 1;
 
-  const kunjunganKe = (count || 0) + 1;
+  const masterId = crypto.randomUUID();
+  await dbQuery(
+    "INSERT INTO master_pemeriksaan (id, individu_id, tanggal_pemeriksaan, kunjungan_ke, jenis_pemeriksaan) VALUES (?, ?, ?, ?, 'Lansia')",
+    [masterId, individuId, input.tanggalPemeriksaan, kunjunganKe]
+  );
 
-  const { data: master, error: masterError } = await supabase
-    .from("master_pemeriksaan")
-    .insert({
-      individu_id: individuId,
-      tanggal_pemeriksaan: input.tanggalPemeriksaan,
-      kunjungan_ke: kunjunganKe,
-      jenis_pemeriksaan: "Lansia",
-    })
-    .select("id, tanggal_pemeriksaan")
-    .single();
-
-  if (masterError) throw new Error(masterError.message);
-
-  // Fetch current wali from previous records if any
   let currentWali = "";
   let currentTelp = "";
-  const { data: prevRecord } = await supabase
-    .from("master_pemeriksaan")
-    .select("pemeriksaan_lansia(nama_wali, keterangan)")
-    .eq("individu_id", individuId)
-    .eq("jenis_pemeriksaan", "Lansia")
-    .order("tanggal_pemeriksaan", { ascending: false })
-    .limit(1);
 
-  if (prevRecord?.[0]?.pemeriksaan_lansia) {
-    const detail = Array.isArray(prevRecord[0].pemeriksaan_lansia)
-      ? prevRecord[0].pemeriksaan_lansia[0]
-      : prevRecord[0].pemeriksaan_lansia;
-    currentWali = detail?.nama_wali || "";
-    const parsed = parseKeterangan(detail?.keterangan);
+  const prevRecord = await dbQuery(`
+    SELECT p.nama_wali, p.keterangan
+    FROM master_pemeriksaan m
+    JOIN pemeriksaan_lansia p ON m.id = p.pemeriksaan_id
+    WHERE m.individu_id = ? AND m.jenis_pemeriksaan = 'Lansia'
+    ORDER BY m.tanggal_pemeriksaan DESC
+    LIMIT 1
+  `, [individuId]);
+
+  if (prevRecord.length > 0) {
+    currentWali = prevRecord[0].nama_wali || "";
+    const parsed = parseKeterangan(prevRecord[0].keterangan);
     currentTelp = parsed.noTelpWali || "";
   }
 
@@ -522,25 +440,29 @@ export async function addLansiaRecord(
     penyakitBaru: input.penyakitBaru,
   });
 
-  const { data: detail, error: detailError } = await supabase
-    .from("pemeriksaan_lansia")
-    .insert({
-      pemeriksaan_id: master.id,
-      nama_wali: currentWali,
-      penyakit: input.riwayatPenyakit,
-      keterangan: serialized,
-    })
-    .select()
-    .single();
-
-  if (detailError) {
-    await supabase.from("master_pemeriksaan").delete().eq("id", master.id);
-    throw new Error(detailError.message);
+  try {
+    await dbQuery(
+      "INSERT INTO pemeriksaan_lansia (pemeriksaan_id, nama_wali, penyakit, keterangan) VALUES (?, ?, ?, ?)",
+      [masterId, currentWali, input.riwayatPenyakit, serialized]
+    );
+  } catch (err) {
+    await dbQuery("DELETE FROM master_pemeriksaan WHERE id = ?", [masterId]);
+    throw err;
   }
 
-  return mapRowToRecord({ ...master, pemeriksaan_lansia: detail }, individuId);
+  return mapRowToRecord({
+    id: masterId,
+    tanggal_pemeriksaan: input.tanggalPemeriksaan,
+    pemeriksaan_lansia: {
+      penyakit: input.riwayatPenyakit,
+      keterangan: serialized
+    }
+  }, individuId);
 }
 
+// ---------------------------------------------------------------------------
+// UPDATE RIWAYAT PEMERIKSAAN LANSIA
+// ---------------------------------------------------------------------------
 export interface UpdateLansiaRecordInput {
   id: string; // record id (pemeriksaan_id)
   tanggalPemeriksaan: string;
@@ -556,25 +478,17 @@ export interface UpdateLansiaRecordInput {
 export async function updateLansiaRecord(
   input: UpdateLansiaRecordInput,
 ): Promise<LansiaRecord> {
-  const supabase = createClient();
+  await dbQuery(
+    "UPDATE master_pemeriksaan SET tanggal_pemeriksaan = ? WHERE id = ?",
+    [input.tanggalPemeriksaan, input.id]
+  );
 
-  const { error: masterError } = await supabase
-    .from("master_pemeriksaan")
-    .update({
-      tanggal_pemeriksaan: input.tanggalPemeriksaan,
-    })
-    .eq("id", input.id);
+  const current = await dbQuery(
+    "SELECT nama_wali, keterangan FROM pemeriksaan_lansia WHERE pemeriksaan_id = ? LIMIT 1",
+    [input.id]
+  );
 
-  if (masterError) throw new Error(masterError.message);
-
-  // Fetch current record to preserve unchanged fields like nama_wali
-  const { data: current } = await supabase
-    .from("pemeriksaan_lansia")
-    .select("nama_wali, keterangan")
-    .eq("pemeriksaan_id", input.id)
-    .single();
-
-  const currentMeta = parseKeterangan(current?.keterangan);
+  const currentMeta = parseKeterangan(current[0]?.keterangan);
 
   const serialized = serializeKeterangan({
     tinggiBadan: input.tinggiBadan,
@@ -586,35 +500,30 @@ export async function updateLansiaRecord(
     penyakitBaru: input.penyakitBaru,
   });
 
-  const { data: detail, error: detailError } = await supabase
-    .from("pemeriksaan_lansia")
-    .update({
+  await dbQuery(
+    "UPDATE pemeriksaan_lansia SET penyakit = ?, keterangan = ? WHERE pemeriksaan_id = ?",
+    [input.riwayatPenyakit, serialized, input.id]
+  );
+
+  const master = await dbQuery(
+    "SELECT individu_id FROM master_pemeriksaan WHERE id = ? LIMIT 1",
+    [input.id]
+  );
+
+  return mapRowToRecord({
+    id: input.id,
+    tanggal_pemeriksaan: input.tanggalPemeriksaan,
+    pemeriksaan_lansia: {
+      nama_wali: current[0]?.nama_wali || "",
       penyakit: input.riwayatPenyakit,
-      keterangan: serialized,
-    })
-    .eq("pemeriksaan_id", input.id)
-    .select()
-    .single();
-
-  if (detailError) throw new Error(detailError.message);
-
-  const { data: master } = await supabase
-    .from("master_pemeriksaan")
-    .select("individu_id")
-    .eq("id", input.id)
-    .single();
-
-  return mapRowToRecord({ id: input.id, tanggal_pemeriksaan: input.tanggalPemeriksaan, pemeriksaan_lansia: detail }, master?.individu_id || "");
+      keterangan: serialized
+    }
+  }, master[0]?.individu_id || "");
 }
 
+// ---------------------------------------------------------------------------
+// HAPUS RIWAYAT PEMERIKSAAN
+// ---------------------------------------------------------------------------
 export async function deleteLansiaRecord(recordId: string): Promise<void> {
-  const supabase = createClient();
-  const { error } = await supabase
-    .from("master_pemeriksaan")
-    .delete()
-    .eq("id", recordId);
-
-  if (error) throw new Error(error.message);
+  await dbQuery("DELETE FROM master_pemeriksaan WHERE id = ?", [recordId]);
 }
-
-
