@@ -672,7 +672,7 @@ function PenerimaManfaatForm() {
                 <div className="flex gap-3 w-full">
                   <button
                     type="button"
-                    onClick={startCamera}
+                    onClick={() => startCamera()}
                     className="flex-1 h-12 bg-white hover:bg-tertiary/10 hover:border-tertiary hover:text-tertiary text-on-surface border border-outline-variant/40 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold transition cursor-pointer"
                   >
                     <span className="material-symbols-outlined text-base">photo_camera</span>
