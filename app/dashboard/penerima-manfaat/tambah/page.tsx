@@ -48,6 +48,31 @@ function PenerimaManfaatForm() {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
 
+  // Custom Dropdown states & refs
+  const [isOpenKkDropdown, setIsOpenKkDropdown] = useState(false);
+  const [kkSearchQuery, setKkSearchQuery] = useState("");
+  const kkDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [isOpenNikDropdown, setIsOpenNikDropdown] = useState(false);
+  const [nikSearchQuery, setNikSearchQuery] = useState("");
+  const nikDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Click outside handler for dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (kkDropdownRef.current && !kkDropdownRef.current.contains(event.target as Node)) {
+        setIsOpenKkDropdown(false);
+      }
+      if (nikDropdownRef.current && !nikDropdownRef.current.contains(event.target as Node)) {
+        setIsOpenNikDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   // Load active members and prefill if editing
   useEffect(() => {
     const loadInitialData = async () => {
@@ -94,19 +119,38 @@ function PenerimaManfaatForm() {
   // Filter unique KKs from members list
   const uniqueKks = Array.from(new Set(members.map((m) => m.noKk))).sort();
 
-  // Filter NIKs based on selected KK
-  const filteredNiks = members.filter((m) => m.noKk === selectedKk);
+  // Helper to count members inside a KK
+  const getMemberCount = (kk: string) => {
+    return members.filter((m) => m.noKk === kk).length;
+  };
+
+  // Filter unique KK list based on search query
+  const filteredKks = uniqueKks.filter((kk) => {
+    const query = kkSearchQuery.toLowerCase();
+    const membersInKk = members.filter((m) => m.noKk === kk);
+    return (
+      kk.toLowerCase().includes(query) ||
+      membersInKk.some((m) => m.nama.toLowerCase().includes(query) || m.nik.includes(query))
+    );
+  });
+
+  // Filter NIKs based on selected KK and search query
+  const filteredNiks = members
+    .filter((m) => m.noKk === selectedKk)
+    .filter((m) => {
+      const query = nikSearchQuery.toLowerCase();
+      return m.nik.includes(query) || m.nama.toLowerCase().includes(query);
+    });
 
   // Handle KK Change
-  const handleKkChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedKk(e.target.value);
+  const handleKkSelect = (kk: string) => {
+    setSelectedKk(kk);
     setSelectedNik("");
     setSelectedMember(null);
   };
 
   // Handle NIK Change
-  const handleNikChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const nik = e.target.value;
+  const handleNikSelect = (nik: string) => {
     setSelectedNik(nik);
     const found = members.find((m) => m.noKk === selectedKk && m.nik === nik);
     setSelectedMember(found || null);
@@ -331,39 +375,156 @@ function PenerimaManfaatForm() {
 
             {/* Row KK & NIK */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="kk-select">Nomor KK Terdaftar</Label>
-                <select
-                  id="kk-select"
-                  value={selectedKk}
-                  onChange={handleKkChange}
-                  className="w-full h-11 rounded-xl border border-outline-variant/40 px-3 bg-white text-sm focus:border-tertiary outline-none transition"
+              <div className="space-y-1.5 relative" ref={kkDropdownRef}>
+                <Label>Nomor KK Terdaftar</Label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isEditMode) {
+                      setIsOpenKkDropdown(!isOpenKkDropdown);
+                      setIsOpenNikDropdown(false);
+                    }
+                  }}
+                  disabled={isEditMode}
+                  className="w-full min-h-[50px] rounded-xl border border-outline-variant/40 px-4 py-2 text-left bg-white shadow-sm flex items-center justify-between cursor-pointer hover:border-tertiary/50 transition-all focus:outline-none disabled:bg-slate-50 disabled:cursor-not-allowed"
                 >
-                  <option value="">-- Pilih KK --</option>
-                  {uniqueKks.map((kk) => (
-                    <option key={kk} value={kk}>
-                      {kk}
-                    </option>
-                  ))}
-                </select>
+                  {selectedKk ? (
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-headline font-bold text-sm text-on-surface">
+                        No. KK: {selectedKk}
+                      </span>
+                      <span className="text-[10px] text-on-surface-variant font-medium">
+                        {getMemberCount(selectedKk)} Anggota Aktif Terdaftar
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-on-surface-variant/70">
+                      -- Pilih Nomor KK --
+                    </span>
+                  )}
+                  {!isEditMode && (
+                    <span className="material-symbols-outlined text-on-surface-variant">
+                      {isOpenKkDropdown ? "keyboard_arrow_up" : "keyboard_arrow_down"}
+                    </span>
+                  )}
+                </button>
+
+                {isOpenKkDropdown && (
+                  <div className="absolute left-0 right-0 z-50 mt-1 bg-white border border-outline-variant/30 rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[300px]">
+                    <div className="p-2 border-b border-outline-variant/10 bg-slate-50/80">
+                      <input
+                        type="text"
+                        placeholder="Cari Nomor KK, nama warga, atau NIK..."
+                        value={kkSearchQuery}
+                        onChange={(e) => setKkSearchQuery(e.target.value)}
+                        className="w-full h-9 rounded-lg border border-outline-variant/40 px-3 text-xs bg-white focus:outline-none focus:border-tertiary"
+                      />
+                    </div>
+                    <div className="overflow-y-auto flex-1 divide-y divide-outline-variant/10">
+                      {filteredKks.length > 0 ? (
+                        filteredKks.map((kk) => (
+                          <button
+                            key={kk}
+                            type="button"
+                            onClick={() => {
+                              handleKkSelect(kk);
+                              setIsOpenKkDropdown(false);
+                              setKkSearchQuery("");
+                            }}
+                            className={`w-full px-4 py-2.5 text-left hover:bg-slate-50 transition-colors flex flex-col gap-0.5 ${
+                              selectedKk === kk ? "bg-tertiary/5 hover:bg-tertiary/10" : ""
+                            }`}
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className="font-bold text-xs text-tertiary">{kk}</span>
+                              <span className="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded text-on-surface-variant font-bold">
+                                {getMemberCount(kk)} Anggota
+                              </span>
+                            </div>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-xs text-on-surface-variant/80">
+                          Tidak ada KK ditemukan
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="nik-select">NIK Penerima</Label>
-                <select
-                  id="nik-select"
-                  value={selectedNik}
-                  onChange={handleNikChange}
-                  disabled={!selectedKk}
-                  className="w-full h-11 rounded-xl border border-outline-variant/40 px-3 bg-white text-sm focus:border-tertiary outline-none transition disabled:bg-surface-variant/30"
+              <div className="space-y-1.5 relative" ref={nikDropdownRef}>
+                <Label>NIK Penerima</Label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedKk && !isEditMode) {
+                      setIsOpenNikDropdown(!isOpenNikDropdown);
+                      setIsOpenKkDropdown(false);
+                    }
+                  }}
+                  disabled={!selectedKk || isEditMode}
+                  className="w-full min-h-[50px] rounded-xl border border-outline-variant/40 px-4 py-2 text-left bg-white shadow-sm flex items-center justify-between cursor-pointer hover:border-tertiary/50 transition-all focus:outline-none disabled:bg-slate-50 disabled:cursor-not-allowed"
                 >
-                  <option value="">-- Pilih NIK --</option>
-                  {filteredNiks.map((m) => (
-                    <option key={m.nik} value={m.nik}>
-                      {m.nik} - {m.nama}
-                    </option>
-                  ))}
-                </select>
+                  {selectedNik ? (
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-headline font-bold text-sm text-on-surface">
+                        NIK: {selectedNik}
+                      </span>
+                      <span className="text-[10px] text-on-surface-variant font-bold">
+                        Nama: {selectedMember?.nama}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-on-surface-variant/70">
+                      {selectedKk ? "-- Pilih NIK / Nama --" : "Pilih KK terlebih dahulu"}
+                    </span>
+                  )}
+                  {!isEditMode && selectedKk && (
+                    <span className="material-symbols-outlined text-on-surface-variant">
+                      {isOpenNikDropdown ? "keyboard_arrow_up" : "keyboard_arrow_down"}
+                    </span>
+                  )}
+                </button>
+
+                {isOpenNikDropdown && (
+                  <div className="absolute left-0 right-0 z-50 mt-1 bg-white border border-outline-variant/30 rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[300px]">
+                    <div className="p-2 border-b border-outline-variant/10 bg-slate-50/80">
+                      <input
+                        type="text"
+                        placeholder="Cari NIK atau Nama warga..."
+                        value={nikSearchQuery}
+                        onChange={(e) => setNikSearchQuery(e.target.value)}
+                        className="w-full h-9 rounded-lg border border-outline-variant/40 px-3 text-xs bg-white focus:outline-none focus:border-tertiary"
+                      />
+                    </div>
+                    <div className="overflow-y-auto flex-1 divide-y divide-outline-variant/10">
+                      {filteredNiks.length > 0 ? (
+                        filteredNiks.map((m) => (
+                          <button
+                            key={m.nik}
+                            type="button"
+                            onClick={() => {
+                              handleNikSelect(m.nik);
+                              setIsOpenNikDropdown(false);
+                              setNikSearchQuery("");
+                            }}
+                            className={`w-full px-4 py-2.5 text-left hover:bg-slate-50 transition-colors flex flex-col gap-0.5 ${
+                              selectedNik === m.nik ? "bg-tertiary/5 hover:bg-tertiary/10" : ""
+                            }`}
+                          >
+                            <span className="font-bold text-xs text-on-surface">{m.nama}</span>
+                            <span className="text-[10px] text-on-surface-variant">NIK: {m.nik}</span>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-xs text-on-surface-variant/80">
+                          Tidak ada NIK ditemukan
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

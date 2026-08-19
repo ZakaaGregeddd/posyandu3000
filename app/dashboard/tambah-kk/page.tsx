@@ -365,19 +365,23 @@ function TambahKKForm() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="gol_darah_ayah">Golongan Darah Ayah</Label>
-                    <select
-                      id="gol_darah_ayah"
-                      value={golonganDarahAyah}
-                      onChange={(e) => setGolonganDarahAyah(e.target.value)}
-                      className="w-full h-10 rounded-lg border border-outline-variant/40 px-3 text-sm bg-white"
-                    >
-                      <option value="">Pilih Golongan Darah</option>
-                      <option value="A">A</option>
-                      <option value="B">B</option>
-                      <option value="AB">AB</option>
-                      <option value="O">O</option>
-                    </select>
+                    <Label>Golongan Darah Ayah</Label>
+                    <div className="flex gap-1.5">
+                      {["", "A", "B", "AB", "O"].map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setGolonganDarahAyah(type)}
+                          className={`flex-1 h-10 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                            golonganDarahAyah === type
+                              ? "bg-tertiary text-white border-tertiary shadow-sm"
+                              : "bg-white hover:bg-slate-50 text-on-surface border-outline-variant/40"
+                          }`}
+                        >
+                          {type || "-"}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -459,19 +463,23 @@ function TambahKKForm() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="gol_darah_ibu">Golongan Darah Ibu</Label>
-                    <select
-                      id="gol_darah_ibu"
-                      value={golonganDarahIbu}
-                      onChange={(e) => setGolonganDarahIbu(e.target.value)}
-                      className="w-full h-10 rounded-lg border border-outline-variant/40 px-3 text-sm bg-white"
-                    >
-                      <option value="">Pilih Golongan Darah</option>
-                      <option value="A">A</option>
-                      <option value="B">B</option>
-                      <option value="AB">AB</option>
-                      <option value="O">O</option>
-                    </select>
+                    <Label>Golongan Darah Ibu</Label>
+                    <div className="flex gap-1.5">
+                      {["", "A", "B", "AB", "O"].map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setGolonganDarahIbu(type)}
+                          className={`flex-1 h-10 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                            golonganDarahIbu === type
+                              ? "bg-tertiary text-white border-tertiary shadow-sm"
+                              : "bg-white hover:bg-slate-50 text-on-surface border-outline-variant/40"
+                          }`}
+                        >
+                          {type || "-"}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -588,17 +596,22 @@ function TambahKKForm() {
 
                       <div className="space-y-1.5">
                         <Label>Golongan Darah</Label>
-                        <select
-                          value={m.golonganDarah || ""}
-                          onChange={(e) => updateAnggota(idx, "golonganDarah", e.target.value)}
-                          className="w-full h-10 rounded-lg border border-outline-variant/40 px-3 text-sm bg-white"
-                        >
-                          <option value="">Pilih Golongan Darah</option>
-                          <option value="A">A</option>
-                          <option value="B">B</option>
-                          <option value="AB">AB</option>
-                          <option value="O">O</option>
-                        </select>
+                        <div className="flex gap-1.5">
+                          {["", "A", "B", "AB", "O"].map((type) => (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => updateAnggota(idx, "golonganDarah", type)}
+                              className={`flex-1 h-10 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                                (m.golonganDarah || "") === type
+                                  ? "bg-tertiary text-white border-tertiary shadow-sm"
+                                  : "bg-white hover:bg-slate-50 text-on-surface border-outline-variant/40"
+                              }`}
+                            >
+                              {type || "-"}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
