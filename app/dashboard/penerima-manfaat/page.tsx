@@ -265,6 +265,13 @@ export default function PenerimaManfaatPage() {
                               <span>Detail</span>
                             </button>
                             <button
+                              onClick={() => router.push(`/dashboard/penerima-manfaat/tambah?edit=${record.id}`)}
+                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-on-surface font-bold text-xs rounded-lg transition cursor-pointer flex items-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[14px]">edit</span>
+                              <span>Edit</span>
+                            </button>
+                            <button
                               onClick={(e) => handleConfirmDelete(e, record)}
                               className="w-8 h-8 rounded-lg hover:bg-error-container text-error flex items-center justify-center transition cursor-pointer"
                               title="Hapus"

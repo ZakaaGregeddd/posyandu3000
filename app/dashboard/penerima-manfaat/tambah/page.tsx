@@ -1,14 +1,24 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { getActiveMembers, addPenerimaManfaat, ActiveMemberOption } from "@/lib/fetch/penerima-manfaat";
+import { 
+  getActiveMembers, 
+  addPenerimaManfaat, 
+  getPenerimaManfaatById, 
+  updatePenerimaManfaat, 
+  ActiveMemberOption 
+} from "@/lib/fetch/penerima-manfaat";
 
-export default function TambahPenerimaManfaatPage() {
+function PenerimaManfaatForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("edit");
+  const isEditMode = !!editId;
+
   const [members, setMembers] = useState<ActiveMemberOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -38,12 +48,39 @@ export default function TambahPenerimaManfaatPage() {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
 
-  // Load active members for dropdowns
+  // Load active members and prefill if editing
   useEffect(() => {
-    getActiveMembers()
-      .then((data) => setMembers(data))
-      .catch((err) => console.error("Failed to load members list", err));
-  }, []);
+    const loadInitialData = async () => {
+      try {
+        const activeMembers = await getActiveMembers();
+        setMembers(activeMembers);
+
+        if (editId) {
+          setLoading(true);
+          const record = await getPenerimaManfaatById(editId);
+          if (record) {
+            setSelectedKk(record.noKk);
+            setSelectedNik(record.nik);
+            setTanggalDiterima(record.tanggalDiterima);
+            setKeterangan(record.keterangan);
+            setFotoBukti(record.fotoBukti);
+            
+            // Find and set matched member
+            const matched = activeMembers.find((m) => m.nik === record.nik);
+            if (matched) {
+              setSelectedMember(matched);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load initial data", err);
+        setError("Gagal memuat daftar anggota atau data tanda terima");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadInitialData();
+  }, [editId]);
 
   // Clean up camera stream on close
   useEffect(() => {
@@ -231,12 +268,22 @@ export default function TambahPenerimaManfaatPage() {
 
     setLoading(true);
     try {
-      await addPenerimaManfaat({
-        individuId: selectedMember.id,
-        tanggalDiterima,
-        keterangan,
-        fotoBukti,
-      });
+      if (isEditMode && editId) {
+        await updatePenerimaManfaat({
+          id: editId,
+          individuId: selectedMember.id,
+          tanggalDiterima,
+          keterangan,
+          fotoBukti,
+        });
+      } else {
+        await addPenerimaManfaat({
+          individuId: selectedMember.id,
+          tanggalDiterima,
+          keterangan,
+          fotoBukti,
+        });
+      }
       router.push("/dashboard/penerima-manfaat");
     } catch (err: any) {
       setError(err.message || "Gagal menyimpan data tanda terima");
@@ -261,10 +308,13 @@ export default function TambahPenerimaManfaatPage() {
         </button>
         <div>
           <h2 className="font-headline text-3xl font-bold text-on-background">
-            Catat Tanda Terima Baru
+            {isEditMode ? "Edit Tanda Terima" : "Catat Tanda Terima Baru"}
           </h2>
           <p className="text-sm text-on-surface-variant mt-1">
-            Input bukti fisik penyerahan bantuan kepada member aktif Posyandu.
+            {isEditMode 
+              ? "Ubah data bukti fisik penyerahan bantuan kepada member aktif Posyandu."
+              : "Input bukti fisik penyerahan bantuan kepada member aktif Posyandu."
+            }
           </p>
         </div>
       </div>
@@ -508,12 +558,20 @@ export default function TambahPenerimaManfaatPage() {
                 disabled={loading}
                 className="bg-tertiary text-white hover:bg-tertiary/90 font-bold px-6"
               >
-                {loading ? "Menyimpan..." : "Simpan Penerimaan"}
+                {loading ? "Menyimpan..." : isEditMode ? "Simpan Perubahan" : "Simpan Penerimaan"}
               </Button>
             </div>
           </form>
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function TambahPenerimaManfaatPage() {
+  return (
+    <React.Suspense fallback={<div className="text-center py-12 text-sm text-on-surface-variant">Memuat form...</div>}>
+      <PenerimaManfaatForm />
+    </React.Suspense>
   );
 }
