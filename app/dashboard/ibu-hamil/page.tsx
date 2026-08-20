@@ -19,6 +19,8 @@ import {
   getIbuHamils,
   addIbuHamil,
   getKKs,
+  updateIbuHamilData,
+  deleteIbuHamil,
   IbuHamil,
   KKOption,
 } from "@/lib/fetch/ibuHamil";
@@ -47,6 +49,22 @@ export default function IbuHamilPage() {
   const [hpht, setHpht] = useState("");
   const [tanggalPemeriksaan, setTanggalPemeriksaan] = useState(new Date().toISOString().split("T")[0]);
   const [formError, setFormError] = useState("");
+
+  // Edit states
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedBumilForEdit, setSelectedBumilForEdit] = useState<IbuHamil | null>(null);
+  const [editNama, setEditNama] = useState("");
+  const [editNik, setEditNik] = useState("");
+  const [editTempatLahir, setEditTempatLahir] = useState("");
+  const [editTanggalLahir, setEditTanggalLahir] = useState("");
+  const [editHpht, setEditHpht] = useState("");
+  const [editGolonganDarah, setEditGolonganDarah] = useState("");
+  const [editFormError, setEditFormError] = useState("");
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+
+  // Delete states
+  const [bumilToDelete, setBumilToDelete] = useState<IbuHamil | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [stage, setStage] = useState<1 | 2>(1);
   const [isOpenKkDropdown, setIsOpenKkDropdown] = useState(false);
@@ -159,6 +177,70 @@ export default function IbuHamilPage() {
     setIsOpenKkDropdown(false);
     setKkSearchQuery("");
     setTanggalPemeriksaan(new Date().toISOString().split("T")[0]);
+  };
+
+  const handleEdit = (bumil: IbuHamil) => {
+    setSelectedBumilForEdit(bumil);
+    setEditNama(bumil.nama);
+    setEditNik(bumil.nik);
+    setEditTempatLahir(bumil.tempatLahir);
+    setEditTanggalLahir(bumil.tanggalLahir);
+    setEditHpht(bumil.hpht);
+    setEditGolonganDarah(bumil.golonganDarah || "");
+    setEditFormError("");
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditFormError("");
+
+    if (!editNama || !editTempatLahir || !editTanggalLahir || !editHpht) {
+      setEditFormError("Semua field wajib diisi");
+      return;
+    }
+
+    setIsSubmittingEdit(true);
+
+    try {
+      const updatedBumil = await updateIbuHamilData({
+        id: selectedBumilForEdit!.id,
+        nik: editNik,
+        nama: editNama,
+        tempatLahir: editTempatLahir,
+        tanggalLahir: editTanggalLahir,
+        hpht: editHpht,
+        golonganDarah: editGolonganDarah || undefined,
+      });
+
+      setBumils((prev) =>
+        prev.map((b) => (b.id === selectedBumilForEdit!.id ? updatedBumil : b))
+      );
+      setIsEditModalOpen(false);
+      setSelectedBumilForEdit(null);
+    } catch (err: any) {
+      setEditFormError(err.message || "Gagal memperbarui data ibu hamil");
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
+  const handleConfirmDelete = (bumil: IbuHamil) => {
+    setBumilToDelete(bumil);
+  };
+
+  const handleDelete = async () => {
+    if (!bumilToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteIbuHamil(bumilToDelete.id);
+      setBumils((prev) => prev.filter((b) => b.id !== bumilToDelete.id));
+      setBumilToDelete(null);
+    } catch (err: any) {
+      alert(err.message || "Gagal menghapus data ibu hamil");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Filters
@@ -320,16 +402,28 @@ export default function IbuHamilPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right border-y border-r border-outline-variant/10 rounded-r-xl">
-                          <Link href={`/dashboard/ibu-hamil/${bumil.id}`}>
-                            <button className="group inline-flex items-center gap-2 text-tertiary hover:bg-secondary-brand/40 px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer">
-                              <span className="text-xs font-bold">
-                                Lihat Detail
-                              </span>
-                              <span className="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">
-                                arrow_forward
-                              </span>
+                          <div className="flex justify-end items-center gap-2">
+                            <Link href={`/dashboard/ibu-hamil/${bumil.id}`}>
+                              <button className="px-3 py-1.5 bg-secondary-container hover:bg-tertiary/10 text-tertiary font-bold text-xs rounded-lg transition cursor-pointer flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[14px]">visibility</span>
+                                <span>Detail</span>
+                              </button>
+                            </Link>
+                            <button
+                              onClick={() => handleEdit(bumil)}
+                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-on-surface font-bold text-xs rounded-lg transition cursor-pointer flex items-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[14px]">edit</span>
+                              <span>Edit</span>
                             </button>
-                          </Link>
+                            <button
+                              onClick={() => handleConfirmDelete(bumil)}
+                              className="w-8 h-8 rounded-lg hover:bg-error-container text-error flex items-center justify-center transition cursor-pointer"
+                              title="Hapus"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">delete</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -612,6 +706,158 @@ export default function IbuHamilPage() {
           </DialogFooter>
         </form>
       </Dialog>
+
+      {/* Edit Ibu Hamil Modal */}
+      <Dialog isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
+        <form
+          onSubmit={handleSaveEdit}
+          className="flex flex-col max-h-[85vh] overflow-hidden"
+        >
+          <DialogHeader>
+            <DialogTitle className="text-center font-headline text-lg font-bold">Ubah Data Ibu Hamil</DialogTitle>
+            <DialogDescription className="text-center mt-1">
+              Ubah data identitas ibu dan tanggal HPHT kehamilan.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogContent className="py-4 space-y-4 overflow-y-auto">
+            {editFormError && (
+              <div className="text-xs font-semibold text-red-700 bg-red-50 p-2.5 rounded-lg border border-red-200">
+                {editFormError}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit_nik">NIK Ibu</Label>
+              <Input
+                id="edit_nik"
+                value={editNik}
+                disabled
+                className="bg-slate-50 cursor-not-allowed"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit_nama">Nama Lengkap Ibu *</Label>
+              <Input
+                id="edit_nama"
+                value={editNama}
+                disabled
+                className="bg-slate-50 cursor-not-allowed"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_tempat_lahir">Tempat Lahir *</Label>
+                <Input
+                  id="edit_tempat_lahir"
+                  value={editTempatLahir}
+                  disabled
+                  className="bg-slate-50 cursor-not-allowed"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_tanggal_lahir">Tanggal Lahir *</Label>
+                <Input
+                  id="edit_tanggal_lahir"
+                  type="date"
+                  value={editTanggalLahir}
+                  disabled
+                  className="bg-slate-50 cursor-not-allowed"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit_hpht">
+                Hari Pertama Haid Terakhir (HPHT) *
+              </Label>
+              <Input
+                id="edit_hpht"
+                type="date"
+                value={editHpht}
+                max={new Date().toISOString().split("T")[0]}
+                onChange={(e) => setEditHpht(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Golongan Darah</Label>
+              <div className="flex gap-1.5">
+                {["", "A", "B", "AB", "O"].map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    disabled
+                    className={`flex-1 h-10 text-xs font-bold rounded-xl border transition-all cursor-not-allowed ${
+                      editGolonganDarah === type
+                        ? "bg-tertiary/75 text-white/90 border-tertiary shadow-sm"
+                        : "bg-slate-50 text-on-surface-variant/50 border-outline-variant/20"
+                    }`}
+                  >
+                    {type || "-"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </DialogContent>
+
+          <DialogFooter className="sm:justify-end gap-2 pt-2 border-t border-outline-variant/10">
+            <Button
+              type="button"
+              onClick={() => setIsEditModalOpen(false)}
+              variant="outline"
+              className="w-full sm:w-auto font-semibold"
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmittingEdit}
+              className="w-full sm:w-auto font-bold bg-tertiary hover:bg-tertiary/95 text-white"
+            >
+              {isSubmittingEdit ? "Menyimpan..." : "Simpan Perubahan"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      {bumilToDelete && (
+        <Dialog isOpen={!!bumilToDelete} onClose={() => setBumilToDelete(null)}>
+          <DialogHeader>
+            <DialogTitle className="text-center font-headline text-lg font-bold">
+              Konfirmasi Hapus Data Kehamilan
+            </DialogTitle>
+            <DialogDescription className="text-center mt-1">
+              Apakah Anda yakin ingin menghapus data kehamilan untuk <strong>{bumilToDelete.nama}</strong>? 
+              Tindakan ini akan menghapus seluruh data pemeriksaan ANC yang berkaitan dengan episode kehamilan ini dan tidak dapat dibatalkan.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setBumilToDelete(null)}
+              disabled={isDeleting}
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-error text-white hover:bg-error/90"
+            >
+              {isDeleting ? "Menghapus..." : "Hapus"}
+            </Button>
+          </DialogFooter>
+        </Dialog>
+      )}
     </div>
   );
 }
