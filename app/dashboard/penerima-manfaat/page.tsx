@@ -372,10 +372,11 @@ export default function PenerimaManfaatPage() {
             <Button
               onClick={() => handleDownloadPNG(selectedRecord)}
               disabled={isExporting}
-              className="bg-secondary-container text-tertiary hover:bg-tertiary/10 font-bold flex items-center gap-1.5"
+              variant="outline"
+              className="group border-none bg-secondary-container text-tertiary hover:bg-transparent font-bold flex items-center gap-1.5"
             >
               <span className="material-symbols-outlined text-[18px]">download</span>
-              <span>{isExporting ? "Mengekspor..." : "Unduh Gambar (PNG)"}</span>
+              <span className="group-hover:underline">{isExporting ? "Mengekspor..." : "Unduh Gambar (PNG)"}</span>
             </Button>
             <Button onClick={() => setSelectedRecord(null)} className="bg-tertiary text-white hover:bg-tertiary/90">
               Tutup

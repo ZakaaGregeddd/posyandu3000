@@ -50,7 +50,8 @@ interface ConfirmState {
   title: string;
   message: string;
   confirmLabel?: string;
-  variant?: "danger" | "default";
+  variant?: "danger" | "default" | "success";
+  hideCancel?: boolean;
   onConfirm: () => void;
 }
 
@@ -379,9 +380,15 @@ export default function IbuHamilDetailPage({
 
       setBumil(updated);
       setIsBirthModalOpen(false);
-      alert(
-        "Kelahiran terdaftar! Bayi baru telah otomatis ditambahkan ke database Balita.",
-      );
+      setConfirmState({
+        title: "Kelahiran Terdaftar",
+        message:
+          "Kelahiran terdaftar! Bayi baru telah otomatis ditambahkan ke database Balita.",
+        confirmLabel: "OK",
+        variant: "default",
+        hideCancel: true,
+        onConfirm: () => setConfirmState(null),
+      });
     } catch (err: any) {
       setBirthError(err.message || "Gagal menyimpan data kelahiran");
     } finally {
@@ -1230,14 +1237,16 @@ export default function IbuHamilDetailPage({
             </DialogHeader>
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setConfirmState(null)}
-                disabled={isConfirmSubmitting}
-              >
-                Batal
-              </Button>
+              {!confirmState.hideCancel && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setConfirmState(null)}
+                  disabled={isConfirmSubmitting}
+                >
+                  Batal
+                </Button>
+              )}
               <Button
                 type="button"
                 onClick={confirmState.onConfirm}
@@ -1245,7 +1254,9 @@ export default function IbuHamilDetailPage({
                 className={
                   confirmState.variant === "danger"
                     ? "bg-red-600 hover:bg-red-700"
-                    : ""
+                    : confirmState.variant === "success"
+                      ? "bg-teal-600 hover:bg-teal-700 text-white"
+                      : "bg-tertiary hover:bg-[#8b224a] text-white"
                 }
               >
                 {isConfirmSubmitting

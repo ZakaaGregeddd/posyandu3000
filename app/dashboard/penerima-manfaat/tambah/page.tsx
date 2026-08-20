@@ -267,6 +267,7 @@ function PenerimaManfaatForm() {
     reader.onload = (e) => {
       if (e.target?.result) {
         setFotoBukti(e.target.result as string);
+        setPhotoMode("none");
         setError("");
       }
     };
@@ -337,7 +338,7 @@ function PenerimaManfaatForm() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto w-full space-y-6 animate-in fade-in duration-300">
+    <div className="max-w-6xl mx-auto w-full space-y-6 animate-in fade-in duration-300">
       {/* Header and Back Button */}
       <div className="flex flex-col gap-2">
         <button
@@ -345,10 +346,10 @@ function PenerimaManfaatForm() {
             stopCamera();
             router.push("/dashboard/penerima-manfaat");
           }}
-          className="flex items-center gap-1.5 text-xs font-semibold text-tertiary hover:underline self-start cursor-pointer"
+          className="group flex items-center gap-1.5 text-xs font-semibold text-tertiary self-start cursor-pointer"
         >
           <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-          <span>Kembali ke Daftar Penerima</span>
+          <span className="group-hover:underline">Kembali ke Daftar Penerima</span>
         </button>
         <div>
           <h2 className="font-headline text-3xl font-bold text-on-background">
