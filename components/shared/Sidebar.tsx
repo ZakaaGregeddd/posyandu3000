@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { logoutUser, getCurrentUser } from "@/lib/fetch/auth";
 
+
 interface SidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
@@ -43,6 +44,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   }, [pathname, isPemeriksaanActive]);
 
   const handleLogout = async () => {
+
     try {
       await logoutUser();
     } finally {
@@ -205,15 +207,31 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           </div>
         </div>
 
-        <button
-          onClick={handleLogout}
-          className="mt-2 text-error px-4 py-3 flex items-center gap-3 hover:bg-error-container hover:translate-x-1.5 rounded-full transition-all duration-200 w-full text-left font-medium text-sm cursor-pointer"
-        >
-          <span className="material-symbols-outlined">logout</span>
-          <span>Logout</span>
-        </button>
+        <div className="mt-2 flex gap-2 w-full">
+          <button
+            onClick={handleLogout}
+            className="flex-1 text-error px-4 py-3 flex items-center justify-center gap-2 hover:bg-error-container hover:border-transparent rounded-full transition-all duration-200 font-semibold text-sm cursor-pointer border border-error/10"
+          >
+            <span className="material-symbols-outlined text-[18px]">logout</span>
+            <span>Logout</span>
+          </button>
+
+          <Link
+            href="/dashboard/pengaturan"
+            className={`p-3 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer border ${
+              pathname === "/dashboard/pengaturan"
+                ? "bg-tertiary/10 text-tertiary border-tertiary/30"
+                : "text-on-surface hover:bg-slate-100 border-outline-variant/30"
+            }`}
+            title="Pengaturan"
+          >
+            <span className="material-symbols-outlined text-[20px]">settings</span>
+          </Link>
+        </div>
       </div>
     </aside>
+
+
   );
 }
 

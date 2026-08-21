@@ -209,6 +209,53 @@ export function initDb(dbPath: string): Database.Database {
   return db;
 }
 
+export function closeDb(): void {
+  if (dbInstance) {
+    dbInstance.close();
+    dbInstance = null;
+  }
+}
+
+export function mergeDb(backupPath: string): void {
+  if (!dbInstance) {
+    throw new Error("Database not initialized");
+  }
+
+  executeTransaction(() => {
+    dbInstance!.exec(`ATTACH DATABASE '${backupPath}' AS backup_db`);
+
+    try {
+      dbInstance!.exec("INSERT OR IGNORE INTO keluarga SELECT * FROM backup_db.keluarga");
+      dbInstance!.exec("INSERT OR IGNORE INTO individu SELECT * FROM backup_db.individu");
+      dbInstance!.exec("INSERT OR IGNORE INTO master_pemeriksaan SELECT * FROM backup_db.master_pemeriksaan");
+      dbInstance!.exec("INSERT OR IGNORE INTO pemeriksaan_balita SELECT * FROM backup_db.pemeriksaan_balita");
+      dbInstance!.exec("INSERT OR IGNORE INTO pemeriksaan_ibu_hamil SELECT * FROM backup_db.pemeriksaan_ibu_hamil");
+      dbInstance!.exec("INSERT OR IGNORE INTO kelahiran SELECT * FROM backup_db.kelahiran");
+      dbInstance!.exec("INSERT OR IGNORE INTO pemeriksaan_lansia SELECT * FROM backup_db.pemeriksaan_lansia");
+      dbInstance!.exec("INSERT OR IGNORE INTO penerima_manfaat SELECT * FROM backup_db.penerima_manfaat");
+    } finally {
+      dbInstance!.exec("DETACH DATABASE backup_db");
+    }
+  });
+}
+
+export function resetDb(): void {
+  if (!dbInstance) {
+    throw new Error("Database not initialized");
+  }
+
+  executeTransaction(() => {
+    dbInstance!.exec("DELETE FROM penerima_manfaat");
+    dbInstance!.exec("DELETE FROM pemeriksaan_lansia");
+    dbInstance!.exec("DELETE FROM kelahiran");
+    dbInstance!.exec("DELETE FROM pemeriksaan_ibu_hamil");
+    dbInstance!.exec("DELETE FROM pemeriksaan_balita");
+    dbInstance!.exec("DELETE FROM master_pemeriksaan");
+    dbInstance!.exec("DELETE FROM individu");
+    dbInstance!.exec("DELETE FROM keluarga");
+  });
+}
+
 export function executeQuery(sql: string, params: any[] = []): any {
   if (!dbInstance) {
     throw new Error("Database not initialized");

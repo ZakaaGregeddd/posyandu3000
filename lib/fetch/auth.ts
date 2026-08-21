@@ -24,6 +24,7 @@ export async function loginUser(
 
   if (isClient) {
     localStorage.setItem("offline_user", JSON.stringify(user));
+    localStorage.setItem("offline_user_password", password);
   }
 
   return user;
@@ -35,6 +36,7 @@ export async function loginUser(
 export async function logoutUser(): Promise<void> {
   if (isClient) {
     localStorage.removeItem("offline_user");
+    localStorage.removeItem("offline_user_password");
   }
 }
 

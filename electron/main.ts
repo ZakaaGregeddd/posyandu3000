@@ -1,6 +1,7 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import * as path from "path";
-import { initDb, executeQuery, getDbPath } from "../lib/db/sqlite";
+import * as fs from "fs";
+import { initDb, executeQuery, getDbPath, closeDb, mergeDb, resetDb } from "../lib/db/sqlite";
 
 let mainWindow: BrowserWindow | null = null;
 const isDev = !app.isPackaged;
@@ -84,6 +85,62 @@ app.whenReady().then(() => {
     } catch (error: any) {
       console.error("Database Query Error:", error);
       throw error;
+    }
+  });
+
+  ipcMain.handle("db-export", async () => {
+    try {
+      if (!mainWindow) return { success: false, message: "Window tidak aktif" };
+      const result = await dialog.showSaveDialog(mainWindow, {
+        title: "Ekspor Database (Backup)",
+        defaultPath: path.join(app.getPath("downloads"), `posyandu-backup-${new Date().toISOString().split("T")[0]}.db`),
+        filters: [{ name: "Database SQLite", extensions: ["db"] }],
+      });
+
+      if (result.canceled || !result.filePath) {
+        return { success: false, message: "Ekspor dibatalkan" };
+      }
+
+      fs.copyFileSync(dbPath, result.filePath);
+      return { success: true, message: `Database berhasil diekspor ke: ${result.filePath}` };
+    } catch (error: any) {
+      console.error("Export Database Error:", error);
+      return { success: false, message: error.message || "Gagal mengekspor database" };
+    }
+  });
+
+  ipcMain.handle("db-import", async () => {
+    try {
+      if (!mainWindow) return { success: false, message: "Window tidak aktif" };
+      const result = await dialog.showOpenDialog(mainWindow, {
+        title: "Gabungkan Database (Import & Merge)",
+        filters: [{ name: "Database SQLite", extensions: ["db"] }],
+        properties: ["openFile"],
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: false, message: "Impor dibatalkan" };
+      }
+
+      const selectedPath = result.filePaths[0];
+
+      // Merge the backup database with current database
+      mergeDb(selectedPath);
+
+      return { success: true, message: "Database berhasil digabungkan. Aplikasi akan memuat ulang halaman." };
+    } catch (error: any) {
+      console.error("Merge Database Error:", error);
+      return { success: false, message: error.message || "Gagal menggabungkan database" };
+    }
+  });
+
+  ipcMain.handle("db-reset", async () => {
+    try {
+      resetDb();
+      return { success: true, message: "Database berhasil dikosongkan. Aplikasi akan memuat ulang halaman." };
+    } catch (error: any) {
+      console.error("Reset Database Error:", error);
+      return { success: false, message: error.message || "Gagal mereset database" };
     }
   });
 
