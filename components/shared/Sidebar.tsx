@@ -4,6 +4,9 @@ import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { logoutUser, getCurrentUser } from "@/lib/fetch/auth";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter } from "@/components/ui/dialog";
+
 
 
 interface SidebarProps {
@@ -36,6 +39,8 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       isMounted = false;
     };
   }, []);
+
+  const [isConfirmLogoutOpen, setIsConfirmLogoutOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (isPemeriksaanActive) {
@@ -209,7 +214,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
         <div className="mt-2 flex gap-2 w-full">
           <button
-            onClick={handleLogout}
+            onClick={() => setIsConfirmLogoutOpen(true)}
             className="flex-1 text-error px-4 py-3 flex items-center justify-center gap-2 hover:bg-error-container hover:border-transparent rounded-full transition-all duration-200 font-semibold text-sm cursor-pointer border border-error/10"
           >
             <span className="material-symbols-outlined text-[18px]">logout</span>
@@ -229,7 +234,38 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           </Link>
         </div>
       </div>
+
+      {/* Logout Confirmation Dialog */}
+      {isConfirmLogoutOpen && (
+        <Dialog isOpen={isConfirmLogoutOpen} onClose={() => setIsConfirmLogoutOpen(false)}>
+          <DialogHeader>
+            <DialogTitle className="text-center font-headline text-lg font-bold text-error">
+              Konfirmasi Keluar
+            </DialogTitle>
+            <DialogDescription className="text-center mt-1 text-sm text-on-surface-variant">
+              Apakah Anda yakin ingin keluar dari aplikasi? Anda harus masuk kembali untuk mengakses dashboard.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="flex flex-row justify-end gap-3 w-full">
+            <Button
+              variant="ghost"
+              onClick={() => setIsConfirmLogoutOpen(false)}
+              className="font-bold"
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={handleLogout}
+              className="bg-error text-white hover:bg-error/90 font-bold"
+            >
+              Ya, Keluar
+            </Button>
+          </DialogFooter>
+        </Dialog>
+      )}
     </aside>
+
 
 
   );
