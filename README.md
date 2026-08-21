@@ -4,21 +4,26 @@ Posyandu 3000 is a modern, high-performance desktop application designed to stre
 
 ## Key Features
 
-- Dashboard Analytics: Visualizes demographic stats and monthly/yearly service tracking.
-- Family Register (KK): Efficient registration of family cards, interactive member management, dynamic age calculations, and status logging (Alive/Deceased).
-- Beneficiary (Penerima Manfaat) Logs: Complete service distribution records, photo attachment, webcam integration with multi-camera support, and drag-and-drop file upload with custom animations.
-- Proof of Service Export: Generates high-resolution PNG receipt cards directly from popup screens for easy sharing and records.
-- Input Simplifications: Features modern segmented control pill buttons for blood type selection, custom live-search dropdowns for KK and NIK searches, and automated fields to prevent input errors.
-- SQLite Core with Auto-Migration: Relational database architecture with built-in schema check and automatic migration scripts to upgrade local database structures without data loss.
+- **Dashboard Analytics**: Visualizes demographic stats and monthly/yearly service tracking.
+- **Family Register (KK)**: Efficient registration of family cards, interactive member management, dynamic age calculations, and status logging (Alive/Deceased).
+- **Beneficiary (Penerima Manfaat) Logs**: Complete service distribution records, photo attachment, webcam integration with multi-camera support, and drag-and-drop file upload with custom animations.
+- **Proof of Service Export**: Generates high-resolution PNG receipt cards directly from popup screens for easy sharing and records.
+- **Input Simplifications**: Features modern segmented control pill buttons for blood type selection, custom live-search dropdowns for KK and NIK searches, and automated fields to prevent input errors.
+- **Expanded PDF Reports**: Generates landscape PDF reports and tables for Balita, Lansia, Ibu Hamil, and Penerima Manfaat, featuring live preview iframe embedding before downloading.
+- **Standalone Settings & Database Management**:
+  - **Export (Backup)**: Saves current SQLite data into external `.db` files.
+  - **Import & Smart Merge**: Merges data from backup files using `INSERT OR IGNORE` queries, appending new entries without deleting existing local data or causing PK conflicts.
+  - **Secure Reset**: Clears all database transaction logs safely, protected by double-verification (password input with visibility toggle + typing "Hapus Database").
+- **SQLite Core with Auto-Migration**: Relational database architecture with built-in schema check and automatic migration scripts to upgrade local database structures safely.
 
 ## Tech Stack
 
-- Frontend Framework: Next.js (React)
-- Desktop Shell: Electron
-- Database Engine: SQLite (via better-sqlite3)
-- Style System: Tailwind CSS & Vanilla CSS
-- Iconography: Google Material Symbols
-- Utilities: html-to-image (PNG receipt export)
+- **Frontend Framework**: Next.js (React)
+- **Desktop Shell**: Electron
+- **Database Engine**: SQLite (via `better-sqlite3`)
+- **Style System**: Tailwind CSS & Custom CSS
+- **Iconography**: Google Material Symbols
+- **Utilities**: `html-to-image` (PNG receipt export), `jspdf` & `jspdf-autotable` (PDF exports)
 
 ## Getting Started
 
@@ -26,7 +31,7 @@ Posyandu 3000 is a modern, high-performance desktop application designed to stre
 
 - Node.js (version 18 or higher)
 - NPM or Yarn package manager
-- C++ compiler tools (required by better-sqlite3 native bindings)
+- C++ compiler tools (required by `better-sqlite3` native bindings)
 
 ### Development
 
@@ -50,8 +55,8 @@ The output build will be generated in the output directory.
 
 ## Project Structure
 
-- app/ - Next.js page layouts, routing, and UI views.
-- components/ - Reusable React components including bento boxes, tables, modals, and charts.
-- electron/ - Main process configurations, preload scripts, and IPC database handlers.
-- lib/ - SQLite helper utilities, data fetching logic, and database schemas.
-- public/ - Static assets, icons, and local web resources.
+- `app/` - Next.js page layouts, routing, and UI views.
+- `components/` - Reusable React components including sidebar, bento boxes, tables, modals, and charts.
+- `electron/` - Main process configurations, preload scripts, and IPC database handlers.
+- `lib/` - SQLite helper utilities, data fetching logic, and database schemas.
+- `public/` - Static assets, icons, and local web resources.
