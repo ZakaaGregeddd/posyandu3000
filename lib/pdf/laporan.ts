@@ -3,6 +3,7 @@ import autoTable from "jspdf-autotable";
 import { Balita, BalitaRecord } from "@/lib/fetch/balita";
 import { Lansia, LansiaRecord } from "@/lib/fetch/lansia";
 import { IbuHamil, IbuHamilRecord } from "@/lib/fetch/ibuHamil";
+import { PenerimaManfaatRecord } from "@/lib/fetch/penerima-manfaat";
 import {
   calculateAge,
   calculateGestationWeeks,
@@ -343,6 +344,54 @@ export function generateIbuHamilReport(
       `${r.tekananDarahSistolik}/${r.tekananDarahDiastolik}`,
     ],
   );
+
+  addFooter(doc);
+  return doc;
+}
+
+// ============================================================================
+// PENERIMA MANFAAT
+// ============================================================================
+export function generatePenerimaManfaatReport(
+  data: PenerimaManfaatRecord[],
+): jsPDF {
+  const doc = new jsPDF({ orientation: "landscape" });
+  addHeader(doc, `Rekap Penerima Manfaat (${data.length} catatan)`);
+
+  const rows = data.map((pm, i) => [
+    i + 1,
+    pm.nama,
+    pm.nik,
+    pm.noKk,
+    pm.alamat || "-",
+    pm.tanggalDiterima
+      ? new Date(pm.tanggalDiterima).toLocaleDateString("id-ID", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })
+      : "-",
+    pm.keterangan || "-",
+  ]);
+
+  autoTable(doc, {
+    startY: 32,
+    head: [
+      [
+        "No",
+        "Nama Penerima",
+        "NIK",
+        "No. KK",
+        "Alamat",
+        "Tanggal Diterima",
+        "Catatan / Barang Bantuan",
+      ],
+    ],
+    body: rows,
+    styles: { fontSize: 8, cellPadding: 2 },
+    headStyles: { fillColor: [171, 44, 93] },
+    alternateRowStyles: { fillColor: [250, 245, 247] },
+  });
 
   addFooter(doc);
   return doc;

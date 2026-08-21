@@ -7,19 +7,22 @@ import { Label } from "@/components/ui/label";
 import { getBalitas, getBalitaRecordsForNiks } from "@/lib/fetch/balita";
 import { getLansias, getLansiaRecordsForNiks } from "@/lib/fetch/lansia";
 import { getIbuHamils, getIbuHamilRecordsForIds } from "@/lib/fetch/ibuHamil";
+import { getPenerimaManfaatList } from "@/lib/fetch/penerima-manfaat";
 import {
   generateBalitaReport,
   generateLansiaReport,
   generateIbuHamilReport,
+  generatePenerimaManfaatReport,
 } from "@/lib/pdf/laporan";
 import type jsPDF from "jspdf";
 
-type Kategori = "balita" | "lansia" | "ibu_hamil";
+type Kategori = "balita" | "lansia" | "ibu_hamil" | "penerima_manfaat";
 
 const KATEGORI_OPTIONS: { value: Kategori; label: string; icon: string }[] = [
   { value: "balita", label: "Balita & Bayi", icon: "child_care" },
   { value: "lansia", label: "Lansia", icon: "elderly" },
   { value: "ibu_hamil", label: "Ibu Hamil", icon: "pregnant_woman" },
+  { value: "penerima_manfaat", label: "Penerima Manfaat", icon: "featured_seasonal_and_gifts" },
 ];
 
 export default function LaporanPdfPage() {
@@ -61,10 +64,14 @@ export default function LaporanPdfPage() {
         const records = await getLansiaRecordsForNiks(data.map((l) => l.nik));
         doc = generateLansiaReport(data, records);
         jumlah = data.length;
-      } else {
+      } else if (kategori === "ibu_hamil") {
         const data = await getIbuHamils();
         const records = await getIbuHamilRecordsForIds(data.map((b) => b.id));
         doc = generateIbuHamilReport(data, records);
+        jumlah = data.length;
+      } else {
+        const data = await getPenerimaManfaatList();
+        doc = generatePenerimaManfaatReport(data);
         jumlah = data.length;
       }
 
@@ -101,7 +108,7 @@ export default function LaporanPdfPage() {
       <Card className="p-6 space-y-5 bg-white border border-outline-variant/20">
         <div className="space-y-2">
           <Label>Pilih Kategori Data</Label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {KATEGORI_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
