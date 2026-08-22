@@ -5,6 +5,7 @@ import { initDb, executeQuery, getDbPath, closeDb, mergeDb, resetDb } from "../l
 
 let mainWindow: BrowserWindow | null = null;
 const isDev = !app.isPackaged;
+let dbPath: string = "";
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -74,7 +75,20 @@ function createWindow() {
 
 app.whenReady().then(() => {
   const appDataPath = app.getPath("userData");
-  const dbPath = getDbPath(appDataPath);
+  const configPath = path.join(appDataPath, "config.json");
+  dbPath = getDbPath(appDataPath);
+
+  if (fs.existsSync(configPath)) {
+    try {
+      const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      if (config.dbPath) {
+        dbPath = config.dbPath;
+      }
+    } catch (e) {
+      console.error("Gagal membaca config.json:", e);
+    }
+  }
+
   console.log("Database SQLite diinisialisasi di:", dbPath);
   initDb(dbPath);
 
@@ -86,6 +100,44 @@ app.whenReady().then(() => {
       console.error("Database Query Error:", error);
       throw error;
     }
+  });
+
+  // Select folder dialog for custom db path
+  ipcMain.handle("db-select-folder", async () => {
+    if (!mainWindow) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: "Pilih Folder Penyimpanan Database",
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+    return result.filePaths[0];
+  });
+
+  // Set custom path and re-initialize db
+  ipcMain.handle("db-set-custom-path", async (_event: any, folderPath: string) => {
+    try {
+      const newDbPath = path.join(folderPath, "posyandu.db");
+      
+      closeDb();
+      initDb(newDbPath);
+      resetDb(); // Clear to start clean
+      
+      const config = { dbPath: newDbPath };
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
+      dbPath = newDbPath;
+      
+      return { success: true, message: `Database berhasil diatur di: ${newDbPath}` };
+    } catch (error: any) {
+      console.error("Set Custom DB Path Error:", error);
+      return { success: false, message: error.message || "Gagal mengatur lokasi database" };
+    }
+  });
+
+  // Get current active database path
+  ipcMain.handle("db-get-current-path", async () => {
+    return dbPath;
   });
 
   ipcMain.handle("db-export", async () => {

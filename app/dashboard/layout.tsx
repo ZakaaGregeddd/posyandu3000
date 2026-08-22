@@ -17,6 +17,12 @@ export default function DashboardLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
+    const isInstalled = localStorage.getItem("posyandu_installed") === "true";
+    if (!isInstalled) {
+      router.replace("/install");
+      return;
+    }
+
     const user = getCurrentUser();
     if (!user) {
       router.replace("/login");

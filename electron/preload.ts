@@ -13,4 +13,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   resetDatabase: () => {
     return ipcRenderer.invoke("db-reset");
   },
+  selectDirectory: () => {
+    return ipcRenderer.invoke("db-select-folder");
+  },
+  setDatabasePath: (folderPath: string) => {
+    return ipcRenderer.invoke("db-set-custom-path", folderPath);
+  },
+  getDatabasePath: () => {
+    return ipcRenderer.invoke("db-get-current-path");
+  },
 });

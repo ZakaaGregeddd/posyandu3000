@@ -16,6 +16,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    const isInstalled = localStorage.getItem("posyandu_installed") === "true";
+    if (!isInstalled) {
+      router.replace("/install");
+      return;
+    }
+
     // Jika sudah ada sesi login aktif, langsung ke dashboard
     let isMounted = true;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,17 @@ export default function PengaturanPage() {
   const [passwordError, setPasswordError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [dbPath, setDbPath] = useState("Memuat lokasi database...");
+
+  useEffect(() => {
+    if (window.electronAPI && window.electronAPI.getDatabasePath) {
+      window.electronAPI.getDatabasePath().then((path) => {
+        setDbPath(path);
+      });
+    } else {
+      setDbPath("LocalStorage Browser (Mode Demo/Web)");
+    }
+  }, []);
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -103,6 +114,13 @@ export default function PengaturanPage() {
         <p className="text-sm text-on-surface-variant mt-1">
           Kelola pencadangan, sinkronisasi data antar perangkat, dan pemeliharaan database Posyandu secara mandiri.
         </p>
+      </div>
+
+      <div className="bg-[#FFFDFE] border border-outline-variant/30 rounded-2xl p-5 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] flex flex-col gap-2">
+        <span className="text-xs font-bold text-outline uppercase tracking-wider">Lokasi File Database SQLite Aktif:</span>
+        <span className="font-mono text-xs text-on-surface break-all bg-slate-50 border border-outline-variant/20 p-3.5 rounded-xl shadow-inner select-all">
+          {dbPath}
+        </span>
       </div>
 
       {message && (

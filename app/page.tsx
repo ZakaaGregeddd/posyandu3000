@@ -8,6 +8,12 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
+    const isInstalled = localStorage.getItem("posyandu_installed") === "true";
+    if (!isInstalled) {
+      router.replace("/install");
+      return;
+    }
+    
     const user = getCurrentUser();
     if (user) {
       router.replace("/dashboard");
