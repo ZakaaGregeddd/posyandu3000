@@ -1,6 +1,6 @@
 {
   "name": "posyandu3000",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "private": true,
   "main": "dist-electron/electron/main.js",
   "scripts": {
@@ -19,6 +19,7 @@
     "@supabase/supabase-js": "^2.112.1",
     "better-sqlite3": "^11.8.1",
     "electron-is-dev": "^3.0.1",
+    "electron-updater": "^6.8.9",
     "html-to-image": "^1.11.13",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
@@ -54,6 +55,11 @@
     "directories": {
       "output": "dist-desktop"
     },
+    "publish": {
+      "provider": "github",
+      "owner": "ZakaaGregeddd",
+      "repo": "posyandu3000"
+    },
     "files": [
       "dist-electron/**/*",
       ".next/**/*",
@@ -66,6 +72,16 @@
     ],
     "win": {
       "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Posyandu3000",
+      "uninstallDisplayName": "Posyandu3000",
+      "deleteAppDataOnUninstall": false
     }
   }
 }

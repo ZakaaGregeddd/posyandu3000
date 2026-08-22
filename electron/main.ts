@@ -2,10 +2,31 @@ import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import * as path from "path";
 import * as fs from "fs";
 import { initDb, executeQuery, getDbPath, closeDb, mergeDb, resetDb } from "../lib/db/sqlite";
+import { autoUpdater } from "electron-updater";
 
 let mainWindow: BrowserWindow | null = null;
 const isDev = !app.isPackaged;
 let dbPath: string = "";
+
+// Configure autoUpdater
+autoUpdater.autoDownload = false;
+
+function setupAutoUpdater() {
+  autoUpdater.on("update-available", (info) => {
+    mainWindow?.webContents.send("update-available", info);
+  });
+
+  autoUpdater.on("download-progress", (progressObj) => {
+    mainWindow?.webContents.send("download-progress", progressObj);
+  });
+
+  autoUpdater.on("update-downloaded", () => {
+    mainWindow?.webContents.send("update-downloaded");
+  });
+
+  // Check for updates
+  autoUpdater.checkForUpdatesAndNotify();
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -196,7 +217,19 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle("update-start-download", async () => {
+    autoUpdater.downloadUpdate();
+  });
+
+  ipcMain.handle("update-quit-install", async () => {
+    autoUpdater.quitAndInstall();
+  });
+
   createWindow();
+
+  if (!isDev) {
+    setupAutoUpdater();
+  }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

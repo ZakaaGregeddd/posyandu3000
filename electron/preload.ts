@@ -22,4 +22,25 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getDatabasePath: () => {
     return ipcRenderer.invoke("db-get-current-path");
   },
+  onUpdateAvailable: (callback: (info: any) => void) => {
+    const subscription = (_event: any, info: any) => callback(info);
+    ipcRenderer.on("update-available", subscription);
+    return () => ipcRenderer.removeListener("update-available", subscription);
+  },
+  onDownloadProgress: (callback: (progress: any) => void) => {
+    const subscription = (_event: any, progress: any) => callback(progress);
+    ipcRenderer.on("download-progress", subscription);
+    return () => ipcRenderer.removeListener("download-progress", subscription);
+  },
+  onUpdateDownloaded: (callback: () => void) => {
+    const subscription = () => callback();
+    ipcRenderer.on("update-downloaded", subscription);
+    return () => ipcRenderer.removeListener("update-downloaded", subscription);
+  },
+  startDownload: () => {
+    return ipcRenderer.invoke("update-start-download");
+  },
+  quitAndInstall: () => {
+    return ipcRenderer.invoke("update-quit-install");
+  },
 });

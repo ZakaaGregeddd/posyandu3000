@@ -7,5 +7,10 @@ interface Window {
     selectDirectory: () => Promise<string | null>;
     setDatabasePath: (folderPath: string) => Promise<{ success: boolean; message: string }>;
     getDatabasePath: () => Promise<string>;
+    onUpdateAvailable: (callback: (info: any) => void) => () => void;
+    onDownloadProgress: (callback: (progress: any) => void) => () => void;
+    onUpdateDownloaded: (callback: () => void) => () => void;
+    startDownload: () => Promise<void>;
+    quitAndInstall: () => Promise<void>;
   };
 }

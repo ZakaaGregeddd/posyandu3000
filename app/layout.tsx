@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import UpdateNotifier from "@/components/shared/UpdateNotifier";
 
 export const metadata: Metadata = {
   title: "Sistem Manajemen Posyandu 3000",
@@ -29,6 +30,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-background font-sans">
         {children}
+        <UpdateNotifier />
       </body>
     </html>
   );
