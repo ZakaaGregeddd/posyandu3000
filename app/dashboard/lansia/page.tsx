@@ -68,13 +68,13 @@ export default function LansiaPage() {
     if (!matchesSearch) return false;
 
     if (activeTab === "pralansia") {
-      return age.years >= 45 && age.years < 50;
+      return age.years >= 45 && age.years <= 50;
     }
     if (activeTab === "lansia") {
-      return age.years >= 50 && age.years < 60;
+      return age.years >= 51 && age.years <= 60;
     }
     if (activeTab === "resikoTinggi") {
-      return age.years >= 60;
+      return age.years >= 61;
     }
     return true; // all
   });
@@ -149,8 +149,8 @@ export default function LansiaPage() {
           {[
             { id: "all", label: "Semua" },
             { id: "pralansia", label: "Pralansia (45-50 th)" },
-            { id: "lansia", label: "Lansia (50-60 th)" },
-            { id: "resikoTinggi", label: "Resiko Tinggi (60+ th)" },
+            { id: "lansia", label: "Lansia (51-60 th)" },
+            { id: "resikoTinggi", label: "Resiko Tinggi (61+ th)" },
           ].map((tab) => (
             <button
               key={tab.id}
