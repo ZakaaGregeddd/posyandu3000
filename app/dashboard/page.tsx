@@ -63,11 +63,11 @@ export default function DashboardOverviewPage() {
 
         lansiasHidup.forEach((l) => {
           const age = calculateAge(l.tanggalLahir);
-          if (age.years >= 45 && age.years < 50) {
+          if (age.years >= 45 && age.years <= 50) {
             pralansiaCount++;
-          } else if (age.years >= 50 && age.years < 60) {
+          } else if (age.years >= 51 && age.years <= 60) {
             lansiaCount++;
-          } else if (age.years >= 60) {
+          } else if (age.years >= 61) {
             resikoTinggiCount++;
           }
         });

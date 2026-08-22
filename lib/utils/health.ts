@@ -60,12 +60,12 @@ export function classifyCategory(birthDateStr: string, type: 'balita' | 'lansia'
     }
   } else {
     const years = age.years;
-    if (years >= 45 && years < 50) {
+    if (years >= 45 && years <= 50) {
       return 'Pralansia (45-50 tahun)';
-    } else if (years >= 50 && years < 60) {
-      return 'Lansia (50-60 tahun)';
-    } else if (years >= 60) {
-      return 'Lanjut Usia Resiko Tinggi (60+ tahun)';
+    } else if (years >= 51 && years <= 60) {
+      return 'Lansia (51-60 tahun)';
+    } else if (years >= 61) {
+      return 'Lanjut Usia Resiko Tinggi (61+ tahun)';
     }
     return 'Lainnya';
   }
