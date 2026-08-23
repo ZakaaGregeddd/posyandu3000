@@ -124,11 +124,14 @@ export function generateBalitaReport(
   allRecords: BalitaRecord[],
 ): jsPDF {
   const doc = new jsPDF({ orientation: "landscape" });
-  addHeader(doc, `Rekap Data Balita & Bayi (${data.length} anggota)`);
+  const recordsById = groupByKey(allRecords, (r) => r.balitaId);
+  const filteredData = data.filter((b) => (recordsById.get(b.id)?.length ?? 0) > 0);
+
+  addHeader(doc, `Rekap Data Balita & Bayi (${filteredData.length} anggota)`);
 
   const latestById = latestPerKey(allRecords, (r) => r.balitaId);
 
-  const rows = data.map((b, i) => {
+  const rows = filteredData.map((b, i) => {
     const latest = latestById.get(b.id);
     return [
       i + 1,
@@ -169,14 +172,11 @@ export function generateBalitaReport(
   });
 
   // ---- Bagian Riwayat Pemeriksaan per Balita ----
-  const recordsById = groupByKey(allRecords, (r) => r.balitaId);
-  const balitaWithRecords = data
-    .filter((b) => (recordsById.get(b.id)?.length ?? 0) > 0)
-    .map((b) => ({
-      nama: b.nama,
-      nik: b.nik,
-      records: recordsById.get(b.id) ?? [],
-    }));
+  const balitaWithRecords = filteredData.map((b) => ({
+    nama: b.nama,
+    nik: b.nik,
+    records: recordsById.get(b.id) ?? [],
+  }));
 
   addRiwayatPemeriksaanSection(
     doc,
@@ -203,9 +203,12 @@ export function generateLansiaReport(
   allRecords: LansiaRecord[],
 ): jsPDF {
   const doc = new jsPDF({ orientation: "landscape" });
-  addHeader(doc, `Rekap Data Lansia (${data.length} anggota)`);
+  const recordsById = groupByKey(allRecords, (r) => r.lansiaId);
+  const filteredData = data.filter((l) => (recordsById.get(l.id)?.length ?? 0) > 0);
 
-  const rows = data.map((l, i) => [
+  addHeader(doc, `Rekap Data Lansia (${filteredData.length} anggota)`);
+
+  const rows = filteredData.map((l, i) => [
     i + 1,
     l.nama,
     l.nik,
@@ -239,14 +242,11 @@ export function generateLansiaReport(
   });
 
   // ---- Bagian Riwayat Pemeriksaan per Lansia ----
-  const recordsById = groupByKey(allRecords, (r) => r.lansiaId);
-  const lansiaWithRecords = data
-    .filter((l) => (recordsById.get(l.id)?.length ?? 0) > 0)
-    .map((l) => ({
-      nama: l.nama,
-      nik: l.nik,
-      records: recordsById.get(l.id) ?? [],
-    }));
+  const lansiaWithRecords = filteredData.map((l) => ({
+    nama: l.nama,
+    nik: l.nik,
+    records: recordsById.get(l.id) ?? [],
+  }));
 
   addRiwayatPemeriksaanSection(
     doc,
@@ -276,11 +276,14 @@ export function generateIbuHamilReport(
   allRecords: IbuHamilRecord[],
 ): jsPDF {
   const doc = new jsPDF({ orientation: "landscape" });
-  addHeader(doc, `Rekap Data Ibu Hamil (${data.length} anggota)`);
+  const recordsById = groupByKey(allRecords, (r) => r.ibuHamilId);
+  const filteredData = data.filter((b) => (recordsById.get(b.id)?.length ?? 0) > 0);
+
+  addHeader(doc, `Rekap Data Ibu Hamil (${filteredData.length} anggota)`);
 
   const latestByEpisode = latestPerKey(allRecords, (r) => r.ibuHamilId);
 
-  const rows = data.map((b, i) => {
+  const rows = filteredData.map((b, i) => {
     const latest = latestByEpisode.get(b.id);
     return [
       i + 1,
@@ -323,14 +326,11 @@ export function generateIbuHamilReport(
   });
 
   // ---- Bagian Riwayat Pemeriksaan per Ibu Hamil ----
-  const recordsById = groupByKey(allRecords, (r) => r.ibuHamilId);
-  const ibuHamilWithRecords = data
-    .filter((b) => (recordsById.get(b.id)?.length ?? 0) > 0)
-    .map((b) => ({
-      nama: b.nama,
-      nik: b.nik,
-      records: recordsById.get(b.id) ?? [],
-    }));
+  const ibuHamilWithRecords = filteredData.map((b) => ({
+    nama: b.nama,
+    nik: b.nik,
+    records: recordsById.get(b.id) ?? [],
+  }));
 
   addRiwayatPemeriksaanSection(
     doc,
