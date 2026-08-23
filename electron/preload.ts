@@ -51,4 +51,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   checkForUpdates: () => {
     return ipcRenderer.invoke("update-check");
   },
+  onUpdaterError: (callback: (err: string) => void) => {
+    const subscription = (_event: any, err: string) => callback(err);
+    ipcRenderer.on("updater-error", subscription);
+    return () => ipcRenderer.removeListener("updater-error", subscription);
+  },
 });

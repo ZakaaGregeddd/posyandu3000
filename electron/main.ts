@@ -28,6 +28,11 @@ function setupAutoUpdater() {
     mainWindow?.webContents.send("update-not-available");
   });
 
+  autoUpdater.on("error", (err) => {
+    console.error("AutoUpdater Error:", err);
+    mainWindow?.webContents.send("updater-error", err.stack || err.message || String(err));
+  });
+
   // Check for updates
   autoUpdater.checkForUpdatesAndNotify();
 }

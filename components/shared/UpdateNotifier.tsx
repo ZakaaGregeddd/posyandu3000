@@ -33,10 +33,19 @@ export default function UpdateNotifier() {
       setIsDownloaded(true);
     });
 
+    // Listen for updater errors
+    const unsubscribeError = window.electronAPI.onUpdaterError((err) => {
+      console.error("Gagal mendownload pembaruan (Electron Error):", err);
+      alert(`Gagal mendownload pembaruan:\n${err}`);
+      setDownloading(false);
+      setProgress(0);
+    });
+
     return () => {
       if (unsubscribeUpdate) unsubscribeUpdate();
       if (unsubscribeProgress) unsubscribeProgress();
       if (unsubscribeDownloaded) unsubscribeDownloaded();
+      if (unsubscribeError) unsubscribeError();
     };
   }, []);
 

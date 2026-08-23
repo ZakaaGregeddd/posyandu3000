@@ -14,5 +14,6 @@ interface Window {
     quitAndInstall: () => Promise<void>;
     onUpdateNotAvailable: (callback: () => void) => () => void;
     checkForUpdates: () => Promise<any>;
+    onUpdaterError: (callback: (err: string) => void) => () => void;
   };
 }
