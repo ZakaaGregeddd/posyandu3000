@@ -1,6 +1,6 @@
 {
   "name": "posyandu3000",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "private": true,
   "main": "dist-electron/electron/main.js",
   "scripts": {
