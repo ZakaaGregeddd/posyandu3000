@@ -21,6 +21,21 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     id: string;
     email: string | null;
   } | null>(null);
+  const [updateAvailable, setUpdateAvailable] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !window.electronAPI) return;
+    const unsubscribe = window.electronAPI.onUpdateAvailable(() => {
+      setUpdateAvailable(true);
+    });
+    const unsubscribeNotAvailable = window.electronAPI.onUpdateNotAvailable(() => {
+      setUpdateAvailable(false);
+    });
+    return () => {
+      if (unsubscribe) unsubscribe();
+      if (unsubscribeNotAvailable) unsubscribeNotAvailable();
+    };
+  }, []);
 
   // Initialize dropdown open state if pathname starts with any of the sub-routes
   const isPemeriksaanActive =
@@ -223,7 +238,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
           <Link
             href="/dashboard/pengaturan"
-            className={`p-3 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer border ${
+            className={`relative p-3 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer border ${
               pathname === "/dashboard/pengaturan"
                 ? "bg-tertiary/10 text-tertiary border-tertiary/30"
                 : "text-on-surface hover:bg-slate-100 border-outline-variant/30"
@@ -231,6 +246,11 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             title="Pengaturan"
           >
             <span className="material-symbols-outlined text-[20px]">settings</span>
+            {updateAvailable && (
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-tertiary text-white rounded-full flex items-center justify-center border border-white text-[9px] animate-bounce shadow-sm">
+                <span className="material-symbols-outlined text-[9px] font-bold">download</span>
+              </span>
+            )}
           </Link>
         </div>
       </div>

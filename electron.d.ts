@@ -12,5 +12,7 @@ interface Window {
     onUpdateDownloaded: (callback: () => void) => () => void;
     startDownload: () => Promise<void>;
     quitAndInstall: () => Promise<void>;
+    onUpdateNotAvailable: (callback: () => void) => () => void;
+    checkForUpdates: () => Promise<any>;
   };
 }

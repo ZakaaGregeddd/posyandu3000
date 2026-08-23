@@ -24,6 +24,10 @@ function setupAutoUpdater() {
     mainWindow?.webContents.send("update-downloaded");
   });
 
+  autoUpdater.on("update-not-available", () => {
+    mainWindow?.webContents.send("update-not-available");
+  });
+
   // Check for updates
   autoUpdater.checkForUpdatesAndNotify();
 }
@@ -223,6 +227,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle("update-quit-install", async () => {
     autoUpdater.quitAndInstall();
+  });
+
+  ipcMain.handle("update-check", async () => {
+    return autoUpdater.checkForUpdates();
   });
 
   createWindow();

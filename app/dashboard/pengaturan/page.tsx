@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter } from "@/components/ui/dialog";
+import pkg from "../../../package.json";
 
 export default function PengaturanPage() {
   const [isExporting, setIsExporting] = useState(false);
@@ -17,6 +18,9 @@ export default function PengaturanPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [dbPath, setDbPath] = useState("Memuat lokasi database...");
+  
+  const [isConfirmUpdateOpen, setIsConfirmUpdateOpen] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
 
   useEffect(() => {
     if (window.electronAPI && window.electronAPI.getDatabasePath) {
@@ -27,6 +31,47 @@ export default function PengaturanPage() {
       setDbPath("LocalStorage Browser (Mode Demo/Web)");
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.electronAPI) return;
+
+    const unsubscribeNotAvailable = window.electronAPI.onUpdateNotAvailable(() => {
+      setCheckingUpdate(false);
+      setMessage({ text: "Aplikasi Anda sudah menggunakan versi terbaru!", type: "success" });
+    });
+
+    const unsubscribeAvailable = window.electronAPI.onUpdateAvailable(() => {
+      // If update is available, the global UpdateNotifier will handle the download modal,
+      // so we just stop the checking spinner here.
+      setCheckingUpdate(false);
+    });
+
+    return () => {
+      if (unsubscribeNotAvailable) unsubscribeNotAvailable();
+      if (unsubscribeAvailable) unsubscribeAvailable();
+    };
+  }, []);
+
+  const handleCheckUpdate = () => {
+    setIsConfirmUpdateOpen(true);
+  };
+
+  const executeCheckUpdate = async () => {
+    setIsConfirmUpdateOpen(false);
+    setCheckingUpdate(true);
+    setMessage(null);
+    try {
+      if (window.electronAPI && window.electronAPI.checkForUpdates) {
+        await window.electronAPI.checkForUpdates();
+      } else {
+        setMessage({ text: "Fitur cek pembaruan hanya tersedia di aplikasi desktop.", type: "error" });
+        setCheckingUpdate(false);
+      }
+    } catch (err: any) {
+      setMessage({ text: err.message || "Gagal mengecek pembaruan.", type: "error" });
+      setCheckingUpdate(false);
+    }
+  };
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -116,11 +161,39 @@ export default function PengaturanPage() {
         </p>
       </div>
 
-      <div className="bg-[#FFFDFE] border border-outline-variant/30 rounded-2xl p-5 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] flex flex-col gap-2">
-        <span className="text-xs font-bold text-outline uppercase tracking-wider">Lokasi File Database SQLite Aktif:</span>
-        <span className="font-mono text-xs text-on-surface break-all bg-slate-50 border border-outline-variant/20 p-3.5 rounded-xl shadow-inner select-all">
-          {dbPath}
-        </span>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-[#FFFDFE] border border-outline-variant/30 rounded-2xl p-5 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] flex flex-col justify-between gap-3">
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-bold text-outline uppercase tracking-wider">Lokasi File Database SQLite Aktif:</span>
+            <span className="font-mono text-xs text-on-surface break-all bg-slate-50 border border-outline-variant/20 p-3.5 rounded-xl shadow-inner select-all">
+              {dbPath}
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-[#FFFDFE] border border-outline-variant/30 rounded-2xl p-5 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] flex flex-col justify-between gap-3">
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs font-bold text-outline uppercase tracking-wider">Versi Aplikasi Saat Ini:</span>
+            <span className="font-headline text-lg font-bold text-on-surface">
+              v{pkg.version}
+            </span>
+          </div>
+          <Button
+            onClick={handleCheckUpdate}
+            disabled={checkingUpdate}
+            variant="outline"
+            className="w-full !border-tertiary !text-tertiary hover:!bg-tertiary hover:!text-white font-bold flex items-center justify-center gap-2 cursor-pointer transition-all duration-200 py-5 border-2"
+          >
+            {checkingUpdate ? (
+              <div className="w-5 h-5 border-2 border-tertiary border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-sm">update</span>
+                <span>Cek Pembaruan Aplikasi</span>
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {message && (
@@ -290,6 +363,38 @@ export default function PengaturanPage() {
               className="bg-error text-white hover:bg-error/90 font-bold"
             >
               {isResetting ? "Mereset..." : "Ya, Hapus Semua Data"}
+            </Button>
+          </DialogFooter>
+        </Dialog>
+      )}
+      {isConfirmUpdateOpen && (
+        <Dialog isOpen={isConfirmUpdateOpen} onClose={() => setIsConfirmUpdateOpen(false)}>
+          <DialogHeader>
+            <DialogTitle className="text-center font-headline text-lg font-bold text-tertiary">
+              Konfirmasi Koneksi Internet
+            </DialogTitle>
+            <DialogDescription className="text-center mt-1 text-sm text-on-surface-variant">
+              Pengecekan pembaruan memerlukan koneksi jaringan internet aktif untuk menghubungi server rilis GitHub.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogContent className="py-2 text-center text-xs text-on-surface-variant leading-relaxed">
+            Apakah Anda yakin ingin melanjutkan pengecekan pembaruan sekarang?
+          </DialogContent>
+
+          <DialogFooter className="flex flex-row justify-end gap-3 w-full">
+            <Button
+              variant="ghost"
+              onClick={() => setIsConfirmUpdateOpen(false)}
+              className="font-bold"
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={executeCheckUpdate}
+              className="bg-tertiary text-white hover:bg-tertiary/90 font-bold"
+            >
+              Lanjutkan
             </Button>
           </DialogFooter>
         </Dialog>

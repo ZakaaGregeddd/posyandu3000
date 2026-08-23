@@ -43,4 +43,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   quitAndInstall: () => {
     return ipcRenderer.invoke("update-quit-install");
   },
+  onUpdateNotAvailable: (callback: () => void) => {
+    const subscription = () => callback();
+    ipcRenderer.on("update-not-available", subscription);
+    return () => ipcRenderer.removeListener("update-not-available", subscription);
+  },
+  checkForUpdates: () => {
+    return ipcRenderer.invoke("update-check");
+  },
 });
