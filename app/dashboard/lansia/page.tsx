@@ -11,6 +11,7 @@ import {
   Lansia,
 } from "@/lib/fetch/lansia";
 import { calculateAge, classifyCategory } from "@/lib/utils/health";
+import TambahLansiaModal from "@/components/lansia/TambahLansiaModal";
 
 export default function LansiaPage() {
   const [lansias, setLansias] = useState<Lansia[]>([]);
@@ -20,6 +21,7 @@ export default function LansiaPage() {
   const [diseaseStats, setDiseaseStats] = useState<
     { name: string; count: number }[]
   >([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -30,28 +32,24 @@ export default function LansiaPage() {
     "all" | "pralansia" | "lansia" | "resikoTinggi"
   >("all");
 
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [list, stats] = await Promise.all([
+        getLansias(),
+        getDiseaseStats(),
+      ]);
+      setLansias(list);
+      setDiseaseStats(stats);
+    } catch (err: any) {
+      setLoadError(err.message || "Gagal memuat data");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let active = true;
-
-    (async () => {
-      try {
-        const [list, stats] = await Promise.all([
-          getLansias(),
-          getDiseaseStats(),
-        ]);
-        if (!active) return;
-        setLansias(list);
-        setDiseaseStats(stats);
-      } catch (err: any) {
-        if (active) setLoadError(err.message || "Gagal memuat data");
-      } finally {
-        if (active) setIsLoading(false);
-      }
-    })();
-
-    return () => {
-      active = false;
-    };
+    loadData();
   }, []);
 
   useEffect(() => {
@@ -101,14 +99,13 @@ export default function LansiaPage() {
             Lansia.
           </p>
         </div>
-        <Link href="/dashboard/tambah-kk" passHref>
-          <Button
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <span className="material-symbols-outlined">add_circle</span>
-            <span>Tambah Data Lansia</span>
-          </Button>
-        </Link>
+        <Button
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 cursor-pointer"
+        >
+          <span className="material-symbols-outlined">add_circle</span>
+          <span>Tambah Data Lansia</span>
+        </Button>
       </div>
 
       {loadError && (
@@ -324,6 +321,11 @@ export default function LansiaPage() {
         </Card>
       )}
 
+      <TambahLansiaModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={loadData}
+      />
     </div>
   );
 }

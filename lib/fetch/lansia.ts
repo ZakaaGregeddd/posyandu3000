@@ -118,7 +118,7 @@ function mapRowToRecord(row: any, episodeId: string): LansiaRecord {
 // DAFTAR LANSIA
 // ---------------------------------------------------------------------------
 export async function getLansias(): Promise<Lansia[]> {
-  const individuals = await dbQuery("SELECT * FROM individu ORDER BY tanggal_lahir ASC");
+  const individuals = await dbQuery("SELECT * FROM individu WHERE is_lansia = 1 ORDER BY tanggal_lahir ASC");
   const keluargaList = await dbQuery("SELECT * FROM keluarga");
   const masterExams = await dbQuery(`
     SELECT m.id, m.individu_id, m.jenis_pemeriksaan, p.nama_wali, p.keterangan
@@ -145,18 +145,7 @@ export async function getLansias(): Promise<Lansia[]> {
     });
   });
 
-  const lansias = individuals.filter((r: any) => {
-    const birthDate = new Date(r.tanggal_lahir);
-    const today = new Date();
-    let ageYears = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-      ageYears--;
-    }
-    return ageYears >= 60;
-  });
-
-  return lansias.map((row: any) => {
+  return individuals.map((row: any) => {
     const exams = examsByIndividu.get(row.id) || [];
     const keluarga = keluargaMap.get(row.keluarga_id) as any;
     return mapRowToLansia({
@@ -213,8 +202,8 @@ export async function addLansia(input: AddLansiaInput): Promise<Lansia> {
   const id = crypto.randomUUID();
 
   await dbQuery(
-    `INSERT INTO individu (id, keluarga_id, nik, nama, tempat_lahir, tanggal_lahir, jenis_kelamin, status_keluarga, status_hidup, golongan_darah)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'Anak', ?, ?)`,
+    `INSERT INTO individu (id, keluarga_id, nik, nama, tempat_lahir, tanggal_lahir, jenis_kelamin, status_keluarga, status_hidup, golongan_darah, is_lansia)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'Anak', ?, ?, 1)`,
     [id, kk.id, nik, input.nama, input.tempatLahir, input.tanggalLahir, input.jenisKelamin, input.statusHidup, input.golonganDarah ?? null]
   );
 
@@ -247,6 +236,10 @@ export async function addLansia(input: AddLansiaInput): Promise<Lansia> {
   const lansia = await getLansiaById(id);
   if (!lansia) throw new Error("Data tersimpan tapi gagal dimuat ulang");
   return lansia;
+}
+
+export async function registerExistingAsLansia(id: string): Promise<void> {
+  await dbQuery("UPDATE individu SET is_lansia = 1 WHERE id = ? OR nik = ?", [id, id]);
 }
 
 // ---------------------------------------------------------------------------
@@ -282,9 +275,9 @@ export async function updateLansia(input: UpdateLansiaInput): Promise<Lansia> {
 // ---------------------------------------------------------------------------
 export async function deleteLansia(id: string): Promise<void> {
   if (id.length === 36) {
-    await dbQuery("DELETE FROM individu WHERE id = ?", [id]);
+    await dbQuery("UPDATE individu SET is_lansia = 0 WHERE id = ?", [id]);
   } else {
-    await dbQuery("DELETE FROM individu WHERE nik = ?", [id]);
+    await dbQuery("UPDATE individu SET is_lansia = 0 WHERE nik = ?", [id]);
   }
 }
 
@@ -526,4 +519,42 @@ export async function updateLansiaRecord(
 // ---------------------------------------------------------------------------
 export async function deleteLansiaRecord(recordId: string): Promise<void> {
   await dbQuery("DELETE FROM master_pemeriksaan WHERE id = ?", [recordId]);
+}
+
+export interface KKMemberLansiaOption {
+  id: string;
+  nik: string | null;
+  nama: string;
+  tanggalLahir: string;
+  jenisKelamin: "L" | "P";
+  statusKeluarga: string;
+}
+
+export async function getEligibleLansiaMembersByKk(noKk: string): Promise<KKMemberLansiaOption[]> {
+  const kkRows = await dbQuery("SELECT id FROM keluarga WHERE no_kk = ? LIMIT 1", [noKk]);
+  if (kkRows.length === 0) return [];
+  const kkId = kkRows[0].id;
+
+  const individuals = await dbQuery(
+    "SELECT * FROM individu WHERE keluarga_id = ? AND is_lansia = 0 AND status_hidup = 'Hidup'",
+    [kkId]
+  );
+
+  return individuals.filter((r: any) => {
+    const birthDate = new Date(r.tanggal_lahir);
+    const today = new Date();
+    let ageYears = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      ageYears--;
+    }
+    return ageYears >= 45;
+  }).map((r: any) => ({
+    id: r.id,
+    nik: r.nik,
+    nama: r.nama,
+    tanggalLahir: r.tanggal_lahir,
+    jenisKelamin: r.jenis_kelamin,
+    statusKeluarga: r.status_keluarga
+  }));
 }

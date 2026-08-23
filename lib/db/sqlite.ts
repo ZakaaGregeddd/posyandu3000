@@ -90,6 +90,20 @@ export function initDb(dbPath: string): Database.Database {
     console.error("Migration check for no_telp in individu failed:", e);
   }
 
+  // Schema Migration to add 'is_lansia' to Individu Table if it's missing
+  try {
+    const columns = db.prepare("PRAGMA table_info(individu)").all() as any[];
+    if (columns.length > 0) {
+      const hasIsLansia = columns.some(col => col.name === "is_lansia");
+      if (!hasIsLansia) {
+        db.exec("ALTER TABLE individu ADD COLUMN is_lansia INTEGER DEFAULT 0;");
+        console.log("Database Migration: Successfully added 'is_lansia' column to 'individu' table.");
+      }
+    }
+  } catch (e) {
+    console.error("Migration check for is_lansia in individu failed:", e);
+  }
+
   // Create Keluarga Table
   db.exec(`
     CREATE TABLE IF NOT EXISTS keluarga (
@@ -116,6 +130,7 @@ export function initDb(dbPath: string): Database.Database {
       status_hidup TEXT DEFAULT 'Hidup' CHECK(status_hidup IN ('Hidup', 'Meninggal')),
       tanggal_meninggal TEXT,
       keterangan_meninggal TEXT,
+      is_lansia INTEGER DEFAULT 0,
       FOREIGN KEY (keluarga_id) REFERENCES keluarga(id) ON DELETE CASCADE
     )
   `);
