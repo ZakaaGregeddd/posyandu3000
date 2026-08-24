@@ -115,8 +115,8 @@ function TambahKKForm() {
     e.preventDefault();
     setError("");
 
-    if (noKk.length !== 16) {
-      setError("Nomor KK harus tepat 16 digit");
+    if (noKk && noKk.length !== 16) {
+      setError("Nomor KK harus tepat 16 digit jika diisi");
       return;
     }
     if (nikAyah && nikAyah.length !== 16) {
@@ -240,7 +240,7 @@ function TambahKKForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <Label htmlFor="no_kk">No. Kartu Keluarga (KK)</Label>
+                  <Label htmlFor="no_kk">No. Kartu Keluarga (KK) (Opsional)</Label>
                   <span
                     className={`text-[11px] font-semibold transition-all ${
                       noKk.length === 16
@@ -248,17 +248,16 @@ function TambahKKForm() {
                         : "text-on-surface-variant/80"
                     }`}
                   >
-                    {noKk.length} / 16 digit
+                    {noKk.length > 0 ? `${noKk.length} / 16 digit` : "Dibuat otomatis jika kosong"}
                   </span>
                 </div>
                 <Input
                   id="no_kk"
-                  placeholder="16 digit nomor KK"
+                  placeholder="Kosongkan jika KK belum ada/lengkap"
                   value={noKk}
                   onChange={(e) =>
                     handleNumericInput(e.target.value, 16, setNoKk)
                   }
-                  required
                 />
               </div>
 

@@ -104,6 +104,41 @@ export function initDb(dbPath: string): Database.Database {
     console.error("Migration check for is_lansia in individu failed:", e);
   }
 
+  // Schema Migration for master_pemeriksaan check constraint (allow 'Lansia')
+  try {
+    const tableSqlRow = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='master_pemeriksaan'").get() as any;
+    if (tableSqlRow && tableSqlRow.sql) {
+      const sql = tableSqlRow.sql;
+      if (!sql.includes("'Lansia'")) {
+        db.pragma("foreign_keys = OFF");
+        db.exec(`
+          DROP TABLE IF EXISTS master_pemeriksaan_old;
+          
+          ALTER TABLE master_pemeriksaan RENAME TO master_pemeriksaan_old;
+          
+          CREATE TABLE master_pemeriksaan (
+            id TEXT PRIMARY KEY,
+            individu_id TEXT NOT NULL,
+            tanggal_pemeriksaan TEXT NOT NULL,
+            kunjungan_ke INTEGER,
+            jenis_pemeriksaan TEXT CHECK(jenis_pemeriksaan IN ('Balita', 'Ibu Hamil', 'Lansia')),
+            FOREIGN KEY (individu_id) REFERENCES individu(id) ON DELETE CASCADE
+          );
+          
+          INSERT INTO master_pemeriksaan (id, individu_id, tanggal_pemeriksaan, kunjungan_ke, jenis_pemeriksaan)
+          SELECT id, individu_id, tanggal_pemeriksaan, kunjungan_ke, jenis_pemeriksaan FROM master_pemeriksaan_old;
+          
+          DROP TABLE master_pemeriksaan_old;
+        `);
+        db.pragma("foreign_keys = ON");
+        console.log("Database Migration: Successfully migrated 'master_pemeriksaan' to allow 'Lansia'.");
+      }
+    }
+  } catch (e) {
+    db.pragma("foreign_keys = ON");
+    console.error("Migration for master_pemeriksaan check constraint failed:", e);
+  }
+
   // Create Keluarga Table
   db.exec(`
     CREATE TABLE IF NOT EXISTS keluarga (
@@ -142,7 +177,7 @@ export function initDb(dbPath: string): Database.Database {
       individu_id TEXT NOT NULL,
       tanggal_pemeriksaan TEXT NOT NULL,
       kunjungan_ke INTEGER,
-      jenis_pemeriksaan TEXT CHECK(jenis_pemeriksaan IN ('Balita', 'Ibu Hamil')),
+      jenis_pemeriksaan TEXT CHECK(jenis_pemeriksaan IN ('Balita', 'Ibu Hamil', 'Lansia')),
       FOREIGN KEY (individu_id) REFERENCES individu(id) ON DELETE CASCADE
     )
   `);

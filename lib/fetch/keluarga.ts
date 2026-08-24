@@ -295,6 +295,10 @@ function generateTempNik(): string {
   return `TMP${Date.now()}`.padEnd(16, "0").slice(0, 16);
 }
 
+function generateTempKk(): string {
+  return `TMPKK${Date.now()}`.padEnd(16, "0").slice(0, 16);
+}
+
 export async function addKK(input: AddKKInput): Promise<KK> {
   if (!input.namaAyah && !input.namaIbu) {
     throw new Error("Harap masukkan setidaknya nama salah satu orang tua (Ayah atau Ibu)");
@@ -311,13 +315,12 @@ export async function addKK(input: AddKKInput): Promise<KK> {
 
   let keluargaId = null;
   let isExisting = false;
+  const resolvedKk = input.noKk && input.noKk.length === 16 ? input.noKk : generateTempKk();
 
-  if (input.noKk) {
-    const existingKK = await dbQuery("SELECT id FROM keluarga WHERE no_kk = ? LIMIT 1", [input.noKk]);
-    if (existingKK.length > 0) {
-      keluargaId = existingKK[0].id;
-      isExisting = true;
-    }
+  const existingKK = await dbQuery("SELECT id FROM keluarga WHERE no_kk = ? LIMIT 1", [resolvedKk]);
+  if (existingKK.length > 0) {
+    keluargaId = existingKK[0].id;
+    isExisting = true;
   }
 
   if (isExisting && keluargaId) {
@@ -329,7 +332,7 @@ export async function addKK(input: AddKKInput): Promise<KK> {
     keluargaId = crypto.randomUUID();
     await dbQuery(
       "INSERT INTO keluarga (id, no_kk, alamat, no_telp) VALUES (?, ?, ?, ?)",
-      [keluargaId, input.noKk || null, combinedAlamat, noTelp]
+      [keluargaId, resolvedKk, combinedAlamat, noTelp]
     );
   }
 
