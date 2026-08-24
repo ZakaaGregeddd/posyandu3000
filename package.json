@@ -81,7 +81,8 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Posyandu3000",
       "uninstallDisplayName": "Posyandu3000",
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "killRunningApp": true
     }
   }
 }

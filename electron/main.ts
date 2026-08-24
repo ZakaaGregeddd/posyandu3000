@@ -231,6 +231,9 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("update-quit-install", async () => {
+    if (mainWindow) {
+      mainWindow.close();
+    }
     autoUpdater.quitAndInstall();
   });
 
