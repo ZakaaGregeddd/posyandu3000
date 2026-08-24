@@ -240,7 +240,7 @@ function TambahKKForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <Label htmlFor="no_kk">No. Kartu Keluarga (KK) (Opsional)</Label>
+                  <Label htmlFor="no_kk">No. Kartu Keluarga (KK)</Label>
                   <span
                     className={`text-[11px] font-semibold transition-all ${
                       noKk.length === 16
@@ -248,12 +248,12 @@ function TambahKKForm() {
                         : "text-on-surface-variant/80"
                     }`}
                   >
-                    {noKk.length > 0 ? `${noKk.length} / 16 digit` : "Dibuat otomatis jika kosong"}
+                    {noKk.length} / 16 digit
                   </span>
                 </div>
                 <Input
                   id="no_kk"
-                  placeholder="Kosongkan jika KK belum ada/lengkap"
+                  placeholder="16 digit nomor KK"
                   value={noKk}
                   onChange={(e) =>
                     handleNumericInput(e.target.value, 16, setNoKk)
