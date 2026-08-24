@@ -127,11 +127,14 @@ export function generateBalitaReport(
   const recordsById = groupByKey(allRecords, (r) => r.balitaId);
   const filteredData = data.filter((b) => (recordsById.get(b.id)?.length ?? 0) > 0);
 
-  addHeader(doc, `Rekap Data Balita & Bayi (${filteredData.length} anggota)`);
+  const activeBalitas = filteredData.filter((b) => calculateAge(b.tanggalLahir).years < 5);
+  const nonActiveBalitas = filteredData.filter((b) => calculateAge(b.tanggalLahir).years >= 5);
+
+  addHeader(doc, `Rekap Data Balita & Bayi (${activeBalitas.length} aktif, ${nonActiveBalitas.length} non-aktif)`);
 
   const latestById = latestPerKey(allRecords, (r) => r.balitaId);
 
-  const rows = filteredData.map((b, i) => {
+  const mapper = (b: Balita, i: number) => {
     const latest = latestById.get(b.id);
     return [
       i + 1,
@@ -146,10 +149,19 @@ export function generateBalitaReport(
       latest?.imunisasi || "-",
       b.statusHidup,
     ];
-  });
+  };
+
+  const activeRows = activeBalitas.map((b, i) => mapper(b, i));
+  const nonActiveRows = nonActiveBalitas.map((b, i) => mapper(b, i));
+
+  // Table 1: Balita Aktif
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text("Daftar Bayi & Balita Aktif (Usia < 5 Tahun)", 14, 34);
+  doc.setFont("helvetica", "normal");
 
   autoTable(doc, {
-    startY: 32,
+    startY: 38,
     head: [
       [
         "No",
@@ -165,11 +177,49 @@ export function generateBalitaReport(
         "Status",
       ],
     ],
-    body: rows,
+    body: activeRows,
     styles: { fontSize: 7, cellPadding: 1.5 },
     headStyles: { fillColor: [171, 44, 93] },
     alternateRowStyles: { fillColor: [250, 245, 247] },
   });
+
+  let cursorY = (doc as any).lastAutoTable.finalY + 12;
+
+  // Table 2: Balita Non-Aktif
+  if (nonActiveBalitas.length > 0) {
+    if (cursorY > doc.internal.pageSize.height - 40) {
+      doc.addPage();
+      cursorY = 20;
+    }
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("Daftar Member Non-Aktif (Usia >= 5 Tahun)", 14, cursorY);
+    doc.setFont("helvetica", "normal");
+
+    autoTable(doc, {
+      startY: cursorY + 4,
+      head: [
+        [
+          "No",
+          "Nama",
+          "NIK",
+          "No. KK",
+          "JK",
+          "Nama Ibu",
+          "TTL",
+          "Berat Badan",
+          "IMT",
+          "Imunisasi Terakhir",
+          "Status",
+        ],
+      ],
+      body: nonActiveRows,
+      styles: { fontSize: 7, cellPadding: 1.5 },
+      headStyles: { fillColor: [120, 120, 120] },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    });
+  }
 
   // ---- Bagian Riwayat Pemeriksaan per Balita ----
   const balitaWithRecords = filteredData.map((b) => ({
