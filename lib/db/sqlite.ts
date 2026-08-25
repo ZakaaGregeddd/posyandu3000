@@ -271,10 +271,10 @@ export function mergeDb(backupPath: string): void {
     throw new Error("Database not initialized");
   }
 
-  executeTransaction(() => {
-    dbInstance!.exec(`ATTACH DATABASE '${backupPath}' AS backup_db`);
+  dbInstance.exec(`ATTACH DATABASE '${backupPath}' AS backup_db`);
 
-    try {
+  try {
+    executeTransaction(() => {
       dbInstance!.exec("INSERT OR IGNORE INTO keluarga SELECT * FROM backup_db.keluarga");
       dbInstance!.exec("INSERT OR IGNORE INTO individu SELECT * FROM backup_db.individu");
       dbInstance!.exec("INSERT OR IGNORE INTO master_pemeriksaan SELECT * FROM backup_db.master_pemeriksaan");
@@ -283,10 +283,10 @@ export function mergeDb(backupPath: string): void {
       dbInstance!.exec("INSERT OR IGNORE INTO kelahiran SELECT * FROM backup_db.kelahiran");
       dbInstance!.exec("INSERT OR IGNORE INTO pemeriksaan_lansia SELECT * FROM backup_db.pemeriksaan_lansia");
       dbInstance!.exec("INSERT OR IGNORE INTO penerima_manfaat SELECT * FROM backup_db.penerima_manfaat");
-    } finally {
-      dbInstance!.exec("DETACH DATABASE backup_db");
-    }
-  });
+    });
+  } finally {
+    dbInstance.exec("DETACH DATABASE backup_db");
+  }
 }
 
 export function resetDb(): void {
