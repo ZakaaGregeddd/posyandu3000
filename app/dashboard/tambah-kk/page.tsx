@@ -20,6 +20,7 @@ function TambahKKForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const prefillKk = searchParams.get("prefillKk");
+  const maxDate = new Date().toISOString().split("T")[0];
 
   React.useEffect(() => {
     if (prefillKk) {
@@ -142,6 +143,16 @@ function TambahKKForm() {
       return;
     }
 
+    const today = new Date().toISOString().split("T")[0];
+    if (tanggalLahirAyah && tanggalLahirAyah > today) {
+      setError("Tanggal lahir Ayah tidak boleh melebihi tanggal hari ini");
+      return;
+    }
+    if (tanggalLahirIbu && tanggalLahirIbu > today) {
+      setError("Tanggal lahir Ibu tidak boleh melebihi tanggal hari ini");
+      return;
+    }
+
     // Validate members
     for (let i = 0; i < anggotaList.length; i++) {
       const m = anggotaList[i];
@@ -151,6 +162,10 @@ function TambahKKForm() {
       }
       if (!m.tanggalLahir) {
         setError(`Tanggal Lahir anggota ke-${i + 1} wajib diisi`);
+        return;
+      }
+      if (m.tanggalLahir && m.tanggalLahir > today) {
+        setError(`Tanggal Lahir anggota ke-${i + 1} tidak boleh melebihi tanggal hari ini`);
         return;
       }
       if (m.nik && m.nik.length !== 16) {
@@ -347,6 +362,7 @@ function TambahKKForm() {
                         type="date"
                         value={tanggalLahirAyah}
                         onChange={(e) => setTanggalLahirAyah(e.target.value)}
+                        max={maxDate}
                       />
                     </div>
                   </div>
@@ -445,6 +461,7 @@ function TambahKKForm() {
                         type="date"
                         value={tanggalLahirIbu}
                         onChange={(e) => setTanggalLahirIbu(e.target.value)}
+                        max={maxDate}
                       />
                     </div>
                   </div>
@@ -568,6 +585,7 @@ function TambahKKForm() {
                           type="date"
                           value={m.tanggalLahir}
                           onChange={(e) => updateAnggota(idx, "tanggalLahir", e.target.value)}
+                          max={maxDate}
                           required
                         />
                       </div>
