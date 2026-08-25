@@ -39,6 +39,8 @@ export default function EditIndividuModal({
   const [statusHidup, setStatusHidup] = useState<"Hidup" | "Meninggal">("Hidup");
   const [tanggalMeninggal, setTanggalMeninggal] = useState("");
   const [keteranganMeninggal, setKeteranganMeninggal] = useState("");
+  const [noTelp, setNoTelp] = useState("");
+  const [golonganDarah, setGolonganDarah] = useState("");
 
   useEffect(() => {
     if (isOpen) {
@@ -50,6 +52,8 @@ export default function EditIndividuModal({
       setStatusHidup(member.statusHidup || "Hidup");
       setTanggalMeninggal((member as any).tanggalMeninggal || "");
       setKeteranganMeninggal((member as any).keteranganMeninggal || "");
+      setNoTelp(member.noTelp || "");
+      setGolonganDarah(member.golonganDarah || "");
       setFormError("");
     }
   }, [isOpen, member]);
@@ -87,6 +91,8 @@ export default function EditIndividuModal({
         statusHidup,
         tanggalMeninggal: statusHidup === "Meninggal" ? tanggalMeninggal : null,
         keteranganMeninggal: statusHidup === "Meninggal" ? keteranganMeninggal : null,
+        noTelp: noTelp || null,
+        golonganDarah: golonganDarah || null,
       });
 
       onSuccess(updated);
@@ -184,6 +190,32 @@ export default function EditIndividuModal({
               >
                 <option value="Hidup">Hidup</option>
                 <option value="Meninggal">Meninggal</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="ind_no_telp">No. Telepon / WA</Label>
+              <Input
+                id="ind_no_telp"
+                value={noTelp}
+                placeholder="No HP (opsional)"
+                onChange={(e) => setNoTelp(e.target.value.replace(/[^0-9]/g, "").substring(0, 13))}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="ind_golongan_darah">Golongan Darah</Label>
+              <select
+                id="ind_golongan_darah"
+                value={golonganDarah}
+                onChange={(e) => setGolonganDarah(e.target.value)}
+                className="w-full h-10 rounded-lg border border-outline-variant/40 px-3 text-sm bg-white"
+              >
+                <option value="">Pilih Golongan Darah</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="AB">AB</option>
+                <option value="O">O</option>
               </select>
             </div>
           </div>

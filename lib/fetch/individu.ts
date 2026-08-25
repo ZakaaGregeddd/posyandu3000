@@ -12,6 +12,7 @@ export interface Individu {
   tanggalMeninggal?: string | null;
   keteranganMeninggal?: string | null;
   noTelp?: string | null;
+  golonganDarah?: string | null;
 }
 
 export interface UpdateIndividuInput {
@@ -25,6 +26,7 @@ export interface UpdateIndividuInput {
   tanggalMeninggal?: string | null;
   keteranganMeninggal?: string | null;
   noTelp?: string | null;
+  golonganDarah?: string | null;
 }
 
 function mapRowToIndividu(row: any): Individu {
@@ -40,6 +42,7 @@ function mapRowToIndividu(row: any): Individu {
     tanggalMeninggal: row.tanggal_meninggal,
     keteranganMeninggal: row.keterangan_meninggal,
     noTelp: row.no_telp,
+    golonganDarah: row.golongan_darah,
   };
 }
 
@@ -73,7 +76,8 @@ export async function updateIndividu(
          status_hidup = ?, 
          tanggal_meninggal = ?, 
          keterangan_meninggal = ?, 
-         no_telp = ? 
+         no_telp = ?, 
+         golongan_darah = ? 
        WHERE id = ?`
     : `UPDATE individu SET 
          nik = ?, 
@@ -84,7 +88,8 @@ export async function updateIndividu(
          status_hidup = ?, 
          tanggal_meninggal = ?, 
          keterangan_meninggal = ?, 
-         no_telp = ? 
+         no_telp = ?, 
+         golongan_darah = ? 
        WHERE nik = ?`;
 
   const tanggalMeninggal = input.statusHidup === "Meninggal" ? input.tanggalMeninggal : null;
@@ -100,6 +105,7 @@ export async function updateIndividu(
     tanggalMeninggal,
     keteranganMeninggal,
     input.noTelp || null,
+    input.golonganDarah || null,
     identifier
   ]);
 
