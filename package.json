@@ -71,7 +71,8 @@
       ".next/**/*"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -82,7 +83,12 @@
       "shortcutName": "Posyandu3000",
       "uninstallDisplayName": "Posyandu3000",
       "deleteAppDataOnUninstall": false,
-      "killRunningApp": true
+      "killRunningApp": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeader": "build/installerHeader.bmp",
+      "installerSidebar": "build/installerSidebar.bmp",
+      "uninstallerSidebar": "build/uninstallerSidebar.bmp"
     }
   }
 }

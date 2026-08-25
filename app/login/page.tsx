@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { loginUser, getCurrentUser } from "@/lib/fetch/auth";
+import pkg from "../../package.json";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
     const isInstalled = localStorage.getItem("posyandu_installed") === "true";
@@ -65,6 +67,9 @@ export default function LoginPage() {
       {/* Decorative Atmospheric Blur Circles */}
       <div className="absolute w-[400px] h-[400px] rounded-full bg-tertiary-fixed/30 blur-[100px] -top-24 -left-24 animate-pulse duration-[8000ms]" />
       <div className="absolute w-[400px] h-[400px] rounded-full bg-surface-container-high/30 blur-[100px] bottom-0 right-0 animate-pulse duration-[6000ms] delay-1000" />
+      
+      {/* Soft Light Center Glow behind Card */}
+      <div className="absolute w-[600px] h-[600px] rounded-full bg-tertiary/10 blur-[120px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0" />
 
       {/* SVG Distorted Mesh Ribbon Background */}
       <div className="absolute inset-0 pointer-events-none opacity-85 z-0 overflow-hidden flex items-center justify-center">
@@ -113,13 +118,22 @@ export default function LoginPage() {
         <div className="hidden lg:flex flex-col justify-between p-12 bg-secondary-container/20 relative overflow-hidden">
           <div className="z-10">
             <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 bg-tertiary rounded-lg flex items-center justify-center shadow-sm">
-                <span
-                  className="material-symbols-outlined text-white"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
-                >
-                  volunteer_activism
-                </span>
+              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center overflow-hidden shadow-sm border border-outline-variant/30">
+                {!logoError ? (
+                  <img 
+                    src="/logo.png" 
+                    alt="Logo"
+                    className="w-full h-full object-cover"
+                    onError={() => setLogoError(true)}
+                  />
+                ) : (
+                  <span
+                    className="material-symbols-outlined text-tertiary"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    volunteer_activism
+                  </span>
+                )}
               </div>
               <span className="font-headline text-lg font-bold tracking-tight text-tertiary">
                 Posyandu Digital
@@ -135,7 +149,7 @@ export default function LoginPage() {
           </div>
 
           <div className="mt-auto z-10 text-[10px] text-on-surface-variant/70 font-semibold uppercase tracking-wider">
-            Posyandu 3000 &bull; Kader Portal v1.0
+            Posyandu 3000 &bull; v{pkg.version}
           </div>
 
           <div className="absolute -bottom-12 -right-12 w-64 h-64 bg-tertiary-fixed rounded-full opacity-40 blur-[80px]" />
@@ -145,13 +159,22 @@ export default function LoginPage() {
         <div className="p-8 md:p-12 bg-white flex flex-col justify-center">
           <div className="mb-6 lg:hidden">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-tertiary rounded flex items-center justify-center">
-                <span
-                  className="material-symbols-outlined text-white text-sm"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
-                >
-                  volunteer_activism
-                </span>
+              <div className="w-8 h-8 bg-white rounded flex items-center justify-center overflow-hidden shadow-sm border border-outline-variant/30">
+                {!logoError ? (
+                  <img 
+                    src="/logo.png" 
+                    alt="Logo"
+                    className="w-full h-full object-cover"
+                    onError={() => setLogoError(true)}
+                  />
+                ) : (
+                  <span
+                    className="material-symbols-outlined text-tertiary text-sm"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    volunteer_activism
+                  </span>
+                )}
               </div>
               <span className="font-headline text-md font-bold text-tertiary">
                 Posyandu Digital
