@@ -1,9 +1,9 @@
 <div align="center">
-  <img src="URL_LOGO_KAMU_DI_SINI.png" alt="Posyandu 3000 Logo" width="120" />
+  <img src="https://cdn.phototourl.com/free/2026-08-26-6630f8ee-d016-4ea0-9454-d3f5d4e949d3.png" alt="Posyandu 3000 Logo" width="120" />
   
   # Posyandu 3000 Desktop
   
-  [![Latest Release](https://img.shields.io/github/v/release/USERNAME/REPO_NAME?style=for-the-badge&logo=github&color=blue)](https://github.com/USERNAME/REPO_NAME/releases/latest)
+  [![Latest Release](https://img.shields.io/github/v/release/USERNAME/REPO_NAME?style=for-the-badge&logo=github&color=blue)](https://github.com/ZakaaGregeddd/posyandu3000/releases/latest)
   [![Download on GitHub](https://img.shields.io/badge/Download_on-GitHub-181717?style=for-the-badge&logo=github)](https://github.com/USERNAME/REPO_NAME/releases/latest)
 </div>
 
