@@ -11,6 +11,12 @@
 
 Posyandu 3000 is a modern, high-performance desktop application designed to streamline the administration and recording of community health services (Posyandu) at the local level. Built with Next.js, Electron, and SQLite, it runs entirely locally on the user's computer, ensuring data privacy and seamless offline performance.
 
+## Preview
+
+<!-- Ganti link/path di bawah dengan path gambar dashboard-mu -->
+![Dashboard Posyandu 3000](https://cdn.phototourl.com/free/2026-08-26-37b01047-9e51-4ccd-abec-a0f32193d0ce.png)
+*Tampilan Dashboard Analytics Posyandu 3000*
+
 ## Key Features
 
 - **Dashboard Analytics**: Visualizes demographic stats and monthly/yearly service tracking.
