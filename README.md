@@ -1,6 +1,21 @@
-# Posyandu 3000 Desktop
+<div align="center">
+  <img src="https://cdn.phototourl.com/free/2026-08-26-6630f8ee-d016-4ea0-9454-d3f5d4e949d3.png" alt="Posyandu 3000 Logo" width="120" />
+  
+  # Posyandu 3000 Desktop
+  
+  [![Latest Release](https://img.shields.io/github/v/release/ZakaaGregeddd/posyandu3000?style=for-the-badge&logo=github&color=blue)](https://github.com/ZakaaGregeddd/posyandu3000/releases/latest)
+  [![Download on GitHub](https://img.shields.io/badge/Download_on-GitHub-181717?style=for-the-badge&logo=github)](https://github.com/ZakaaGregeddd/posyandu3000/releases/latest)
+</div>
+
+<br />
 
 Posyandu 3000 is a modern, high-performance desktop application designed to streamline the administration and recording of community health services (Posyandu) at the local level. Built with Next.js, Electron, and SQLite, it runs entirely locally on the user's computer, ensuring data privacy and seamless offline performance.
+
+## Preview
+
+<!-- Ganti link/path di bawah dengan path gambar dashboard-mu -->
+![Dashboard Posyandu 3000](https://cdn.phototourl.com/free/2026-08-26-37b01047-9e51-4ccd-abec-a0f32193d0ce.png)
+*Tampilan Dashboard Analytics Posyandu 3000*
 
 ## Key Features
 
@@ -39,24 +54,3 @@ To start the development server for the Electron desktop environment, run:
 
 ```bash
 npm run dev:desktop
-```
-
-This compiles the Electron bundle and launches the Next.js standalone application inside the desktop shell window.
-
-### Production Build
-
-To package the application into a standalone desktop executable, run:
-
-```bash
-npm run build:desktop
-```
-
-The output build will be generated in the output directory.
-
-## Project Structure
-
-- `app/` - Next.js page layouts, routing, and UI views.
-- `components/` - Reusable React components including sidebar, bento boxes, tables, modals, and charts.
-- `electron/` - Main process configurations, preload scripts, and IPC database handlers.
-- `lib/` - SQLite helper utilities, data fetching logic, and database schemas.
-- `public/` - Static assets, icons, and local web resources.
