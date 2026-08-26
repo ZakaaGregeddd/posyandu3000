@@ -1,4 +1,13 @@
-# Posyandu 3000 Desktop
+<div align="center">
+  <img src="URL_LOGO_KAMU_DI_SINI.png" alt="Posyandu 3000 Logo" width="120" />
+  
+  # Posyandu 3000 Desktop
+  
+  [![Latest Release](https://img.shields.io/github/v/release/USERNAME/REPO_NAME?style=for-the-badge&logo=github&color=blue)](https://github.com/USERNAME/REPO_NAME/releases/latest)
+  [![Download on GitHub](https://img.shields.io/badge/Download_on-GitHub-181717?style=for-the-badge&logo=github)](https://github.com/USERNAME/REPO_NAME/releases/latest)
+</div>
+
+<br />
 
 Posyandu 3000 is a modern, high-performance desktop application designed to streamline the administration and recording of community health services (Posyandu) at the local level. Built with Next.js, Electron, and SQLite, it runs entirely locally on the user's computer, ensuring data privacy and seamless offline performance.
 
@@ -39,24 +48,3 @@ To start the development server for the Electron desktop environment, run:
 
 ```bash
 npm run dev:desktop
-```
-
-This compiles the Electron bundle and launches the Next.js standalone application inside the desktop shell window.
-
-### Production Build
-
-To package the application into a standalone desktop executable, run:
-
-```bash
-npm run build:desktop
-```
-
-The output build will be generated in the output directory.
-
-## Project Structure
-
-- `app/` - Next.js page layouts, routing, and UI views.
-- `components/` - Reusable React components including sidebar, bento boxes, tables, modals, and charts.
-- `electron/` - Main process configurations, preload scripts, and IPC database handlers.
-- `lib/` - SQLite helper utilities, data fetching logic, and database schemas.
-- `public/` - Static assets, icons, and local web resources.
