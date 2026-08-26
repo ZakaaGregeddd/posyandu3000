@@ -34,6 +34,8 @@ export interface KKMember {
   jenisKelamin: "L" | "P";
   statusHidup: "Hidup" | "Meninggal";
   routePath: string; // link to detail page
+  noTelp?: string;
+  golonganDarah?: string;
 }
 
 // Helper to parse RT/RW from combined alamat field
@@ -250,6 +252,8 @@ export async function getKKMembers(noKkOrId: string): Promise<KKMember[]> {
       jenisKelamin: r.jenis_kelamin,
       statusHidup: r.status_hidup,
       routePath,
+      noTelp: r.no_telp ?? "",
+      golonganDarah: r.golongan_darah ?? "",
     };
   });
 }
@@ -271,6 +275,7 @@ export interface AnggotaKeluargaInput {
 }
 
 export interface AddKKInput {
+  id?: string;
   noKk: string;
   alamat?: string;
   rt?: string;
@@ -313,23 +318,32 @@ export async function addKK(input: AddKKInput): Promise<KK> {
   const combinedAlamat = formatAlamat(input.alamat || "", input.rt || "", input.rw || "");
   const noTelp = input.noTelp || input.telpAyah || input.telpIbu || null;
 
-  let keluargaId = null;
+  let keluargaId = input.id || null;
   let isExisting = false;
   const resolvedKk = input.noKk && input.noKk.length === 16 ? input.noKk : generateTempKk();
 
-  const existingKK = await dbQuery("SELECT id FROM keluarga WHERE no_kk = ? LIMIT 1", [resolvedKk]);
-  if (existingKK.length > 0) {
-    keluargaId = existingKK[0].id;
-    isExisting = true;
+  if (keluargaId) {
+    const existingKK = await dbQuery("SELECT id FROM keluarga WHERE id = ? LIMIT 1", [keluargaId]);
+    if (existingKK.length > 0) {
+      isExisting = true;
+    }
+  } else {
+    const existingKK = await dbQuery("SELECT id FROM keluarga WHERE no_kk = ? LIMIT 1", [resolvedKk]);
+    if (existingKK.length > 0) {
+      keluargaId = existingKK[0].id;
+      isExisting = true;
+    }
   }
 
   if (isExisting && keluargaId) {
     await dbQuery(
-      "UPDATE keluarga SET alamat = ?, no_telp = ? WHERE id = ?",
-      [combinedAlamat, noTelp, keluargaId]
+      "UPDATE keluarga SET no_kk = ?, alamat = ?, no_telp = ? WHERE id = ?",
+      [resolvedKk, combinedAlamat, noTelp, keluargaId]
     );
   } else {
-    keluargaId = crypto.randomUUID();
+    if (!keluargaId) {
+      keluargaId = crypto.randomUUID();
+    }
     await dbQuery(
       "INSERT INTO keluarga (id, no_kk, alamat, no_telp) VALUES (?, ?, ?, ?)",
       [keluargaId, resolvedKk, combinedAlamat, noTelp]

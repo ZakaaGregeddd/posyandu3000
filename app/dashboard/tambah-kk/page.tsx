@@ -20,6 +20,7 @@ function TambahKKForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const prefillKk = searchParams.get("prefillKk");
+  const maxDate = new Date().toISOString().split("T")[0];
 
   React.useEffect(() => {
     if (prefillKk) {
@@ -28,6 +29,7 @@ function TambahKKForm() {
           const { getKKByNoKk } = await import("@/lib/fetch/keluarga");
           const kk = await getKKByNoKk(prefillKk);
           if (kk) {
+            setKkId(kk.id || "");
             setNoKk(kk.noKk);
             setPhone(kk.noTelp || "");
             setAlamat(kk.alamat);
@@ -56,6 +58,7 @@ function TambahKKForm() {
   }, [prefillKk]);
 
   // Form States
+  const [kkId, setKkId] = useState("");
   const [noKk, setNoKk] = useState("");
   const [phone, setPhone] = useState("");
   const [alamat, setAlamat] = useState("");
@@ -142,6 +145,16 @@ function TambahKKForm() {
       return;
     }
 
+    const today = new Date().toISOString().split("T")[0];
+    if (tanggalLahirAyah && tanggalLahirAyah > today) {
+      setError("Tanggal lahir Ayah tidak boleh melebihi tanggal hari ini");
+      return;
+    }
+    if (tanggalLahirIbu && tanggalLahirIbu > today) {
+      setError("Tanggal lahir Ibu tidak boleh melebihi tanggal hari ini");
+      return;
+    }
+
     // Validate members
     for (let i = 0; i < anggotaList.length; i++) {
       const m = anggotaList[i];
@@ -153,16 +166,22 @@ function TambahKKForm() {
         setError(`Tanggal Lahir anggota ke-${i + 1} wajib diisi`);
         return;
       }
+      if (m.tanggalLahir && m.tanggalLahir > today) {
+        setError(`Tanggal Lahir anggota ke-${i + 1} tidak boleh melebihi tanggal hari ini`);
+        return;
+      }
       if (m.nik && m.nik.length !== 16) {
         setError(`NIK anggota ke-${i + 1} harus tepat 16 digit`);
         return;
       }
     }
 
+    const isEditMode = searchParams.get("edit") === "true";
     setLoading(true);
 
     try {
       await addKK({
+        id: kkId || undefined,
         noKk,
         alamat: alamat || "Jl. Raya Posyandu",
         rt: rt || "01",
@@ -186,7 +205,7 @@ function TambahKKForm() {
       setLoading(false);
       setShowSuccess(true);
     } catch (err: any) {
-      setError(err.message || "Gagal menyimpan KK baru");
+      setError(err.message || (isEditMode ? "Gagal memperbarui data KK" : "Gagal menyimpan KK baru"));
       setLoading(false);
     }
   };
@@ -196,17 +215,20 @@ function TambahKKForm() {
     router.push("/dashboard/kk-terdaftar");
   };
 
+  const isEditMode = searchParams.get("edit") === "true";
+
   return (
     <div className="max-w-6xl mx-auto w-full space-y-6 animate-in fade-in duration-300">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h2 className="font-headline text-3xl font-bold text-on-background">
-            Registrasi Keluarga
+            {isEditMode ? "Edit KK" : "Registrasi Keluarga"}
           </h2>
           <p className="text-sm text-on-surface-variant mt-1 max-w-lg">
-            Silakan masukkan data Kartu Keluarga baru untuk mempermudah
-            pemantauan kesehatan anggota keluarga secara digital.
+            {isEditMode
+              ? "Perbarui data Kartu Keluarga untuk mempermudah pemantauan kesehatan anggota keluarga secara digital."
+              : "Silakan masukkan data Kartu Keluarga baru untuk mempermudah pemantauan kesehatan anggota keluarga secara digital."}
           </p>
         </div>
         <div className="flex gap-2">
@@ -347,6 +369,7 @@ function TambahKKForm() {
                         type="date"
                         value={tanggalLahirAyah}
                         onChange={(e) => setTanggalLahirAyah(e.target.value)}
+                        max={maxDate}
                       />
                     </div>
                   </div>
@@ -445,6 +468,7 @@ function TambahKKForm() {
                         type="date"
                         value={tanggalLahirIbu}
                         onChange={(e) => setTanggalLahirIbu(e.target.value)}
+                        max={maxDate}
                       />
                     </div>
                   </div>
@@ -568,6 +592,7 @@ function TambahKKForm() {
                           type="date"
                           value={m.tanggalLahir}
                           onChange={(e) => updateAnggota(idx, "tanggalLahir", e.target.value)}
+                          max={maxDate}
                           required
                         />
                       </div>
@@ -692,7 +717,7 @@ function TambahKKForm() {
               ) : (
                 <>
                   <span className="material-symbols-outlined">save</span>
-                  <span>Simpan Data</span>
+                  <span>{isEditMode ? "Simpan Perubahan" : "Simpan Data"}</span>
                 </>
               )}
             </Button>
@@ -709,11 +734,12 @@ function TambahKKForm() {
             </span>
           </div>
           <DialogTitle className="text-center text-green-700">
-            Pendaftaran Berhasil!
+            {isEditMode ? "Perubahan Berhasil Disimpan!" : "Pendaftaran Berhasil!"}
           </DialogTitle>
           <DialogDescription className="text-center mt-1">
-            Data Kartu Keluarga {noKk} telah berhasil disimpan ke dalam sistem
-            Posyandu Digital.
+            {isEditMode
+              ? `Data Kartu Keluarga ${noKk} telah berhasil diperbarui ke dalam sistem Posyandu Digital.`
+              : `Data Kartu Keluarga ${noKk} telah berhasil disimpan ke dalam sistem Posyandu Digital.`}
           </DialogDescription>
         </DialogHeader>
         <DialogContent />

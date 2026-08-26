@@ -56,6 +56,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   }, []);
 
   const [isConfirmLogoutOpen, setIsConfirmLogoutOpen] = React.useState(false);
+  const [logoError, setLogoError] = React.useState(false);
 
   React.useEffect(() => {
     if (isPemeriksaanActive) {
@@ -100,13 +101,22 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     >
       <div className="px-6 mb-8 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-tertiary rounded-lg flex items-center justify-center shadow-sm">
-            <span
-              className="material-symbols-outlined text-white"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-            >
-              volunteer_activism
-            </span>
+          <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center overflow-hidden shadow-sm border border-outline-variant/30">
+            {!logoError ? (
+              <img 
+                src="/logo.png" 
+                alt="Logo"
+                className="w-full h-full object-cover"
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <span
+                className="material-symbols-outlined text-tertiary"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
+                volunteer_activism
+              </span>
+            )}
           </div>
           <div className="flex flex-col">
             <span className="font-headline font-bold tracking-tight text-body-lg text-tertiary">

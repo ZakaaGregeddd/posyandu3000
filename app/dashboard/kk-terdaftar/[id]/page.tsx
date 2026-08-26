@@ -19,7 +19,6 @@ import {
   KKMember,
 } from "@/lib/fetch/keluarga";
 import { deleteIndividu } from "@/lib/fetch/individu";
-import EditKKModal from "@/components/keluarga/EditKKModal";
 import EditIndividuModal from "@/components/keluarga/EditIndividuModal";
 import MemberActionsMenu from "@/components/keluarga/MemberActionsMenu";
 import { calculateAge } from "@/lib/utils/health";
@@ -163,7 +162,7 @@ export default function KKDetailPage({
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
           <Button
             variant="outline"
-            onClick={() => setIsEditOpen(true)}
+            onClick={() => router.push(`/dashboard/tambah-kk?prefillKk=${kk.noKk}&edit=true`)}
             className="flex items-center justify-center gap-2 font-bold flex-1 md:flex-initial text-tertiary border-tertiary/40 hover:bg-secondary-container"
           >
             <span className="material-symbols-outlined text-sm">edit</span>
@@ -414,15 +413,7 @@ export default function KKDetailPage({
         )}
       </div>
 
-      {/* Edit KK Modal */}
-      {kk && (
-        <EditKKModal
-          isOpen={isEditOpen}
-          onClose={() => setIsEditOpen(false)}
-          kk={kk}
-          onSuccess={handleEditSuccess}
-        />
-      )}
+
 
       {/* Delete KK Confirmation Dialog */}
       <Dialog isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)}>
