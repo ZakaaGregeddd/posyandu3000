@@ -4,7 +4,7 @@
   # Posyandu 3000 Desktop
   
   [![Latest Release](https://img.shields.io/github/v/release/ZakaaGregeddd/posyandu3000?style=for-the-badge&logo=github&color=blue)](https://github.com/ZakaaGregeddd/posyandu3000/releases/latest)
-  [![Download on GitHub](https://img.shields.io/badge/Download_on-GitHub-181717?style=for-the-badge&logo=github)](https://github.com/USERNAME/REPO_NAME/releases/latest)
+  [![Download on GitHub](https://img.shields.io/badge/Download_on-GitHub-181717?style=for-the-badge&logo=github)](https://github.com/ZakaaGregeddd/posyandu3000/releases/latest)
 </div>
 
 <br />
