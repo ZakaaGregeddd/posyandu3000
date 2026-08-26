@@ -40,6 +40,19 @@ Posyandu 3000 is a modern, high-performance desktop application designed to stre
 - **Iconography**: Google Material Symbols
 - **Utilities**: `html-to-image` (PNG receipt export), `jspdf` & `jspdf-autotable` (PDF exports)
 
+## Spesifikasi Minimum Perangkat
+
+Untuk menjalankan **Posyandu 3000** dengan lancar, berikut adalah rekomendasi spesifikasi perangkat keras dan lunak minimum yang diperlukan:
+
+| Komponen | Spesifikasi Minimum | Spesifikasi Rekomendasi |
+| :--- | :--- | :--- |
+| **Sistem Operasi** | Windows 10 (64-bit) | Windows 10/11 (64-bit) |
+| **Prosesor (CPU)** | Intel Core i3 / AMD Ryzen 3 (Dual-core 2.0 GHz) | Intel Core i5 / AMD Ryzen 5 atau lebih tinggi |
+| **Memori (RAM)** | 4 GB | 8 GB atau lebih tinggi (rekomendasi untuk performa optimal Chromium/Electron) |
+| **Penyimpanan (Storage)** | 500 MB ruang kosong | 1 GB atau lebih (SSD direkomendasikan untuk database SQLite yang lebih cepat) |
+| **Resolusi Layar** | 1280 x 720 (HD) | 1920 x 1080 (Full HD) |
+| **Perangkat Tambahan** | Webcam / Kamera terintegrasi (opsional, untuk fitur ambil foto penerima manfaat) | Webcam eksternal resolusi HD (opsional) |
+
 ## Getting Started
 
 ### Prerequisites
