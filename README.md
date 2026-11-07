@@ -5,6 +5,7 @@
   
   [![Latest Release](https://img.shields.io/github/v/release/ZakaaGregeddd/posyandu3000?style=for-the-badge&logo=github&color=blue)](https://github.com/ZakaaGregeddd/posyandu3000/releases/latest)
   [![Download on GitHub](https://img.shields.io/badge/Download_on-GitHub-181717?style=for-the-badge&logo=github)](https://github.com/ZakaaGregeddd/posyandu3000/releases/latest)
+  [![HAKI Certified](https://img.shields.io/badge/HAKI-PDKI%20DJKI-2ea44f?style=for-the-badge&logo=shield)](https://pdki-indonesia.dgip.go.id/detail/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855)
 </div>
 
 <br />
@@ -67,3 +68,22 @@ To start the development server for the Electron desktop environment, run:
 
 ```bash
 npm run dev:desktop
+```
+
+## Hak Cipta & Kekayaan Intelektual (HAKI)
+
+Karya cipta perangkat lunak ini telah secara resmi terdaftar dan dilindungi oleh Hak Kekayaan Intelektual (HAKI) di bawah Direktorat Jenderal Kekayaan Intelektual (DJKI), Kementerian Hukum dan Hak Asasi Manusia Republik Indonesia:
+
+| Keterangan | Rincian |
+| :--- | :--- |
+| **Judul Ciptaan** | Aplikasi Posyandu Desa Tanjung Dayang Selatan |
+| **Nomor Pencatatan** | [001519082](https://pdki-indonesia.dgip.go.id/detail/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855) |
+| **Nomor Permohonan** | EC002026188110 |
+| **Tanggal Permohonan** | 1 Oktober 2026 |
+| **Tanggal Pencatatan** | 1 Oktober 2026 |
+| **Pertama Kali Diumumkan** | 22 September 2026, di Kota Palembang |
+| **Pemegang Hak Cipta** | Desty Rodiah, S.Kom., M.T |
+| **Jenis Ciptaan** | Program Komputer |
+
+> Informasi selengkapnya dapat diverifikasi secara publik melalui pangkalan data resmi [Pangkalan Data Kekayaan Intelektual (PDKI) DJKI RI](https://pdki-indonesia.dgip.go.id/detail/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855). Perlindungan Hak Cipta tunduk pada ketentuan Undang-Undang Nomor 28 Tahun 2014 tentang Hak Cipta.
+
