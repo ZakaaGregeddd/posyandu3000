@@ -7,6 +7,7 @@
 | 1.2.x   | :grey_exclamation: |
 | 1.1.x   | :grey_exclamation: |
 
+*the security update are coming soon on next version
 ## Reporting a Vulnerability
 
 We take the security of Posyandu 3000 Desktop seriously. If you believe you have found a security vulnerability in this application, please report it to us responsibly.
