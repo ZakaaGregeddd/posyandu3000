@@ -49,7 +49,7 @@ To run **Posyandu 3000** smoothly, here are the minimum and recommended hardware
 | **Operating System** | Windows 10 (64-bit) | Windows 10/11 (64-bit) |
 | **Processor (CPU)** | Intel Core i3 / AMD Ryzen 3 (Dual-core 2.0 GHz) | Intel Core i5 / AMD Ryzen 5 or higher |
 | **Memory (RAM)** | 4 GB | 8 GB or higher (recommended for optimal Chromium/Electron performance) |
-| **Storage** | 500 MB free space | 1 GB or more (SSD recommended for faster SQLite database operations) |
+| **Storage** | 1500 MB free space | 2 GB or more (SSD recommended for faster SQLite database operations) |
 | **Screen Resolution** | 1280 x 720 (HD) | 1920 x 1080 (Full HD) |
 | **Peripherals** | Built-in webcam/camera (optional, for beneficiary photo capture feature) | External HD webcam (optional) |
 
