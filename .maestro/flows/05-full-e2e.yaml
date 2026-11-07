@@ -1,0 +1,23 @@
+url: http://localhost:3000
+---
+# Full End-to-End Flow: Setup -> Tambah KK -> Cari KK
+- launchApp
+
+# Jalankan setup awal jika aplikasi baru pertama kali dibuka di sesi browser Maestro
+- runFlow:
+    when:
+      visible: "Konfigurasi Awal Aplikasi"
+    file: "01-install-setup.yaml"
+
+# Jika sudah pernah setup tapi belum login, jalankan flow login
+- runFlow:
+    when:
+      visible: "Selamat Datang"
+    file: "02-login.yaml"
+
+# Navigasi ke halaman Tambah KK dan isi data
+- runFlow: "03-tambah-kk.yaml"
+
+# Cek daftar KK dan pencarian
+- runFlow: "04-kk-terdaftar.yaml"
+

@@ -50,4 +50,7 @@ next-env.d.ts
 *.sqlite3
 *.db-journal
 *.db-wal
+.maestro-web-db.json
+/posyandu3000/
+
 

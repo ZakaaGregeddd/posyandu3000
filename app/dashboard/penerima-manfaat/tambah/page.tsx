@@ -247,6 +247,26 @@ function PenerimaManfaatForm() {
     }
   };
 
+  const generateSamplePhoto = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 400;
+    canvas.height = 250;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.fillStyle = "#FFF0F5";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#ab2c5d";
+      ctx.font = "bold 18px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("BUKTI PENYERAHAN BANTUAN", 200, 110);
+      ctx.font = "13px sans-serif";
+      ctx.fillText(`Posyandu Digital - ${tanggalDiterima}`, 200, 145);
+      setFotoBukti(canvas.toDataURL("image/png"));
+      setPhotoMode("none");
+      setError("");
+    }
+  };
+
   // File Upload Drag and Drop handlers
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -664,6 +684,17 @@ function PenerimaManfaatForm() {
                     <span className="text-xs text-on-surface-variant mt-1 block">
                       atau klik untuk mencari berkas foto dari komputer Anda
                     </span>
+                    <button
+                      id="btn_foto_contoh"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        generateSamplePhoto();
+                      }}
+                      className="relative z-10 mt-3 px-3 py-1.5 rounded-lg bg-secondary-container text-tertiary text-xs font-bold hover:bg-tertiary hover:text-white transition cursor-pointer"
+                    >
+                      Gunakan Foto Contoh
+                    </button>
                   </div>
                 </div>
               )}

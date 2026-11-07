@@ -1,0 +1,34 @@
+url: http://localhost:3000/install
+---
+# Flow 1: Setup Awal / Install Wizard Posyandu3000
+- launchApp
+
+# Step 1: Welcome Screen
+- assertVisible: "Konfigurasi Awal Aplikasi"
+- assertVisible: "Selamat Datang di Portal Kader Posyandu3000!"
+- tapOn: "Mulai Konfigurasi"
+
+# Step 2: Pilih Lokasi Penyimpanan Database
+- assertVisible: "Pilih Lokasi Penyimpanan Database"
+- tapOn: "Lanjutkan"
+
+# Step 3: Buat Akun Kader Utama
+- assertVisible: "Buat Akun Kader Utama"
+
+- tapOn:
+    id: "email"
+- inputText: "kader_posyandu"
+
+- tapOn:
+    id: "password"
+- inputText: "posyandu123"
+
+- tapOn:
+    id: "confirmPassword"
+- inputText: "posyandu123"
+
+- tapOn: "Selesaikan Setup"
+
+# Pastikan berhasil masuk ke Dashboard
+- assertVisible: "KK Terdaftar"
+

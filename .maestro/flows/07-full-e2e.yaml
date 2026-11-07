@@ -1,0 +1,29 @@
+url: http://localhost:3000
+---
+# Full End-to-End Flow: Setup -> Tambah KK ->Cari KK -> Penerima Manfaat -> Laporan PDF
+- launchApp
+
+# 1. Setup awal jika baru pertama kali dibuka
+- runFlow:
+    when:
+      visible: "Konfigurasi Awal Aplikasi"
+    file: "01-install-setup.yaml"
+
+# 2. Login jika belum masuk
+- runFlow:
+    when:
+      visible: "Selamat Datang"
+    file: "02-login.yaml"
+
+# 3. Tambah KK Baru
+- runFlow: "03-tambah-kk.yaml"
+
+# 4. Cek Daftar KK Terdaftar
+- runFlow: "04-kk-terdaftar.yaml"
+
+# 5. Catat & Lihat Penerima Manfaat
+- runFlow: "05-penerima-manfaat.yaml"
+
+# 6. Buat Pratinjau & Unduh Laporan PDF
+- runFlow: "06-laporan-pdf.yaml"
+

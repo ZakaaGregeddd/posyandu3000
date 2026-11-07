@@ -1,0 +1,23 @@
+url: http://localhost:3000/login
+---
+# Flow 2: Login ke Dashboard Posyandu3000
+- launchApp
+
+- assertVisible: "Selamat Datang"
+
+# Isi Email / Username
+- tapOn:
+    id: "email"
+- inputText: "kader_posyandu"
+
+# Isi Kata Sandi
+- tapOn:
+    id: "password"
+- inputText: "posyandu123"
+
+# Klik tombol Masuk
+- tapOn: "Masuk Ke Dashboard"
+
+# Verifikasi masuk ke halaman Dashboard
+- assertVisible: "KK Terdaftar"
+

@@ -1,0 +1,38 @@
+url: http://localhost:3000/dashboard/laporan
+---
+# Flow 6: Ekstraksi Laporan PDF untuk Semua Kategori
+- launchApp
+
+# 1. Pastikan halaman Laporan PDF terbuka
+- assertVisible: "Ekstraksi Laporan PDF"
+- assertVisible: "Pilih Kategori Data"
+
+# 2. Uji Pratinjau Laporan Kategori: Balita & Bayi
+- tapOn:
+    id: "kategori_balita"
+- tapOn:
+    id: "btn_buat_pratinjau"
+- assertVisible: "Unduh PDF"
+
+# 3. Uji Pratinjau Laporan Kategori: Lansia
+- tapOn:
+    id: "kategori_lansia"
+- tapOn:
+    id: "btn_buat_pratinjau"
+- assertVisible: "Unduh PDF"
+
+# 4. Uji Pratinjau Laporan Kategori: Ibu Hamil
+- tapOn:
+    id: "kategori_ibu_hamil"
+- tapOn:
+    id: "btn_buat_pratinjau"
+- assertVisible: "Unduh PDF"
+
+# 5. Uji Pratinjau Laporan Kategori: Penerima Manfaat & Klik Unduh PDF
+- tapOn:
+    id: "kategori_penerima_manfaat"
+- tapOn:
+    id: "btn_buat_pratinjau"
+- assertVisible: "Unduh PDF"
+- tapOn:
+    id: "btn_unduh_pdf"

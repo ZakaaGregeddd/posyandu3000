@@ -112,6 +112,7 @@ export default function LaporanPdfPage() {
             {KATEGORI_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
+                id={`kategori_${opt.value}`}
                 type="button"
                 onClick={() => handlePilihKategori(opt.value)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all cursor-pointer ${
@@ -135,6 +136,7 @@ export default function LaporanPdfPage() {
 
         <div className="flex flex-wrap items-center gap-3">
           <Button
+            id="btn_buat_pratinjau"
             onClick={handleGeneratePreview}
             disabled={isGenerating}
             className="flex items-center gap-2 cursor-pointer"
@@ -149,6 +151,7 @@ export default function LaporanPdfPage() {
 
           {previewUrl && (
             <Button
+              id="btn_unduh_pdf"
               onClick={handleDownload}
               variant="outline"
               className="flex items-center gap-2 cursor-pointer"

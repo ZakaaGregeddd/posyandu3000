@@ -1,0 +1,85 @@
+url: http://localhost:3000/dashboard/tambah-kk
+---
+# Flow 3: Tambah Data Kartu Keluarga (KK) Baru
+- launchApp
+
+# Pastikan halaman Registrasi Keluarga terbuka
+- assertVisible: "Registrasi Keluarga"
+- assertVisible: "Informasi Kartu Keluarga"
+
+# 1. Isi Informasi Kartu Keluarga
+- tapOn:
+    id: "no_kk"
+- inputText: "3201012345678901"
+
+- tapOn:
+    id: "phone"
+- inputText: "081234567890"
+
+# 2. Isi Data Ayah
+- tapOn:
+    id: "nik_ayah"
+- inputText: "3201011122334455"
+
+- tapOn:
+    id: "nama_ayah"
+- inputText: "Budi Santoso"
+
+- tapOn:
+    id: "tempat_lahir_ayah"
+- inputText: "Bandung"
+
+- tapOn:
+    id: "tgl_lahir_ayah"
+- inputText: "1990-05-15"
+
+- tapOn:
+    id: "telp_ayah"
+- inputText: "081234567891"
+
+# 3. Isi Data Ibu
+- tapOn:
+    id: "nik_ibu"
+- inputText: "3201015544332211"
+
+- tapOn:
+    id: "nama_ibu"
+- inputText: "Siti Aminah"
+
+- tapOn:
+    id: "tempat_lahir_ibu"
+- inputText: "Jakarta"
+
+- tapOn:
+    id: "tgl_lahir_ibu"
+- inputText: "1992-08-20"
+
+- tapOn:
+    id: "telp_ibu"
+- inputText: "081234567892"
+
+# 4. Isi Alamat Tinggal
+- scroll
+- tapOn:
+    id: "alamat"
+- inputText: "Jl. Melati Indah No. 12"
+
+- tapOn:
+    id: "rt"
+- inputText: "02"
+
+- tapOn:
+    id: "rw"
+- inputText: "05"
+
+# 5. Simpan Data KK
+- tapOn: "Simpan Data"
+
+# 6. Verifikasi Modal Sukses muncul & arahkan ke daftar KK
+- assertVisible: "Pendaftaran Berhasil!"
+- tapOn: "Lihat KK Terdaftar"
+
+# 7. Pastikan kembali ke halaman KK Terdaftar dan data baru tampil
+- assertVisible: "KK Terdaftar"
+- assertVisible: "3201012345678901"
+

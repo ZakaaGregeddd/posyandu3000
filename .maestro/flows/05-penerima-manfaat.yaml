@@ -1,0 +1,45 @@
+url: http://localhost:3000/dashboard/penerima-manfaat
+---
+# Flow 5: Penerima Manfaat (Catat Tanda Terima, Lihat Detail, dan Cari)
+- launchApp
+
+# 1. Pastikan halaman Penerima Manfaat terbuka
+- assertVisible: "Penerima Manfaat"
+- assertVisible: "Total Log Penerimaan"
+
+# 2. Klik tombol Catat Penerima Manfaat
+- tapOn: "Catat Penerima Manfaat"
+- assertVisible: "Catat Tanda Terima Baru"
+
+# 3. Pilih Nomor KK Terdaftar (dari KK yang sudah dibuat di flow 03)
+- tapOn: "-- Pilih Nomor KK --"
+- tapOn: "3201012345678901"
+
+# 4. Pilih NIK / Nama Penerima
+- tapOn: "-- Pilih NIK / Nama --"
+- tapOn: "Budi Santoso"
+
+# 5. Isi Rincian Barang / Catatan Penerimaan
+- tapOn:
+    id: "keterangan"
+- inputText: "Bantuan Sembako Beras 5kg & PMT Balita"
+
+# 6. Unggah / Gunakan Bukti Foto Penyerahan
+- scroll
+- tapOn: "Unggah File"
+- tapOn: "Gunakan Foto Contoh"
+
+# 7. Simpan Penerimaan
+- tapOn: "Simpan Penerimaan"
+
+# 8. Verifikasi data masuk ke tabel Penerima Manfaat
+- assertVisible: "Penerima Manfaat"
+- assertVisible: "Budi Santoso"
+- assertVisible: "Bantuan Sembako Beras 5kg & PMT Balita"
+
+# 9. Lihat Detail Tanda Terima (Modal Receipt)
+- tapOn: "Detail"
+- assertVisible: "Detail Penerima Manfaat"
+- assertVisible: "Bukti Tanda Terima Manfaat"
+- tapOn: "Tutup"
+

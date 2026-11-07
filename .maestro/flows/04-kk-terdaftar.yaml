@@ -1,0 +1,18 @@
+url: http://localhost:3000/dashboard/kk-terdaftar
+---
+# Flow 4: Cek Daftar KK, Pencarian, dan Navigasi ke Tambah KK
+- launchApp
+
+# 1. Pastikan halaman KK Terdaftar tampil
+- assertVisible: "KK Terdaftar"
+- assertVisible: "Total KK Terdaftar"
+- assertVisible: "Total Jiwa Dipantau"
+
+# 2. Coba fitur pencarian KK
+- tapOn: "Cari No KK, Kepala Keluarga, Alamat..."
+- inputText: "Budi Santoso"
+
+# 3. Klik tombol Daftar KK Baru untuk menguji navigasi
+- tapOn: "Daftar KK Baru"
+- assertVisible: "Registrasi Keluarga"
+
